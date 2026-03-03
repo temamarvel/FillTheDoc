@@ -63,7 +63,7 @@ struct CompanyDetailsFormView<T: LLMExtractable>: View {
         .onChange(of: focusedKey) { old, new in
             // DaData валидация — только для поля, которое потеряло фокус
             guard let old else { return }
-            Task { await model.validateOnFocusLost(key: old) }
+            Task { await model.validateOnFocusLost() }
         }
         .alert("Ошибка", isPresented: $showErrorAlert) {
             Button("OK", role: .cancel) {}

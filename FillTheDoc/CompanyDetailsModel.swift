@@ -105,44 +105,47 @@ final class CompanyDetailsModel<T: LLMExtractable>: ObservableObject {
     
     /// Вызывай из UI только при blur поля.
     @MainActor
-    func validateOnFocusLost(key: String) async {
-        // 0) сначала убедимся, что локальное состояние актуально
-        setValue(value(for: key), for: key)
+    func validateOnFocusLost() async {
+        // актуализируем локальные валидаторы
+        for k in orderedKeys {
+            setValue(value(for: k), for: k)
+        }
         
         let all = currentStringMap()
-        let (newRemote, msg) = await validator.validateOnFocusLost(
-            key: key,
+        
+        let (newRemote, remoteMessages) = await validator.validateOnFocusLost(
             all: all,
             remote: remoteState,
             dadata: dadata
         )
-        
         remoteState = newRemote
         
-        // Применяем только результат для этого поля (не трогаем другие)
-        guard var st = fields[key] else { return }
-        
-        if let msg {
-            // если у поля уже есть error от локальной/metadata — не понижаем до warning
-            if st.severity != .error {
-                st.message = msg.text
-                st.severity = (msg.severity == .error) ? .error : .warning
-            }
-        } else {
-            // если это поле не имеет локальных ошибок — можно очистить message
-            // но осторожно: не сносим локальные предупреждения, если они есть
-            // (тут простая логика: пересчитать local ещё раз)
-            let localMsg = validator.validateLocal(key: key, value: st.value, all: all)
+        // 1) очистить старые remote warning’и (и пересчитать local) для тех ключей, которые мы кросс-валидируем
+        let crossKeys = Set(["ogrn","inn","kpp","companyName","ceoFullName","address"])
+        for k in crossKeys {
+            guard var st = fields[k] else { continue }
+            if st.severity == .error { continue } // локальные error не затираем
+            
+            let localMsg = validator.validateLocal(key: k, value: st.value, all: all)
             if let localMsg {
                 st.message = localMsg.text
                 st.severity = (localMsg.severity == .error) ? .error : .warning
-            } else if st.severity != .error {
+            } else {
                 st.message = nil
                 st.severity = .none
             }
+            fields[k] = st
         }
         
-        fields[key] = st
+        // 2) наложить remote mismatch’и (они важнее local warning’ов)
+        for (k, msg) in remoteMessages {
+            guard var st = fields[k] else { continue }
+            if st.severity == .error { continue } // локальный error приоритетнее
+            
+            st.message = msg.text
+            st.severity = (msg.severity == .error) ? .error : .warning
+            fields[k] = st
+        }
     }
     
     // MARK: - Helpers

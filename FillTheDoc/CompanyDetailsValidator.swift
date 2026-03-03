@@ -105,45 +105,91 @@ public struct CompanyDetailsValidator: Sendable {
     /// - обновлённый RemoteState (кэш party)
     /// - сообщение для конкретного поля (если есть)
     public func validateOnFocusLost(
-        key: String,
         all: [String: String],
         remote: RemoteState,
         dadata: DaDataClient
-    ) async -> (RemoteState, FieldMessage?) {
+    ) async -> (RemoteState, [String: FieldMessage]) {
         
-        // 1) Понимаем, нужен ли вообще запрос и как искать
-        let inn = present(all["inn"])
-        let ogrn = present(all["ogrn"])
-        let kpp = present(all["kpp"])
-        let name = present(all["companyName"])
+        // 1) Достаём значения
+        let ogrnRaw = present(all["ogrn"])
+        let innRaw  = present(all["inn"])
         
-        // Поля, которые обычно “триггерят” запрос:
-        let triggersRemote = Set(["inn", "ogrn", "kpp", "companyName", "address", "ceoFullName"])
-        guard triggersRemote.contains(key) else {
-            return (remote, nil)
+        // 2) Выбираем идентификатор для запроса: ОГРН > ИНН
+        let query: Query
+        if let ogrnRaw, FormatValidators.isValidOGRN(ogrnRaw) {
+            query = .ogrn(FormatValidators.digitsOnly(ogrnRaw))
+        } else if let innRaw, FormatValidators.isValidINN(innRaw) {
+            query = .inn(FormatValidators.digitsOnly(innRaw))
+        } else {
+            // нет валидного ОГРН/ИНН — это твой явный error
+            var msgs: [String: FieldMessage] = [:]
+            
+            if ogrnRaw?.isEmpty == false, !FormatValidators.isValidOGRN(ogrnRaw!) {
+                msgs["ogrn"] = .init(.warning, "ОГРН указан, но формат/контрольная сумма некорректны.")
+            }
+            if innRaw?.isEmpty == false, !FormatValidators.isValidINN(innRaw!) {
+                msgs["inn"] = .init(.warning, "ИНН указан, но формат/контрольная сумма некорректны.")
+            }
+            
+            // ключевая ошибка (можешь повесить на оба поля или на отдельное “form”)
+            let root = FieldMessage(.error, "Для проверки по DaData укажите корректный ОГРН или ИНН.")
+            msgs["ogrn"] = msgs["ogrn"] ?? root
+            msgs["inn"]  = msgs["inn"]  ?? root
+            
+            return (remote, msgs)
         }
         
-        // 2) Запрос — только если есть достаточные данные для поиска.
-        // Приоритет: INN > OGRN > Name
+        // 3) Запрос к DaData
         var newRemote = remote
-        if shouldQueryDaData(changedKey: key, inn: inn, ogrn: ogrn, name: name, currentParty: remote.party) {
-            do {
-                let party = try await fetchParty(dadata: dadata, inn: inn, ogrn: ogrn, kpp: kpp, name: name)
-                newRemote.party = party
-            } catch {
-                // Сеть/ошибка DaData — это обычно warning, не блокирующая форма
-                return (newRemote, .init(.warning, "Не удалось проверить по DaData: \(error.localizedDescription)"))
+        do {
+            let party = try await fetchParty(dadata: dadata, query: query)
+            newRemote.party = party
+        } catch {
+            return (newRemote, [
+                query.keyForMessage: .init(.warning, "Не удалось проверить по DaData: \(error.localizedDescription)")
+            ])
+        }
+        
+        guard let party = newRemote.party else {
+            return (newRemote, [
+                query.keyForMessage: .init(.warning, "DaData не вернула организацию по указанному идентификатору.")
+            ])
+        }
+        
+        // 4) Сверяем ВСЕ поля с ответом DaData
+        let messages = crossValidateAll(all: all, party: party)
+        return (newRemote, messages)
+    }
+    
+    private enum Query {
+        case ogrn(String)
+        case inn(String)
+        
+        var keyForMessage: String {
+            switch self {
+                case .ogrn: return "ogrn"
+                case .inn:  return "inn"
+            }
+        }
+    }
+    
+    private func crossValidateAll(all: [String: String], party: DaDataParty) -> [String: FieldMessage] {
+        let keys = ["ogrn", "inn", "kpp", "companyName", "ceoFullName", "address"]
+        var result: [String: FieldMessage] = [:]
+        
+        for key in keys {
+            if let msg = crossValidateField(key: key, all: all, party: party) {
+                result[key] = msg
             }
         }
         
-        // 3) Если данных DaData нет — кросс-проверки невозможны
-        guard let party = newRemote.party else {
-            return (newRemote, nil)
+        // Дополнительно: статус ACTIVE (не привязан к полю — можешь повесить на companyName или отдельный ключ)
+        if let status = party.state?.status, !status.isEmpty, status.uppercased() != "ACTIVE" {
+            result["companyName"] = result["companyName"]
+            ?? .init(.warning, "Статус организации не ACTIVE (DaData: \(status)).")
         }
         
-        // 4) Кросс-валидация именно для конкретного поля
-        let msg = crossValidateField(key: key, all: all, party: party)
-        return (newRemote, msg)
+        return result
     }
     
     // MARK: - Cross validation (field-level) with DaData
@@ -246,31 +292,13 @@ public struct CompanyDetailsValidator: Sendable {
         return false
     }
     
-    private func fetchParty(
-        dadata: DaDataClient,
-        inn: String?,
-        ogrn: String?,
-        kpp: String?,
-        name: String?
-    ) async throws -> DaDataParty? {
-        // Подстрой под твой реальный API клиент.
-        // Идея: пробуем найти строго по inn/ogrn, иначе — suggest по name.
-        
-        if let inn, FormatValidators.isValidINN(inn) {
-            let digits = FormatValidators.digitsOnly(inn)
-            return try await dadata.findPartyFirst(innOrOgrn: digits)?.data
+    private func fetchParty(dadata: DaDataClient, query: Query) async throws -> DaDataParty? {
+        switch query {
+            case .ogrn(let ogrn):
+                return try await dadata.findPartyFirst(innOrOgrn: ogrn)?.data
+            case .inn(let inn):
+                return try await dadata.findPartyFirst(innOrOgrn: inn)?.data
         }
-        
-        if let ogrn, FormatValidators.isValidOGRN(ogrn) {
-            let digits = FormatValidators.digitsOnly(ogrn)
-            return try await dadata.findPartyFirst(innOrOgrn: digits)?.data
-        }
-        
-//        if let name, name.count >= 3 {
-//            return try await dadata.suggestAddressFirst(query: name).
-//        }
-        
-        return nil
     }
     
     // MARK: - Helpers
