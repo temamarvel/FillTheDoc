@@ -195,6 +195,8 @@ public struct CompanyDetailsValidator: Sendable {
     // MARK: - Cross validation (field-level) with DaData
     
     private func crossValidateField(key: String, all: [String: String], party: DaDataParty) -> FieldMessage? {
+        
+        //TODO: use field name from data object
         switch key {
             case "inn":
                 guard let llmINN = present(all["inn"]) else { return nil }
