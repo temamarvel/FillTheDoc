@@ -8,7 +8,7 @@
 import SwiftUI
 import Shimmer
 
-struct AIWaitingIndicator: View {
+struct AIWaitingIndicatorView: View {
     var size: CGFloat = 160
     
     var body: some View {
@@ -30,6 +30,6 @@ struct AIWaitingIndicator: View {
 }
 
 #Preview {
-    AIWaitingIndicator()
+    AIWaitingIndicatorView()
         .frame(width: 300, height: 300)
 }
