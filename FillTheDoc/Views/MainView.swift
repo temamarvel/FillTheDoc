@@ -171,10 +171,11 @@ struct MainView: View {
 //                "form": "ООО"
 //            }
 //            """
-                let openAIClient = OpenAIClient(apiKey: apiKeyStore.apiKey ?? "", model: "gpt-4o-mini")
                 
-                let system = PromptBuilder.system(for: CompanyDetails.self)
-                let user = PromptBuilder.user(sourceText: extractedResult.text)
+                //TODO: real request to openai
+//                let openAIClient = OpenAIClient(apiKey: apiKeyStore.apiKey ?? "", model: "gpt-4o-mini")
+//                let system = PromptBuilder.system(for: CompanyDetails.self)
+//                let user = PromptBuilder.user(sourceText: extractedResult.text)
                 
 //                let (reqs, status) = try await openAIClient.request(
 //                    system: system,
@@ -228,10 +229,12 @@ struct MainView: View {
                 let suggestion = try await client.fetchCompanyInfoFirts(innOrOgrn: "6900026362")
                 
                 let companyInfo = suggestion?.data
-                print(companyInfo)
-                print(companyInfo?.name?.fullWithOpf)
-                print(companyInfo?.management?.name)
-                print(companyInfo?.state?.status)
+                if let companyInfo {
+                    print(companyInfo)
+                    print(companyInfo.name?.fullWithOpf ?? "nil")
+                    print(companyInfo.management?.name ?? "nil")
+                    print(companyInfo.state?.status ?? "nil")
+                }
                 
                 let tempOutURL = makeTempOutputURL(from: templateURL!)
                 

@@ -8,32 +8,32 @@
 
 import Foundation
 
-struct FieldMetadata: Sendable {
+struct FieldMetadata {
     let title: String
     let placeholder: String
-    let normalizer: @Sendable (String) -> String
-    let validator: @Sendable (String) -> String?   // return error text or nil
+    let normalizer: (String) -> String
+    let validator: (String) -> String?   // return error text or nil
 }
 
 enum FieldRules {
 
     // MARK: - Normalizers
 
-    static func trim(_ s: String) -> String {
+    nonisolated static func trim(_ s: String) -> String {
         s.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    static func digitsOnly(_ s: String) -> String {
+    nonisolated static func digitsOnly(_ s: String) -> String {
         String(s.unicodeScalars.filter { CharacterSet.decimalDigits.contains($0) })
     }
 
-    static func lowercased(_ s: String) -> String {
+    nonisolated static func lowercased(_ s: String) -> String {
         trim(s).lowercased()
     }
 
     // MARK: - Validators
 
-    static func optional(_ validate: @escaping @Sendable (String) -> String?) -> @Sendable (String) -> String? {
+    nonisolated static func optional(_ validate: @escaping (String) -> String?) -> (String) -> String? {
         { raw in
             let v = trim(raw)
             guard !v.isEmpty else { return nil }
@@ -41,7 +41,7 @@ enum FieldRules {
         }
     }
 
-    static func lengthIn(_ allowed: Set<Int>, label: String) -> @Sendable (String) -> String? {
+    static func lengthIn(_ allowed: Set<Int>, label: String) -> (String) -> String? {
         { value in
             guard allowed.contains(value.count) else {
                 let list = allowed.sorted().map(String.init).joined(separator: " или ")
@@ -51,7 +51,7 @@ enum FieldRules {
         }
     }
 
-    static func email() -> @Sendable (String) -> String? {
+    static func email() -> (String) -> String? {
         { value in
             // NSDataDetector на macOS работает нормально, быстрее и надёжнее большинства regex.
             let range = NSRange(value.startIndex..<value.endIndex, in: value)
@@ -66,7 +66,7 @@ enum FieldRules {
         }
     }
 
-    static func legalForm() -> @Sendable (String) -> String? {
+    static func legalForm() -> (String) -> String? {
         { value in
             let allowed: Set<String> = ["ООО","ИП","АО","ПАО","НКО","ГУП","МУП"]
             return allowed.contains(value) ? nil : "Допустимые значения: \(allowed.sorted().joined(separator: ", "))"

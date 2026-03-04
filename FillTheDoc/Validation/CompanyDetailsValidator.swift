@@ -330,7 +330,7 @@ public struct CompanyDetailsValidator: Sendable {
                 
             case .inn:
                 guard let llmINN = present(all[.inn]) else { return nil }
-                let apiINN = companyInfo.inn.map(FormatValidators.digitsOnly)
+                let apiINN = companyInfo.inn.map{FormatValidators.digitsOnly($0)}
                 if let apiINN, apiINN != FormatValidators.digitsOnly(llmINN) {
                     return .init(.error, "ИНН не совпадает с DaData.")
                 }
@@ -338,7 +338,7 @@ public struct CompanyDetailsValidator: Sendable {
                 
             case .kpp:
                 guard let llmKPP = present(all[.kpp]) else { return nil }
-                if let apiKPP = companyInfo.kpp.map(FormatValidators.digitsOnly),
+                if let apiKPP = companyInfo.kpp.map({FormatValidators.digitsOnly($0)}),
                    apiKPP != FormatValidators.digitsOnly(llmKPP) {
                     return .init(.warning, "КПП не совпадает с DaData.")
                 }
@@ -346,7 +346,7 @@ public struct CompanyDetailsValidator: Sendable {
                 
             case .ogrn:
                 guard let llmOGRN = present(all[.ogrn]) else { return nil }
-                if let apiOGRN = companyInfo.ogrn.map(FormatValidators.digitsOnly),
+                if let apiOGRN = companyInfo.ogrn.map({FormatValidators.digitsOnly($0)}),
                    apiOGRN != FormatValidators.digitsOnly(llmOGRN) {
                     return .init(.warning, "ОГРН/ОГРНИП не совпадает с DaData.")
                 }
