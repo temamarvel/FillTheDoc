@@ -166,7 +166,7 @@ public struct CompanyDetailsValidator: Sendable {
         if let query {
             // 3) fetch по идентификатору, который пользователь “подтвердил” уходом с поля
             do {
-                let companyInfo = try await fetchParty(dadata: dadata, query: query)
+                let companyInfo = try await fetchCompanyInfo(dadata: dadata, query: query)
                 newRemote.companyInfo = companyInfo
             } catch {
                 remoteMessages[query.field] = .init(.warning, "Не удалось проверить по DaData: \(error.localizedDescription)")
@@ -181,9 +181,9 @@ public struct CompanyDetailsValidator: Sendable {
             // 4) cross-validate ВСЕ релевантные поля по свежему party
             remoteMessages = crossValidateAll(all: all, companyInfo: companyInfo)
             return (newRemote, merge(local: localChanged, remote: remoteMessages))
-        } else if let party = newRemote.companyInfo {
+        } else if let companyInfo = newRemote.companyInfo {
             // 3b) сеть не дергаем, но можем подсветить расхождения относительно закешированного party
-            remoteMessages = crossValidateAll(all: all, companyInfo: party)
+            remoteMessages = crossValidateAll(all: all, companyInfo: companyInfo)
             return (newRemote, merge(local: localChanged, remote: remoteMessages))
         } else {
             // 3c) нет валидного запроса и нет кеша — только local
@@ -234,7 +234,7 @@ public struct CompanyDetailsValidator: Sendable {
         
         var newRemote = remote
         do {
-            let companyInfo = try await fetchParty(dadata: dadata, query: query)
+            let companyInfo = try await fetchCompanyInfo(dadata: dadata, query: query)
             newRemote.companyInfo = companyInfo
         } catch {
             return (newRemote, [
@@ -402,7 +402,7 @@ public struct CompanyDetailsValidator: Sendable {
         }
     }
     
-    private func fetchParty(dadata: DaDataClient, query: Query) async throws -> DaDataCompanyInfo? {
+    private func fetchCompanyInfo(dadata: DaDataClient, query: Query) async throws -> DaDataCompanyInfo? {
         switch query {
             case .ogrn(let ogrn):
                 return try await dadata.fetchCompanyInfoFirts(innOrOgrn: ogrn)?.data
