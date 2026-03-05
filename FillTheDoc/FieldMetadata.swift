@@ -12,7 +12,7 @@ struct FieldMetadata {
     let title: String
     let placeholder: String
     let normalizer: (String) -> String
-    let validator: (String) -> String?   // return error text or nil
+    let validator: (String) -> Bool   // return error text or nil
 }
 
 enum FieldRules {
@@ -82,50 +82,50 @@ extension CompanyDetails {
             normalizer: FieldRules.trim,
             validator: { v in
                 let t = FieldRules.trim(v)
-                return t.isEmpty ? "Название обязательно." : nil
+                return !t.isEmpty
             }
         ),
         .inn: .init(
             title: "ИНН",
             placeholder: "10/12 цифр",
             normalizer: { FieldRules.digitsOnly(FieldRules.trim($0)) },
-            validator: { _ in nil }
+            validator: { inn in FormatValidators.isValidINN(inn) }
         ),
         .kpp: .init(
             title: "КПП",
             placeholder: "9 цифр",
             normalizer: { FieldRules.digitsOnly(FieldRules.trim($0)) },
-            validator: { _ in nil }
+            validator: { kpp in FormatValidators.isValidKPP(kpp) }
         ),
         .ogrn: .init(
             title: "ОГРН/ОГРНИП",
             placeholder: "13/15 цифр",
             normalizer: { FieldRules.digitsOnly(FieldRules.trim($0)) },
-            validator: { _ in nil }
+            validator: { ogrn in FormatValidators.isValidOGRN(ogrn) }
         ),
         .ceoFullName: .init(
             title: "Руководитель",
             placeholder: "Иванов Иван Иванович",
             normalizer: FieldRules.trim,
-            validator: { _ in nil }
+            validator: { _ in true }
         ),
         .ceoShortenName: .init(
             title: "Руководитель (кратко)",
             placeholder: "Иванов И.И.",
             normalizer: FieldRules.trim,
-            validator: { _ in nil }
+            validator: { _ in true }
         ),
         .legalForm: .init(
             title: "Правовая форма",
             placeholder: "ООО / АО / ИП",
             normalizer: FieldRules.trim,
-            validator: { _ in nil }
+            validator: { _ in true }
         ),
         .email: .init(
             title: "Email",
             placeholder: "example@domain.com",
             normalizer: FieldRules.trim,
-            validator: FieldRules.optional(FieldRules.email())
+            validator: { _ in true }
         )
     ]
 }

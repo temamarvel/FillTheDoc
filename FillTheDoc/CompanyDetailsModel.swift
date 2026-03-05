@@ -173,9 +173,8 @@ final class CompanyDetailsModel: ObservableObject {
     /// meta validator (FieldMetadata) > validator.validateLocal
     private func localMessage(for key: Key, value: String, all: [Key: String]) -> FieldMessage? {
         // 1) metadata validator (обычно самый “жёсткий”)
-        if let metaError = (metadata[key]?.validator ?? { _ in nil })(value),
-           !metaError.isEmpty {
-            return .init(.error, metaError)
+        if  (metadata[key]?.validator ?? { _ in false })(value){
+            return .init(.error, "metaError") //TODO
         }
         
         // 2) validator local
