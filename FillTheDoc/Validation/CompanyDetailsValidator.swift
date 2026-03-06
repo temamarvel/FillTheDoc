@@ -96,6 +96,9 @@ public struct CompanyDetailsValidator: Sendable {
         dadata: DaDataClient
     ) async -> (RemoteState, [Key: FieldMessage]) {
         
+        //TODO refactoring remote validation
+        
+        
         // 0) Нормализация входа (trim)
         let all = normalizedAll(rawAll)
         

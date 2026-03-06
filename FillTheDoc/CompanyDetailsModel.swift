@@ -53,8 +53,7 @@ final class CompanyDetailsModel: ObservableObject {
         self.fields = f
         
         // initial local pass
-        validateFieldValues(fieldValues: currentFieldValues)
-        applyMergedMessagesToFieldStates()
+        validateAllFields()
     }
     
     // MARK: - Field access (для UI)
@@ -100,9 +99,8 @@ final class CompanyDetailsModel: ObservableObject {
         applyMergedMessagesToFieldStates()
     }
     
-    func validateAllLocal() {
-        let all = currentFieldValues
-        validateFieldValues(fieldValues: all)
+    func validateAllFields() {
+        validateFieldValues(fieldValues: currentFieldValues)
         applyMergedMessagesToFieldStates()
     }
     
@@ -112,7 +110,7 @@ final class CompanyDetailsModel: ObservableObject {
     func validateOnFocusLost(changed key: Key) async {
         // 1) гарантируем актуальный local (и meta validator тоже)
         //    (можно оптимизировать до пересчёта только key, но обычно на blur ок)
-        validateAllLocal()
+        validateAllFields()
         
         let all = currentFieldValues
         
@@ -132,7 +130,7 @@ final class CompanyDetailsModel: ObservableObject {
     
     /// Иногда удобно дергать “общую” проверку (как раньше), если blur-key не прокинут.
     func validateOnFocusLost() async {
-        validateAllLocal()
+        validateAllFields()
         
         let all = currentFieldValues
         let (newRemote, remote) = await validator.validateOnFocusLost(
@@ -149,7 +147,7 @@ final class CompanyDetailsModel: ObservableObject {
     // MARK: - Build DTO
     
     func buildDTO(allowWithErrors: Bool = false) throws -> CompanyDetails {
-        validateAllLocal()
+        validateAllFields()
         if hasErrors && !allowWithErrors {
             // если у тебя есть свой тип ошибки — подставь его
             // throw ValidationError.hasErrors
