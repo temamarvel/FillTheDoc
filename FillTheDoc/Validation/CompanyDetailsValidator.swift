@@ -29,7 +29,7 @@ public struct FieldState: Sendable, Equatable {
 //    }
 //}
 
-public struct CompanyDetailsValidator: Sendable {
+public final class CompanyDetailsValidator: Sendable {
     
     public typealias Key = CompanyDetails.CodingKeys
     
@@ -116,7 +116,7 @@ public struct CompanyDetailsValidator: Sendable {
     
     
     
-    public mutating func validateOnFocusLost(fields: [Key: FieldState]) async -> [Key: FieldState] {
+    public func validateOnFocusLost(fields: [Key: FieldState]) async -> [Key: FieldState] {
         //fields have to be normalized and not null before validation
         
         let ogrn = fields[.ogrn]?.value
@@ -243,141 +243,141 @@ public struct CompanyDetailsValidator: Sendable {
     /// Возвращает:
     /// - updated RemoteState (кэш DaDataParty)
     /// - merged messages (local + remote) по понятной политике
-    public func validateOnFocusLost(
-        changed field: Key,
-        all rawAll: [Key: String],
-        remote: RemoteState,
-        dadata: DaDataClient
-    ) async -> (RemoteState, [Key: FieldMessage]) {
-        
-        //TODO refactoring remote validation
-        
-        
-        // 0) Нормализация входа (trim)
-        let all = normalizedAll(rawAll)
-        
-        // 1) Local messages (только для changed поля — обычно этого достаточно на blur)
-        //    Если хочешь — можешь заменить на validateLocalAll(all:) для “всей формы”.
-        let localChanged: [Key: FieldMessage] = {
-            if let msg = validateField(for: field, value: all[field] ?? "") {
-                return [field: msg]
-            }
-            return [:]
-        }()
-        
-        // 2) Решаем: нужен ли запрос в DaData?
-        //    - Если blur был на INN/OGRN: и значение валидное → делаем fetch
-        //    - Иначе: если party уже есть в remote → не дергаем сеть, просто cross-validate по кешу
-        //    - Иначе: ничего не делаем (remote пуст)
-        let query: Query?
-        switch field {
-            case .ogrn:
-                if let ogrn = present(all[.ogrn]), FormatValidators.isValidOGRN(ogrn).state == .pass {
-                    query = .ogrn(FormatValidators.digitsOnly(ogrn))
-                } else {
-                    query = nil
-                }
-            case .inn:
-                if let inn = present(all[.inn]), FormatValidators.isValidINN(inn).state == .pass {
-                    query = .inn(FormatValidators.digitsOnly(inn))
-                } else {
-                    query = nil
-                }
-            default:
-                query = nil
-        }
-        
-        var newRemote = remote
-        var remoteMessages: [Key: FieldMessage] = [:]
-        
-        if let query {
-            // 3) fetch по идентификатору, который пользователь “подтвердил” уходом с поля
-            do {
-                let companyInfo = try await fetchCompanyInfo(dadata: dadata, query: query)
-                newRemote.companyInfo = companyInfo
-            } catch {
-                remoteMessages[query.field] = .init(.warning, "Не удалось проверить по DaData: \(error.localizedDescription)")
-                return (newRemote, merge(local: localChanged, remote: remoteMessages))
-            }
-            
-            guard let companyInfo = newRemote.companyInfo else {
-                remoteMessages[query.field] = .init(.warning, "DaData не вернула организацию по указанному идентификатору.")
-                return (newRemote, merge(local: localChanged, remote: remoteMessages))
-            }
-            
-            // 4) cross-validate ВСЕ релевантные поля по свежему party
-            remoteMessages = crossValidateAll(all: all, companyInfo: companyInfo)
-            return (newRemote, merge(local: localChanged, remote: remoteMessages))
-        } else if let companyInfo = newRemote.companyInfo {
-            // 3b) сеть не дергаем, но можем подсветить расхождения относительно закешированного party
-            remoteMessages = crossValidateAll(all: all, companyInfo: companyInfo)
-            return (newRemote, merge(local: localChanged, remote: remoteMessages))
-        } else {
-            // 3c) нет валидного запроса и нет кеша — только local
-            //      ВАЖНО: тут специально не добавляю “root error” на INN/OGRN,
-            //      потому что это blur ЛЮБОГО поля, и твой UX не должен “ругаться”
-            //      если пользователь еще не дошел до INN/OGRN.
-            return (newRemote, localChanged)
-        }
-    }
+//    public func validateOnFocusLost(
+//        changed field: Key,
+//        all rawAll: [Key: String],
+//        remote: RemoteState,
+//        dadata: DaDataClient
+//    ) async -> (RemoteState, [Key: FieldMessage]) {
+//        
+//        //TODO refactoring remote validation
+//        
+//        
+//        // 0) Нормализация входа (trim)
+//        let all = normalizedAll(rawAll)
+//        
+//        // 1) Local messages (только для changed поля — обычно этого достаточно на blur)
+//        //    Если хочешь — можешь заменить на validateLocalAll(all:) для “всей формы”.
+//        let localChanged: [Key: FieldMessage] = {
+//            if let msg = validateField(for: field, value: all[field] ?? "") {
+//                return [field: msg]
+//            }
+//            return [:]
+//        }()
+//        
+//        // 2) Решаем: нужен ли запрос в DaData?
+//        //    - Если blur был на INN/OGRN: и значение валидное → делаем fetch
+//        //    - Иначе: если party уже есть в remote → не дергаем сеть, просто cross-validate по кешу
+//        //    - Иначе: ничего не делаем (remote пуст)
+//        let query: Query?
+//        switch field {
+//            case .ogrn:
+//                if let ogrn = present(all[.ogrn]), FormatValidators.isValidOGRN(ogrn).state == .pass {
+//                    query = .ogrn(FormatValidators.digitsOnly(ogrn))
+//                } else {
+//                    query = nil
+//                }
+//            case .inn:
+//                if let inn = present(all[.inn]), FormatValidators.isValidINN(inn).state == .pass {
+//                    query = .inn(FormatValidators.digitsOnly(inn))
+//                } else {
+//                    query = nil
+//                }
+//            default:
+//                query = nil
+//        }
+//        
+//        var newRemote = remote
+//        var remoteMessages: [Key: FieldMessage] = [:]
+//        
+//        if let query {
+//            // 3) fetch по идентификатору, который пользователь “подтвердил” уходом с поля
+//            do {
+//                let companyInfo = try await fetchCompanyInfo(dadata: dadata, query: query)
+//                newRemote.companyInfo = companyInfo
+//            } catch {
+//                remoteMessages[query.field] = .init(.warning, "Не удалось проверить по DaData: \(error.localizedDescription)")
+//                return (newRemote, merge(local: localChanged, remote: remoteMessages))
+//            }
+//            
+//            guard let companyInfo = newRemote.companyInfo else {
+//                remoteMessages[query.field] = .init(.warning, "DaData не вернула организацию по указанному идентификатору.")
+//                return (newRemote, merge(local: localChanged, remote: remoteMessages))
+//            }
+//            
+//            // 4) cross-validate ВСЕ релевантные поля по свежему party
+//            remoteMessages = crossValidateAll(all: all, companyInfo: companyInfo)
+//            return (newRemote, merge(local: localChanged, remote: remoteMessages))
+//        } else if let companyInfo = newRemote.companyInfo {
+//            // 3b) сеть не дергаем, но можем подсветить расхождения относительно закешированного party
+//            remoteMessages = crossValidateAll(all: all, companyInfo: companyInfo)
+//            return (newRemote, merge(local: localChanged, remote: remoteMessages))
+//        } else {
+//            // 3c) нет валидного запроса и нет кеша — только local
+//            //      ВАЖНО: тут специально не добавляю “root error” на INN/OGRN,
+//            //      потому что это blur ЛЮБОГО поля, и твой UX не должен “ругаться”
+//            //      если пользователь еще не дошел до INN/OGRN.
+//            return (newRemote, localChanged)
+//        }
+//    }
     
     /// Backward-compatible overload (если пока не хочешь прокидывать changed-key из UI)
     /// Логика как у тебя была: OGRN > INN, иначе возвращаем ошибку на оба.
-    public func validateOnFocusLost(
-        all rawAll: [Key: String],
-        remote: RemoteState,
-        dadata: DaDataClient
-    ) async -> (RemoteState, [Key: FieldMessage]) {
-        
-        let all = normalizedAll(rawAll)
-        
-        let ogrnRaw = present(all[.ogrn])
-        let innRaw  = present(all[.inn])
-        
-        let query: Query?
-        if let ogrnRaw, FormatValidators.isValidOGRN(ogrnRaw).state == .pass {
-            query = .ogrn(FormatValidators.digitsOnly(ogrnRaw))
-        } else if let innRaw, FormatValidators.isValidINN(innRaw).state == .pass {
-            query = .inn(FormatValidators.digitsOnly(innRaw))
-        } else {
-            // Твой старый “root error” режим:
-            var msgs: [Key: FieldMessage] = [:]
-            
-            if ogrnRaw?.isEmpty == false, !(FormatValidators.isValidOGRN(ogrnRaw!).state == .pass) {
-                msgs[.ogrn] = .init(.warning, "ОГРН указан, но формат/контрольная сумма некорректны.")
-            }
-            if innRaw?.isEmpty == false, !(FormatValidators.isValidINN(innRaw!).state == .pass) {
-                msgs[.inn] = .init(.warning, "ИНН указан, но формат/контрольная сумма некорректны.")
-            }
-            
-            let root = FieldMessage(.error, "Для проверки по DaData укажите корректный ОГРН или ИНН.")
-            msgs[.ogrn] = msgs[.ogrn] ?? root
-            msgs[.inn]  = msgs[.inn]  ?? root
-            
-            return (remote, merge(local: [:], remote: msgs))
-        }
-        
-        guard let query else { return (remote, [:]) }
-        
-        var newRemote = remote
-        do {
-            let companyInfo = try await fetchCompanyInfo(dadata: dadata, query: query)
-            newRemote.companyInfo = companyInfo
-        } catch {
-            return (newRemote, [
-                query.field: .init(.warning, "Не удалось проверить по DaData: \(error.localizedDescription)")
-            ])
-        }
-        
-        guard let companyInfo = newRemote.companyInfo else {
-            return (newRemote, [
-                query.field: .init(.warning, "DaData не вернула организацию по указанному идентификатору.")
-            ])
-        }
-        
-        let remoteMessages = crossValidateAll(all: all, companyInfo: companyInfo)
-        return (newRemote, remoteMessages)
-    }
+//    public func validateOnFocusLost(
+//        all rawAll: [Key: String],
+//        remote: RemoteState,
+//        dadata: DaDataClient
+//    ) async -> (RemoteState, [Key: FieldMessage]) {
+//        
+//        let all = normalizedAll(rawAll)
+//        
+//        let ogrnRaw = present(all[.ogrn])
+//        let innRaw  = present(all[.inn])
+//        
+//        let query: Query?
+//        if let ogrnRaw, FormatValidators.isValidOGRN(ogrnRaw).state == .pass {
+//            query = .ogrn(FormatValidators.digitsOnly(ogrnRaw))
+//        } else if let innRaw, FormatValidators.isValidINN(innRaw).state == .pass {
+//            query = .inn(FormatValidators.digitsOnly(innRaw))
+//        } else {
+//            // Твой старый “root error” режим:
+//            var msgs: [Key: FieldMessage] = [:]
+//            
+//            if ogrnRaw?.isEmpty == false, !(FormatValidators.isValidOGRN(ogrnRaw!).state == .pass) {
+//                msgs[.ogrn] = .init(.warning, "ОГРН указан, но формат/контрольная сумма некорректны.")
+//            }
+//            if innRaw?.isEmpty == false, !(FormatValidators.isValidINN(innRaw!).state == .pass) {
+//                msgs[.inn] = .init(.warning, "ИНН указан, но формат/контрольная сумма некорректны.")
+//            }
+//            
+//            let root = FieldMessage(.error, "Для проверки по DaData укажите корректный ОГРН или ИНН.")
+//            msgs[.ogrn] = msgs[.ogrn] ?? root
+//            msgs[.inn]  = msgs[.inn]  ?? root
+//            
+//            return (remote, merge(local: [:], remote: msgs))
+//        }
+//        
+//        guard let query else { return (remote, [:]) }
+//        
+//        var newRemote = remote
+//        do {
+//            let companyInfo = try await fetchCompanyInfo(dadata: dadata, query: query)
+//            newRemote.companyInfo = companyInfo
+//        } catch {
+//            return (newRemote, [
+//                query.field: .init(.warning, "Не удалось проверить по DaData: \(error.localizedDescription)")
+//            ])
+//        }
+//        
+//        guard let companyInfo = newRemote.companyInfo else {
+//            return (newRemote, [
+//                query.field: .init(.warning, "DaData не вернула организацию по указанному идентификатору.")
+//            ])
+//        }
+//        
+//        let remoteMessages = crossValidateAll(all: all, companyInfo: companyInfo)
+//        return (newRemote, remoteMessages)
+//    }
     
     // MARK: - Merge policy: local + remote
     

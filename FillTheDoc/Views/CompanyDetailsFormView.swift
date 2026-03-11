@@ -71,7 +71,7 @@ struct CompanyDetailsFormView: View {
         // blur обработчик: отправляем changed=old
         .onChange(of: focusedKey) { old, new in
             guard let lost = old, lost != new else { return }
-            Task { await model.validateOnFocusLost(changed: lost) }
+            Task { await model.validateOnFocusLost() }
         }
         
         .alert("Ошибка", isPresented: $showErrorAlert) {
