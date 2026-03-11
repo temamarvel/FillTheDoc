@@ -1,6 +1,34 @@
 import Foundation
 import DaDataAPIClient
 
+public struct FieldState: Sendable, Equatable {
+    var value : String
+    var errorMessage: String?
+    var isValid: Bool {
+        errorMessage == nil
+    }
+}
+
+//struct CompanyInfoCache: Sendable {
+//    public typealias Key = CompanyDetails.CodingKeys
+//    
+//    private var storage: [Key: DaDataCompanyInfo] = [:]
+//    
+//    func value(for key: LookupKey) -> CompanyInfo? {
+//        storage[key]
+//    }
+//    
+//    mutating func insert(_ companyInfo: CompanyInfo) {
+//        if let inn = normalizedDigits(companyInfo.inn) {
+//            storage[.inn(inn)] = companyInfo
+//        }
+//        
+//        if let ogrn = normalizedDigits(companyInfo.ogrn) {
+//            storage[.ogrn(ogrn)] = companyInfo
+//        }
+//    }
+//}
+
 public struct CompanyDetailsValidator: Sendable {
     
     public typealias Key = CompanyDetails.CodingKeys
@@ -53,9 +81,13 @@ public struct CompanyDetailsValidator: Sendable {
     }
     
     private let policy: Policy
+    private let dadataClient: DaDataClient
+    private var cache: [String: DaDataCompanyInfo] //TODO maybe not good to use String as key
     
-    public init(policy: Policy = .init()) {
+    public init(dadataClient: DaDataClient, policy: Policy = .init()) {
         self.policy = policy
+        self.dadataClient = dadataClient
+        self.cache = [:]
     }
     
     // MARK: - Local validation (no network)
@@ -72,14 +104,61 @@ public struct CompanyDetailsValidator: Sendable {
     }
     
     /// Удобный хелпер: прогнать local-валидацию по всем полям и вернуть словарь сообщений.
-    public func validateLocalAll(all: [Key: String]) -> [Key: FieldMessage] {
-        var result: [Key: FieldMessage] = [:]
-        for key in Key.allCases {
-            if let msg = validateField(for: key, value: all[key] ?? "") {
-                result[key] = msg
+//    public func validateAllFields(all: [Key: String]) -> [Key: FieldMessage] {
+//        var result: [Key: FieldMessage] = [:]
+//        for key in Key.allCases {
+//            if let msg = validateField(for: key, value: all[key] ?? "") {
+//                result[key] = msg
+//            }
+//        }
+//        return result
+//    }
+    
+    
+    
+    public mutating func validateOnFocusLost(
+        validate fields: [Key: FieldState],
+    ) async -> [Key: FieldState] {
+        //fields have to be normalized and not null before validation
+        
+        let ogrn = fields[.ogrn]?.value
+        let inn = fields[.inn]?.value
+        
+        // MARK: get dadata company info
+        let dadataCompanyInfo: DaDataCompanyInfo?
+        do{
+            let identifier = ogrn ?? inn
+            
+            guard let identifier else {
+                return fields
+            }
+            
+            if let cached = cache[identifier] {
+                dadataCompanyInfo = cached
+            } else {
+                dadataCompanyInfo = try await dadataClient.fetchCompanyInfoFirts(innOrOgrn: identifier)?.data
+                if let dadataCompanyInfo {
+                    if let fetchedOgrn = dadataCompanyInfo.ogrn {
+                        cache[fetchedOgrn] = dadataCompanyInfo
+                    }
+                    if let fetchedInn = dadataCompanyInfo.inn {
+                        cache[fetchedInn] = dadataCompanyInfo
+                    }
+                }
             }
         }
-        return result
+        catch{
+            
+        }
+        
+        guard let dadataCompanyInfo else {
+            return fields //TODO
+        }
+        
+        // MARK: validate all fields using dadata info
+        
+        
+        
     }
     
     // MARK: - Remote validation on focus lost (may call DaData)
