@@ -2,7 +2,7 @@ import Foundation
 import DaDataAPIClient
 
 public struct FieldState: Sendable, Equatable {
-    var value : String
+    var value : String?
     var errorMessage: String?
     var isValid: Bool {
         errorMessage == nil
@@ -116,16 +116,14 @@ public struct CompanyDetailsValidator: Sendable {
     
     
     
-    public mutating func validateOnFocusLost(
-        validate fields: [Key: FieldState],
-    ) async -> [Key: FieldState] {
+    public mutating func validateOnFocusLost(fields: [Key: FieldState]) async -> [Key: FieldState] {
         //fields have to be normalized and not null before validation
         
         let ogrn = fields[.ogrn]?.value
         let inn = fields[.inn]?.value
         
         // MARK: get dadata company info
-        let dadataCompanyInfo: DaDataCompanyInfo?
+        var dadataCompanyInfo: DaDataCompanyInfo? = nil
         do{
             let identifier = ogrn ?? inn
             
@@ -157,9 +155,86 @@ public struct CompanyDetailsValidator: Sendable {
         
         // MARK: validate all fields using dadata info
         
+        var resultFields = fields
         
+        for (key, state) in fields {
+            let msg = crossValidateField(fieldKey: key, state: state, companyInfo: dadataCompanyInfo)?.text
+            resultFields[key]?.errorMessage = msg
+        }
         
+        return resultFields
     }
+    
+    
+    
+    
+    
+    private func crossValidateField(fieldKey: Key, state: FieldState, companyInfo: DaDataCompanyInfo) -> FieldMessage? {
+        switch fieldKey {
+            case .inn:
+                guard let llmINN = state.value else { return nil }
+                let apiINN = companyInfo.inn.map{FormatValidators.digitsOnly($0)}
+                if let apiINN, apiINN != FormatValidators.digitsOnly(llmINN) {
+                    return .init(.error, "ИНН не совпадает с DaData.")
+                }
+                return nil
+                
+            case .kpp:
+                guard let llmKPP = state.value else { return nil }
+                if let apiKPP = companyInfo.kpp.map({FormatValidators.digitsOnly($0)}),
+                   apiKPP != FormatValidators.digitsOnly(llmKPP) {
+                    return .init(.warning, "КПП не совпадает с DaData.")
+                }
+                return nil
+                
+            case .ogrn:
+                guard let llmOGRN = state.value else { return nil }
+                if let apiOGRN = companyInfo.ogrn.map({FormatValidators.digitsOnly($0)}),
+                   apiOGRN != FormatValidators.digitsOnly(llmOGRN) {
+                    return .init(.warning, "ОГРН/ОГРНИП не совпадает с DaData.")
+                }
+                return nil
+                
+            case .companyName:
+                guard let llmName = state.value else { return nil }
+                
+                let apiName =
+                companyInfo.name?.fullWithOpf
+                ?? companyInfo.name?.shortWithOpf
+                ?? companyInfo.name?.full
+                ?? companyInfo.name?.short
+                
+                guard let apiName else { return nil }
+                
+                let sim = TextNormalization.jaccard(llmName, apiName)
+                let contains = TextNormalization.containsNormalized(llmName, apiName)
+                
+                if !(contains || sim >= policy.nameSimilarityThreshold) {
+                    return .init(.warning, "Название слабо похоже на DaData (sim=\(String(format: "%.2f", sim))).")
+                }
+                return nil
+                
+            case .ceoFullName:
+                guard let llmCEO = state.value else { return nil }
+                if let apiCEO = companyInfo.management?.name, !apiCEO.isEmpty {
+                    let sim = TextNormalization.jaccard(llmCEO, apiCEO)
+                    let contains = TextNormalization.containsNormalized(llmCEO, apiCEO)
+                    if !(contains || sim >= 0.70) {
+                        return .init(.warning, "ФИО руководителя слабо похоже на DaData (sim=\(String(format: "%.2f", sim))).")
+                    }
+                }
+                return nil
+                
+                // сейчас не кросс-валидируем
+            case .legalForm, .ceoShortenName, .email:
+                return nil
+        }
+    }
+    
+    
+    
+    
+    
     
     // MARK: - Remote validation on focus lost (may call DaData)
     
@@ -379,7 +454,6 @@ public struct CompanyDetailsValidator: Sendable {
     
     private func crossValidateField(field: Key, all: [Key: String], companyInfo: DaDataCompanyInfo) -> FieldMessage? {
         switch field {
-                
             case .inn:
                 guard let llmINN = present(all[.inn]) else { return nil }
                 let apiINN = companyInfo.inn.map{FormatValidators.digitsOnly($0)}

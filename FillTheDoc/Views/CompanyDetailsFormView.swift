@@ -31,7 +31,7 @@ struct CompanyDetailsFormView: View {
     ) {
         let token = Bundle.main.infoDictionary?["DADATA_TOKEN"] as? String ?? "N_T"
         let client = DaDataClient(configuration: .init(token: token))
-        let validator = CompanyDetailsValidator()
+        let validator = CompanyDetailsValidator(dadataClient: client)
         
         _model = StateObject(
             wrappedValue: CompanyDetailsModel(
