@@ -105,17 +105,6 @@ final class CompanyDetailsModel: ObservableObject {
     
     // MARK: - Helpers
     
-    private var currentFieldValues: [Key: String] {
-        var result: [Key: String] = [:]
-        result.reserveCapacity(allFieldKeys.count)
-        
-        for k in allFieldKeys {
-            result[k] = fields[k]?.value ?? ""
-        }
-        
-        return result
-    }
-    
     private static func dtoToMap(_ dto: CompanyDetails) -> [Key: String] {
         [
             .companyName: dto.companyName ?? "",
