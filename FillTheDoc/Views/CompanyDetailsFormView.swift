@@ -119,7 +119,7 @@ struct CompanyDetailsFormView: View {
     // MARK: - Styles
     
     private func borderColor(for message: CompanyDetailsValidator.FieldMessage?) -> Color {
-        guard let message,  let severity = message.severity else {
+        guard let message, let severity = message.severity else {
             return .clear
         }
         
@@ -140,14 +140,13 @@ struct CompanyDetailsFormView: View {
     }
     
     private func messageColor(for message: CompanyDetailsValidator.FieldMessage?) -> Color {
-        guard let message else {
+        guard let message, let severity = message.severity else {
             return .clear
         }
         
-        switch message.severity {
+        switch severity {
             case .error: return .red
             case .warning: return .orange
-            case .none: return .secondary
         }
     }
 }
