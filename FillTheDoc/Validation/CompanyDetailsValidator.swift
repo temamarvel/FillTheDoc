@@ -127,7 +127,15 @@ public final class CompanyDetailsValidator: Sendable {
         
         for (key, state) in fields {
             let msg = crossValidateField(fieldKey: key, state: state, companyInfo: dadataCompanyInfo)
-            resultFields[key]?.message = msg
+            
+            guard let msg else { continue }
+            
+            if resultFields[key]?.message == nil {
+                resultFields[key]?.message = msg
+            }
+            else {
+                resultFields[key]?.message?.warning = msg.warning
+            }
         }
         
         return resultFields
