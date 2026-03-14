@@ -50,67 +50,66 @@ struct CompanyDetailsFormView: View {
     ]
     
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
-                
-                ForEach(model.keysInOrder(), id: \.self) { key in
-                    if let state = model.fields[key] {
-                        fieldRow(key: key, state: state)
-                    }
+        Form {
+            ForEach(model.keysInOrder(), id: \.self) { key in
+                if let state = model.fields[key] {
+                    fieldRow(key: key, state: state)
                 }
-                
-                HStack {
-                    Spacer()
-                    Button("Применить") {
-                        do {
-                            let dto = try model.buildResult()
-                            onApply(dto)
-                        } catch {
-                            errorText = error.localizedDescription
-                            showErrorAlert = true
-                        }
-                    }
-                    .disabled(model.hasErrors)
-                    .keyboardShortcut(.defaultAction)
-                }
-                .gridCellColumns(2)   // кнопка занимает обе колонки
-                .padding(.top, 8)
             }
-            .padding()
+            
+            HStack {
+                Spacer()
+                Button("Применить") {
+                    do {
+                        let dto = try model.buildResult()
+                        onApply(dto)
+                    } catch {
+                        errorText = error.localizedDescription
+                        showErrorAlert = true
+                    }
+                }
+                .disabled(model.hasErrors)
+                .keyboardShortcut(.defaultAction)
+            }
+            .padding(.top, 8)
         }
+        .formStyle(.grouped)
         .onChange(of: focusedKey) { old, new in
             guard let lost = old, lost != new else { return }
             Task { await model.validateFieldsWithReference() }
         }
         .alert("Ошибка", isPresented: $showErrorAlert) {
-            Button("OK", role: .cancel) {}
+            Button("OK", role: .cancel) { }
         } message: {
             Text(errorText)
         }
+        .animation(.easeInOut(duration: 0.15), value: model.fields)
     }
-
     
     @ViewBuilder
-    private func fieldRow(key: Key, state: FieldState) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(model.title(for: key))
-                .font(.subheadline.weight(.medium))
-            
-            TextField(model.placeholder(for: key), text: binding(for: key))
-                .focused($focusedKey, equals: key)
-                .textFieldStyle(.roundedBorder)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .strokeBorder(borderColor(for: state.message), lineWidth: borderWidth(for: state.message))
-                )
-            
-            if let msg = model.message(for: key), let txt = msg.text, !txt.isEmpty {
-                Text(txt)
-                    .font(.caption)
-                    .foregroundStyle(messageColor(for: state.message))
+    private func fieldRow(key: CompanyDetailsModel.Key, state: FieldState) -> some View {
+        //VStack(alignment: .leading, spacing: 6) {
+        VStack() {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(model.title(for: key))
+                    .frame(width: 160, alignment: .leading)
+                
+                TextField(model.placeholder(for: key), text: binding(for: key), prompt: Text(model.placeholder(for: key)))
+                    .focused($focusedKey, equals: key)
+                    .background(.red.opacity(0.3))
             }
+            
+            
+            if let message = model.message(for: key)?.text {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+                    
         }
-        .padding(.vertical, 4)
+        //.padding(.vertical, 4)
+        //.padding(.vertical, 4)
     }
     
     // MARK: - Binding
