@@ -44,38 +44,44 @@ struct CompanyDetailsFormView: View {
         self.onApply = onApply
     }
     
+    var columns: [GridItem] = [
+        GridItem(.flexible(), spacing: 16),
+        GridItem(.flexible(), spacing: 16)
+    ]
+    
     var body: some View {
-        List {
-            ForEach(model.keysInOrder(), id: \.self) { key in
-                if let state = model.fields[key] {
-                    fieldRow(key: key, state: state)
-                }
-            }
-            
-            HStack {
-                Spacer()
-                Button("Применить") {
-                    do {
-                        let dto = try model.buildResult()
-                        onApply(dto)
-                    } catch {
-                        errorText = error.localizedDescription
-                        showErrorAlert = true
+        ScrollView {
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
+                
+                ForEach(model.keysInOrder(), id: \.self) { key in
+                    if let state = model.fields[key] {
+                        fieldRow(key: key, state: state)
                     }
                 }
-                .disabled(model.hasErrors)
-                .keyboardShortcut(.defaultAction)
+                
+                HStack {
+                    Spacer()
+                    Button("Применить") {
+                        do {
+                            let dto = try model.buildResult()
+                            onApply(dto)
+                        } catch {
+                            errorText = error.localizedDescription
+                            showErrorAlert = true
+                        }
+                    }
+                    .disabled(model.hasErrors)
+                    .keyboardShortcut(.defaultAction)
+                }
+                .gridCellColumns(2)   // кнопка занимает обе колонки
+                .padding(.top, 8)
             }
-            .padding(.top, 8)
+            .padding()
         }
-        .formStyle(.grouped)
-        
-        // blur обработчик: отправляем changed=old
         .onChange(of: focusedKey) { old, new in
             guard let lost = old, lost != new else { return }
             Task { await model.validateFieldsWithReference() }
         }
-        
         .alert("Ошибка", isPresented: $showErrorAlert) {
             Button("OK", role: .cancel) {}
         } message: {

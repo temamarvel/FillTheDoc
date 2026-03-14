@@ -32,15 +32,15 @@ struct MainView: View {
             Text("Заполнение документа")
                 .font(.title2.weight(.semibold))
             
-            VStack(spacing: 16) {
+            
+            HStack(spacing: 16) {
                 DropZoneCardView(
                     title: "Шаблон (DOCX)",
                     isValid: isTemplateValid,
                     path: $templatePath,
                     onDropURLs: { urls in
                         if let url = urls.first { templatePath = url.path }
-                    },
-                    heightToContent: true
+                    }
                 )
                 
                 DropZoneCardView(
@@ -50,24 +50,17 @@ struct MainView: View {
                     onDropURLs: { urls in
                         if let url = urls.first { detailsPath = url.path }
                         extractDetails()
-                    },
-                    heightToContent: false
-                ){
-//                    if let text = detailsText {
-//                        Text(text)
-//                            .font(.caption)
-//                            .foregroundColor(.secondary)
-//                    }
-                    
-                    if let details = details {
-                        CompanyDetailsFormView(
-                            companyDetails: details,
-                            metadata: CompanyDetails.fieldMetadata
-                        ) { updated in
-                            // updated — уже struct Requisites
-                            self.details = updated
-                        }
                     }
+                )
+            }
+            
+            if let details = details {
+                CompanyDetailsFormView(
+                    companyDetails: details,
+                    metadata: CompanyDetails.fieldMetadata
+                ) { updated in
+                    // updated — уже struct Requisites
+                    self.details = updated
                 }
             }
             
