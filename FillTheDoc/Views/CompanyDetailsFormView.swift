@@ -69,6 +69,9 @@ struct CompanyDetailsFormView: View {
             .padding(.top, 8)
         }
         .formStyle(.grouped)
+        .onAppear(){
+            model.validateAllFields()
+        }
         .onChange(of: focusedKey) { old, new in
             guard let lost = old, lost != new else { return }
             Task { await model.validateFieldsWithReference() }

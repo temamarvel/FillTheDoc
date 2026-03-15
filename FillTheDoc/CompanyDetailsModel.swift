@@ -77,6 +77,16 @@ final class CompanyDetailsModel: ObservableObject {
         fields = await validator.validateFieldsWithReference(fields: fields)
     }
     
+    func validateAllFields(){
+        for key in keysInOrder() {
+            if var fieldState = fields[key] {
+                fieldState.message = validateField(for: key, state: fieldState)
+                fields[key] = fieldState
+            }
+        }
+        
+    }
+    
     // MARK: - Build DTO
     
     func buildResult() throws -> CompanyDetails {

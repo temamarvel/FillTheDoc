@@ -178,7 +178,12 @@ struct MainView: View {
                 
                 // симуляция
                 try await Task.sleep(nanoseconds: 2_200_000_000)
-                let reqs = CompanyDetails(companyName: "Тест компания", legalForm: "ТЕСТ_ЗАО", ceoFullName: "Тест Тестович Тестов", ceoShortenName: "Тестов Т. Т.", ogrn: "1187746707280", inn: "9731007287", kpp: "773101001", email: "test_test@test.com")
+                
+                //MARK: valid test data
+//                let reqs = CompanyDetails(companyName: "Тест компания", legalForm: "ТЕСТ_ЗАО", ceoFullName: "Тест Тестович Тестов", ceoShortenName: "Тестов Т. Т.", ogrn: "1187746707280", inn: "9731007287", kpp: "773101001", email: "test_test@test.com")
+                
+                //MARK: invalid test data
+                let reqs = CompanyDetails(companyName: "Тест компания", legalForm: "ТЕСТ_ЗАО", ceoFullName: "Тест Тестович Тестов", ceoShortenName: "Тестов Т. Т.", ogrn: "11877467072801", inn: "97310107287", kpp: "7731010101", email: "test_test@test.com")
                 
                 let dtoText = reqs.toMultilineString()
                 details = reqs
