@@ -16,13 +16,13 @@ struct CompanyDetailsFormView: View {
     typealias Key = CompanyDetails.CodingKeys
     
     @StateObject private var model: CompanyDetailsModel
-    let onApply: (CompanyDetails) -> Void
     
     @State private var showErrorAlert = false
     @State private var errorText = ""
     
-    // типизированный фокус
     @FocusState private var focusedKey: Key?
+    
+    let onApply: (CompanyDetails) -> Void
     
     init(
         companyDetails: CompanyDetails,
@@ -43,11 +43,6 @@ struct CompanyDetailsFormView: View {
         )
         self.onApply = onApply
     }
-    
-    var columns: [GridItem] = [
-        GridItem(.flexible(), spacing: 16),
-        GridItem(.flexible(), spacing: 16)
-    ]
     
     var body: some View {
         Form {
@@ -88,28 +83,39 @@ struct CompanyDetailsFormView: View {
     
     @ViewBuilder
     private func fieldRow(key: CompanyDetailsModel.Key, state: FieldState) -> some View {
-        //VStack(alignment: .leading, spacing: 6) {
-        VStack() {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text(model.title(for: key))
-                    .frame(width: 160, alignment: .leading)
-                
-                TextField(model.placeholder(for: key), text: binding(for: key), prompt: Text(model.placeholder(for: key)))
+        
+        let message = state.message
+        
+        HStack(alignment: .firstTextBaseline) {
+            Text(model.title(for: key))
+            
+            VStack(alignment: .trailing) {
+                TextField("", text: binding(for: key), prompt: Text(model.placeholder(for: key)))
                     .focused($focusedKey, equals: key)
-                    .background(.red.opacity(0.3))
+                
+                
+                if let message = message?.text {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
             }
-            
-            
-            if let message = model.message(for: key)?.text {
-                Text(message)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+            .background {
+                if message?.severity != nil {
+                    LinearGradient(
+                        colors: [
+                            .clear,
+                            messageColor(for: model.message(for: key)).opacity(0.10),
+                            .red.opacity(0.22)
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                }
             }
-                    
+            .animation(.easeInOut(duration: 0.25), value: model.hasErrors)
         }
-        //.padding(.vertical, 4)
-        //.padding(.vertical, 4)
     }
     
     // MARK: - Binding
@@ -117,31 +123,8 @@ struct CompanyDetailsFormView: View {
     private func binding(for key: Key) -> Binding<String> {
         Binding(
             get: { model.value(for: key) },
-            set: { model.setValue($0, for: key) } // local внутри
+            set: { model.setValue($0, for: key) }
         )
-    }
-    
-    // MARK: - Styles
-    
-    private func borderColor(for message: CompanyDetailsValidator.FieldMessage?) -> Color {
-        guard let message, let severity = message.severity else {
-            return .clear
-        }
-        
-        switch severity {
-            case .error:
-                return .red.opacity(0.85)
-            case .warning:
-                return .orange.opacity(0.75)
-        }
-    }
-    
-    private func borderWidth(for message: CompanyDetailsValidator.FieldMessage?) -> CGFloat {
-        guard let message else {
-            return 0
-        }
-        
-        return message.severity == nil ? 0 : 1
     }
     
     private func messageColor(for message: CompanyDetailsValidator.FieldMessage?) -> Color {
