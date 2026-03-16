@@ -28,4 +28,18 @@ public struct CompanyDetails: Decodable, LLMExtractable {
         case email
         case address
     }
+    
+    subscript(key: CodingKeys) -> String? {
+        switch key {
+            case .companyName: return companyName
+            case .legalForm: return legalForm
+            case .ceoFullName: return ceoFullName
+            case .ceoShortenName: return ceoShortenName
+            case .ogrn: return ogrn
+            case .inn: return inn
+            case .kpp: return kpp
+            case .email: return email
+            case .address: return address
+        }
+    }
 }

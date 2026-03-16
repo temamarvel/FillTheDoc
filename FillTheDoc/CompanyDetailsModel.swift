@@ -37,10 +37,9 @@ final class CompanyDetailsModel: ObservableObject {
     }
     
     private static func createFields(companyDetails: CompanyDetails, allFieldKeys: [Key]) -> [Key: FieldState] {
-        let dtoMap = Self.dtoToMap(companyDetails)
         var fields: [Key: FieldState] = [:]
         for key in allFieldKeys {
-            let fieldValue = dtoMap[key]
+            let fieldValue = companyDetails[key]
             fields[key] = FieldState(value: fieldValue, message: nil)
         }
         return fields
@@ -117,20 +116,6 @@ final class CompanyDetailsModel: ObservableObject {
     
     
     // MARK: - Helpers
-    
-    private static func dtoToMap(_ dto: CompanyDetails) -> [Key: String] {
-        [
-            .companyName: dto.companyName ?? "",
-            .legalForm: dto.legalForm ?? "",
-            .ceoFullName: dto.ceoFullName ?? "",
-            .ceoShortenName: dto.ceoShortenName ?? "",
-            .ogrn: dto.ogrn ?? "",
-            .inn: dto.inn ?? "",
-            .kpp: dto.kpp ?? "",
-            .email: dto.email ?? "",
-            .address: dto.address ?? ""
-        ]
-    }
     
     private func present(_ s: String?) -> String? {
         guard let s else { return nil }
