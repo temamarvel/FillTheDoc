@@ -108,7 +108,11 @@ public final class DocxTemplatePlaceholderScanner: ObservableObject, Sendable {
             }
         }
         
-        guard let archive = Archive(url: template, accessMode: .read) else {
+        let archive: Archive
+        
+        do {
+            archive = try Archive(url: template, accessMode: .read)
+        } catch {
             throw Error.invalidDocx
         }
         
