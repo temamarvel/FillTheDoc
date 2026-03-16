@@ -1,13 +1,13 @@
 {
-  "originHash" : "d6349ff452e6081d0600cbfad27a04efd927eded1dfb179ec579577451e8522f",
+  "originHash" : "c3814d5983ad067c3615a2cde17f16c17b9568ae0b303f6ddf46820043f00447",
   "pins" : [
     {
       "identity" : "dadataapiclient",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/temamarvel/DaDataAPIClient.git",
       "state" : {
-        "branch" : "main",
-        "revision" : "0d0e1d3b82155ce39238a2e388134f11cba1bded"
+        "revision" : "0d0e1d3b82155ce39238a2e388134f11cba1bded",
+        "version" : "0.0.1"
       }
     },
     {
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/temamarvel/OpenAIClient.git",
       "state" : {
-        "branch" : "main",
-        "revision" : "510772133748193ab2f645c85743bb4ca4d9c385"
+        "revision" : "510772133748193ab2f645c85743bb4ca4d9c385",
+        "version" : "0.0.1"
       }
     },
     {
