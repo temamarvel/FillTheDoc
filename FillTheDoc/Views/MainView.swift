@@ -6,6 +6,7 @@ import OpenAIClient
 struct MainView: View {
     @EnvironmentObject private var apiKeyStore: APIKeyStore
     @EnvironmentObject private var replacer: DocxPlaceholderReplacer
+    @EnvironmentObject private var scaner: DocxTemplatePlaceholderScanner
     
     @State private var templatePath: String = ""
     @State private var detailsPath: String = ""
@@ -18,6 +19,8 @@ struct MainView: View {
     @State private var showExporter: Bool = false
     @State private var exportDocument: DocxFileDocument?
     @State private var exportDefaultFilename: String = "output"
+    
+    @State private var templatePlaceholders: [String] = [ ]
     
     private var templateURL: URL? { url(from: templatePath) }
     private var detailsURL: URL? { url(from: detailsPath) }
@@ -40,6 +43,7 @@ struct MainView: View {
                     path: $templatePath,
                     onDropURLs: { urls in
                         if let url = urls.first { templatePath = url.path }
+                        scanPlaceholders()
                     }
                 )
                 
@@ -141,6 +145,16 @@ struct MainView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: isLoading)
+    }
+    
+    private func scanPlaceholders(){
+        if let templateURL = templateURL {
+            do {
+                templatePlaceholders = try scaner.scanKeys(template: templateURL)
+            } catch {
+                
+            }
+        }
     }
     
     private func extractDetails(){
