@@ -104,7 +104,8 @@ final class CompanyDetailsModel: ObservableObject {
             ogrn: present(value(for: .ogrn)),
             inn: present(value(for: .inn)),
             kpp: present(value(for: .kpp)),
-            email: present(value(for: .email))
+            email: present(value(for: .email)),
+            address: present(value(for: .address))
         )
     }
     
@@ -126,7 +127,8 @@ final class CompanyDetailsModel: ObservableObject {
             .ogrn: dto.ogrn ?? "",
             .inn: dto.inn ?? "",
             .kpp: dto.kpp ?? "",
-            .email: dto.email ?? ""
+            .email: dto.email ?? "",
+            .address: dto.address ?? ""
         ]
     }
     

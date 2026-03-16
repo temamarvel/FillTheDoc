@@ -158,7 +158,8 @@ private struct PreviewWrapper: View {
         ogrn: "1234567890123",
         inn: "7701234567",
         kpp: "770101001",
-        email: "info@romashka.ru"
+        email: "info@romashka.ru",
+        address: "ТЕСТ Адрес"
     )
     
     var body: some View {

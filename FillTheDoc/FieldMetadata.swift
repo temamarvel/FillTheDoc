@@ -126,6 +126,12 @@ extension CompanyDetails {
             placeholder: "example@domain.com",
             normalizer: FieldRules.trim,
             validator: { _ in FieldValidationResult(.pass, "email ок") }
+        ),
+        .address: .init(
+            title: "Адрес",
+            placeholder: "город, улица, дом",
+            normalizer: FieldRules.trim,
+            validator: { _ in FieldValidationResult(.pass, "адрес ок") }
         )
     ]
 }

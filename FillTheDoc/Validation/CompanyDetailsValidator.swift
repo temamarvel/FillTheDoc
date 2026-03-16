@@ -202,6 +202,9 @@ public final class CompanyDetailsValidator: Sendable {
                 // сейчас не кросс-валидируем
             case .legalForm, .ceoShortenName, .email:
                 return nil
+                // TODO: address
+            case .address:
+                return nil
         }
     }
 
