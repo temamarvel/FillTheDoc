@@ -239,28 +239,10 @@ struct MainView: View {
         defer { isLoading = false  }
         
         do {
-            let values: [String: String] = [
-                "company_name": "ООО «Ромашка»",
-                "ceo_full_name": "Иванов Иван Иванович",
-                "inn": "7701234567"
-            ]
+            let values = details?.asDictionary() as? [String: String]
             
-            print(Bundle.main.infoDictionary?["DADATA_TOKEN"] as? String ?? "N_T")
-            
-            let token = Bundle.main.infoDictionary?["DADATA_TOKEN"] as? String ?? "N_T"
-            
-            let client = DaDataClient(
-                configuration: .init(token: token)
-            )
-            
-            let suggestion = try await client.fetchCompanyInfoFirts(innOrOgrn: "6900026362")
-            
-            let companyInfo = suggestion?.data
-            if let companyInfo {
-                print(companyInfo)
-                print(companyInfo.name?.fullWithOpf ?? "nil")
-                print(companyInfo.management?.name ?? "nil")
-                print(companyInfo.state?.status ?? "nil")
+            guard let values = values else {
+                return
             }
             
             let tempOutURL = makeTempOutputURL(from: templateURL!)
