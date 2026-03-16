@@ -61,9 +61,14 @@ struct MainView: View {
             
             Group {
                 if let details {
+                    let keys = templatePlaceholders.compactMap {
+                        CompanyDetails.CodingKeys(rawValue: $0)
+                    }
+                    
                     CompanyDetailsFormView(
                         companyDetails: details,
-                        metadata: CompanyDetails.fieldMetadata
+                        metadata: CompanyDetails.fieldMetadata,
+                        keys: keys
                     ) { updated in
                         self.details = updated
                     }

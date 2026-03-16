@@ -27,6 +27,7 @@ struct CompanyDetailsFormView: View {
     init(
         companyDetails: CompanyDetails,
         metadata: [Key: FieldMetadata],
+        keys: [Key],
         onApply: @escaping (CompanyDetails) -> Void
     ) {
         let token = Bundle.main.infoDictionary?["DADATA_TOKEN"] as? String ?? "N_T"
@@ -162,7 +163,8 @@ private struct PreviewWrapper: View {
     var body: some View {
         CompanyDetailsFormView(
             companyDetails: requisites,
-            metadata: CompanyDetails.fieldMetadata
+            metadata: CompanyDetails.fieldMetadata,
+            keys: [.companyName, .legalForm, .ceoFullName, .ceoShortenName, .ogrn, .inn, .kpp, .email]
         ) { updated in
             requisites = updated
         }
