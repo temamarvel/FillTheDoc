@@ -16,6 +16,8 @@ struct CompanyDetailsFormView: View {
     
     @State private var showErrorAlert = false
     @State private var errorText = ""
+    @State private var discount = ""
+    @State private var minDiscount = ""
     
     @FocusState private var focusedKey: Key?
     
@@ -43,13 +45,124 @@ struct CompanyDetailsFormView: View {
         self.onApply = onApply
     }
     
+    private var discountError: String? {
+        validateNumericRequired(discount)
+    }
+    
+    private var minDiscountError: String? {
+        validateNumericRequired(minDiscount)
+    }
+    
+    private func validateNumericRequired(_ value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        if trimmed.isEmpty {
+            return "Поле обязательно для заполнения"
+        }
+        
+        if !trimmed.allSatisfy(\.isNumber) {
+            return "Разрешены только цифры"
+        }
+        
+        guard let number = Int(trimmed) else {
+            return "Некорректное число"
+        }
+        
+        if number < 0 || number > 100 {
+            return "Значение должно быть от 0 до 100"
+        }
+        
+        return nil
+    }
+    
     var body: some View {
-        Form {
-            ForEach(model.keysInOrder(), id: \.self) { key in
-                if let state = model.fields[key] {
-                    fieldRow(key: key, state: state)
+        VStack{
+            HStack{
+                LabeledContent {
+                    VStack(alignment: .trailing){
+                        TextField("10%", text: $discount)
+                            .multilineTextAlignment(.trailing)
+                            .textFieldStyle(.plain)
+                        
+                        if let discountError = discountError {
+                            Text(discountError)
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
+                    }
+                } label: {
+                    Text("Discount")
+                }
+                .padding(4)
+                .background {
+                    ZStack{
+                        Rectangle().fill(.ultraThinMaterial)
+                        
+                        if discountError != nil {
+                            LinearGradient(
+                                colors: [
+                                    .clear,
+                                    .red.opacity(0.10),
+                                    .red.opacity(0.22)
+                                ],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        }
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                }
+                
+                LabeledContent {
+                    VStack(alignment: .trailing){
+                        TextField("10 руб", text: $minDiscount)
+                            .multilineTextAlignment(.trailing)
+                            .textFieldStyle(.plain)
+                        
+                        if let minDiscountError = minDiscountError {
+                            Text(minDiscountError)
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
+                    }
+                } label: {
+                    Text("Min Discount")
+                }.padding(4)
+                    .background {
+                        ZStack{
+                            Rectangle().fill(.ultraThinMaterial)
+                            
+                            if discountError != nil {
+                                LinearGradient(
+                                    colors: [
+                                        .clear,
+                                        .red.opacity(0.10),
+                                        .red.opacity(0.22)
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            }
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                    }
+            }
+            .animation(.easeInOut(duration: 0.15), value: discountError)
+            .animation(.easeInOut(duration: 0.15), value: minDiscountError)
+                
+            Divider()
+            
+            Form {
+                ForEach(model.keysInOrder(), id: \.self) { key in
+                    if let state = model.fields[key] {
+                        fieldRow(key: key, state: state)
+                    }
                 }
             }
+            
+            Divider()
             
             HStack {
                 Spacer()
@@ -65,7 +178,6 @@ struct CompanyDetailsFormView: View {
                 .disabled(model.hasErrors)
                 .keyboardShortcut(.defaultAction)
             }
-            .padding(.top, 8)
         }
         .formStyle(.grouped)
         .onAppear(){
