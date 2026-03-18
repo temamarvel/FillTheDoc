@@ -204,6 +204,16 @@ public final class CompanyDetailsValidator: Sendable {
                 return nil
                 // TODO: address
             case .address:
+                guard let llmAddress = state.value else { return nil }
+                
+                if let apiAddress = companyInfo.address?.value, !apiAddress.isEmpty {
+                    let sim = TextNormalization.jaccard(llmAddress, apiAddress)
+                    let contains = TextNormalization.containsNormalized(llmAddress, apiAddress)
+                    if !(contains || sim >= 0.70) {
+                        return FieldMessage(error: nil, warning: "Адрес слабо похож на DaData \(apiAddress) (sim=\(String(format: "%.2f", sim))).")
+                    }
+                }
+                
                 return nil
         }
     }

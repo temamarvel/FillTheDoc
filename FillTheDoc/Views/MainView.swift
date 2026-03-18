@@ -211,7 +211,31 @@ struct MainView: View {
                 try await Task.sleep(nanoseconds: 2_200_000_000)
                 
                 // MARK: valid test data
-                                let reqs = CompanyDetails(companyName: "Тест компания", legalForm: "ТЕСТ_ЗАО", ceoFullName: "Тест Тестович Тестов", ceoShortenName: "Тестов Т. Т.", ogrn: "1187746707280", inn: "9731007287", kpp: "773101001", email: "test_test@test.com", address: "Город, ул. Улица, д. 8")
+                var reqs = CompanyDetails(companyName: "Тест компания", legalForm: "ТЕСТ_ЗАО", ceoFullName: "Тест Тестович Тестов", ceoShortenName: "Тестов Т. Т.", ogrn: "1187746707280", inn: "9731007287", kpp: "773101001", email: "test_test@test.com", address: """
+                                          город Москва, ул Горбунова, д. 2 стр. 3
+                                          """)
+                
+                let token = Bundle.main.infoDictionary?["DADATA_TOKEN"] as? String ?? "N_T"
+                let client = DaDataClient(configuration: .init(token: token))
+                
+                if let address = reqs.address {
+                    let normalizedAddres = try await client.suggestAddressFirst(query: address)
+                    if let na = normalizedAddres?.value {
+                        let updated = CompanyDetails(
+                            companyName: reqs.companyName,
+                            legalForm: reqs.legalForm,
+                            ceoFullName: reqs.ceoFullName,
+                            ceoShortenName: reqs.ceoShortenName,
+                            ogrn: reqs.ogrn,
+                            inn: reqs.inn,
+                            kpp: reqs.kpp,
+                            email: reqs.email,
+                            address: na
+                        )
+                        
+                        reqs = updated
+                    }
+                }
                 
                 //MARK: invalid test data
 //                let reqs = CompanyDetails(companyName: "Тест компания", legalForm: "ТЕСТ_ЗАО", ceoFullName: "Тест Тестович Тестов", ceoShortenName: "Тестов Т. Т.", ogrn: "11877467072801", inn: "97310107287", kpp: "7731010101", email: "test_test@test.com", address: "Город, ул. Улица, д. 8")
