@@ -18,7 +18,7 @@ final class GoogleSheetsRowBuilder: GoogleSheetsRowBuilding {
     
     func makeRow(from data: DocumentData) -> String {
         let values: [String] = [
-            sanitize("\(data.companyDetails?.legalForm) \(data.companyDetails?.companyName)"),   // Наименование
+            sanitize(data.companyDetails?.fullCompanyName),   // Наименование
             sanitize(data.companyDetails?.ceoFullName),   // ФИО
             sanitize(data.companyDetails?.inn),           // ИНН
             "",                                           // Телефон компании

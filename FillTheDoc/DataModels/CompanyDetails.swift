@@ -17,6 +17,8 @@ public struct CompanyDetails: Decodable, LLMExtractable {
     let email: String?
     let address: String?
     
+    var fullCompanyName: String  { "\(legalForm ?? "") \(companyName ?? "")"}
+    
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case companyName = "company_name"
         case legalForm = "legal_form"
