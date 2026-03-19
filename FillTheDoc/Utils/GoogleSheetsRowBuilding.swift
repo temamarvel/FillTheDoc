@@ -1,36 +1,39 @@
+//
+//  GoogleSheetsRowBuilding.swift
+//  FillTheDoc
+//
+//  Created by Артем Денисов on 19.03.2026.
+//
+
+
 import Foundation
 import AppKit
 
-struct GoogleSheetsField: Identifiable {
-    let id = UUID()
-    let title: String
-    let value: String
+protocol GoogleSheetsRowBuilding {
+    func makeRow(from data: DocumentData) -> String
+    func copyToPasteboard(_ row: String)
 }
 
-final class GoogleSheetsRowBuilder {
-    
-    func makeFields(from data: DocumentData) -> [GoogleSheetsField] {
-        [
-            .init(title: "Наименование", value: sanitize("\(data.companyDetails?.legalForm) \(data.companyDetails?.companyName)")),
-            .init(title: "ФИО", value: sanitize(data.companyDetails?.ceoFullName)),
-            .init(title: "ИНН", value: sanitize(data.companyDetails?.inn)),
-            .init(title: "Телефон компании", value: ""),
-            .init(title: "E-mail Компании", value: sanitize(data.companyDetails?.email)),
-            .init(title: "Номер договора", value: ""),
-            .init(title: "Дата договора", value: ""),
-            .init(title: "Расч.счет", value: ""),
-            .init(title: "%", value: sanitize(data.discount)),
-            .init(title: "Min", value: sanitize(data.minDiscount)),
-            .init(title: "Прямые выплаты", value: ""),
-            .init(title: "МП. Карты", value: ""),
-            .init(title: "МП. СБП", value: "")
-        ]
-    }
+final class GoogleSheetsRowBuilder: GoogleSheetsRowBuilding {
     
     func makeRow(from data: DocumentData) -> String {
-        makeFields(from: data)
-            .map(\.value)
-            .joined(separator: "\t")
+        let values: [String] = [
+            sanitize("\(data.companyDetails?.legalForm) \(data.companyDetails?.companyName)"),   // Наименование
+            sanitize(data.companyDetails?.ceoFullName),   // ФИО
+            sanitize(data.companyDetails?.inn),           // ИНН
+            "",                                           // Телефон компании
+            sanitize(data.companyDetails?.email),         // E-mail Компании
+            "",                                           // Номер договора
+            "",                                           // Дата договора
+            "",                                           // Расч.счет
+            sanitize(data.discount),                      // %
+            sanitize(data.minDiscount),                   // Min
+            "",                                           // Прямые выплаты
+            "",                                           // МП. Карты
+            ""                                            // МП. СБП
+        ]
+        
+        return values.joined(separator: "\t")
     }
     
     func copyToPasteboard(_ row: String) {

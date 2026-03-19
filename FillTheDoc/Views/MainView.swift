@@ -15,7 +15,7 @@ struct MainView: View {
     @State private var details: CompanyDetails? = nil
     @State private var documentData: DocumentData? = nil
     
-    @State private var googleSheetsRow: [GoogleSheetsField] = []
+    @State private var googleSheetsRow: String = ""
     @State private var googleSheetsCopyStatus: String? = nil
     
     @State private var isLoading: Bool = false
@@ -73,11 +73,10 @@ struct MainView: View {
             Group {
                 if !googleSheetsRow.isEmpty {
                     GoogleSheetsRowPreview(
-                        fields: googleSheetsRow,
+                        row: googleSheetsRow,
                         status: googleSheetsCopyStatus
                     ) {
-                        // TODO: make it Ok
-                        //googleSheetsRowBuilder.copyToPasteboard(googleSheetsRow)
+                        googleSheetsRowBuilder.copyToPasteboard(googleSheetsRow)
                         googleSheetsCopyStatus = "Строка снова скопирована"
                     }
                 } else {
@@ -305,7 +304,7 @@ struct MainView: View {
             guard let documentData = documentData else { return }
             
             let row = googleSheetsRowBuilder.makeRow(from: documentData)
-            googleSheetsRow = googleSheetsRowBuilder.makeFields(from: documentData)
+            googleSheetsRow = row
             googleSheetsRowBuilder.copyToPasteboard(row)
             googleSheetsCopyStatus = "Строка для Google Sheets скопирована в буфер обмена"
             

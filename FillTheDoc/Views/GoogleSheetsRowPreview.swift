@@ -1,43 +1,33 @@
+//
+//  GoogleSheetsRowPreview.swift
+//  FillTheDoc
+//
+//  Created by Артем Денисов on 19.03.2026.
+//
+
 import SwiftUI
 
+
 struct GoogleSheetsRowPreview: View {
-    let fields: [GoogleSheetsField]
+    let row: String
     let status: String?
     let onCopy: () -> Void
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Строка для Google Sheets")
-                .font(.title3.weight(.semibold))
+                .font(.headline)
             
-            VStack(spacing: 0) {
-                ForEach(Array(fields.enumerated()), id: \.element.id) { index, field in
-                    HStack(alignment: .firstTextBaseline, spacing: 16) {
-                        Text(field.title)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 180, alignment: .leading)
-                        
-                        Text(field.value.isEmpty ? "—" : field.value)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .textSelection(.enabled)
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(index.isMultiple(of: 2) ? Color.white.opacity(0.02) : Color.clear)
-                    
-                    if index < fields.count - 1 {
-                        Divider()
-                            .opacity(0.35)
-                    }
-                }
+            ScrollView {
+                Text(row)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(10)
             }
+            .frame(minHeight: 100)
             .background {
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(Color.white.opacity(0.04))
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(.quaternary.opacity(0.25))
             }
             
             HStack(spacing: 12) {
@@ -47,7 +37,7 @@ struct GoogleSheetsRowPreview: View {
                 
                 if let status {
                     Text(status)
-                        .font(.callout)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
