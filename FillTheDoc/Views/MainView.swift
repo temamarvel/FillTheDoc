@@ -14,7 +14,9 @@ struct MainView: View {
     @State private var detailsText: String? = nil
     @State private var details: CompanyDetails? = nil
     @State private var documentData: DocumentData? = nil
-    @State private var detailsToCopy: String? = nil
+    
+    @State private var googleSheetsRow: String = ""
+    @State private var googleSheetsCopyStatus: String? = nil
     
     @State private var isLoading: Bool = false
     
@@ -31,6 +33,8 @@ struct MainView: View {
     
     private var isTemplateValid: Bool { isExistingFile(templateURL) }
     private var isDetailsValid: Bool { isExistingFile(detailsURL) }
+    
+    private let googleSheetsRowBuilder = GoogleSheetsRowBuilder()
     
     private var canRun: Bool { isTemplateValid && isDetailsValid && apiKeyStore.hasKey && isDataApproved }
     
@@ -67,22 +71,34 @@ struct MainView: View {
 
             
             Group {
-                if let details {
-                    let keys = templatePlaceholders.compactMap {
-                        CompanyDetails.CodingKeys(rawValue: $0)
-                    }
-                    
-                    CompanyDetailsFormView(
-                        companyDetails: details,
-                        metadata: CompanyDetails.fieldMetadata,
-                        keys: keys
-                    ) { updated in
-                        self.details = updated.companyDetails
-                        self.documentData = updated
-                        isDataApproved = true
+                if !googleSheetsRow.isEmpty {
+                    GoogleSheetsRowPreview(
+                        row: googleSheetsRow,
+                        status: googleSheetsCopyStatus
+                    ) {
+                        googleSheetsRowBuilder.copyToPasteboard(googleSheetsRow)
+                        googleSheetsCopyStatus = "Строка снова скопирована"
                     }
                 } else {
-                    EmptyCompanyDetailsPlaceholder()
+                    
+                    
+                    if let details {
+                        let keys = templatePlaceholders.compactMap {
+                            CompanyDetails.CodingKeys(rawValue: $0)
+                        }
+                        
+                        CompanyDetailsFormView(
+                            companyDetails: details,
+                            metadata: CompanyDetails.fieldMetadata,
+                            keys: keys
+                        ) { updated in
+                            self.details = updated.companyDetails
+                            self.documentData = updated
+                            isDataApproved = true
+                        }
+                    } else {
+                        EmptyCompanyDetailsPlaceholder()
+                    }
                 }
             }
             
@@ -269,9 +285,7 @@ struct MainView: View {
         do {
             let values = documentData?.asDictionary() as? [String: String]
             
-            guard let values = values else {
-                return
-            }
+            guard let values = values else { return }
             
             let tempOutURL = makeTempOutputURL(from: templateURL!)
             
@@ -286,6 +300,13 @@ struct MainView: View {
             
             // 4) показываем SavePanel
             showExporter = true
+            
+            guard let documentData = documentData else { return }
+            
+            let row = googleSheetsRowBuilder.makeRow(from: documentData)
+            googleSheetsRow = row
+            googleSheetsRowBuilder.copyToPasteboard(row)
+            googleSheetsCopyStatus = "Строка для Google Sheets скопирована в буфер обмена"
             
             print("missing", report.missingKeys)
             print("found", report.foundKeys)
