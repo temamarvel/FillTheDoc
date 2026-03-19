@@ -16,6 +16,10 @@ struct MainView: View {
     @State private var documentData: DocumentData? = nil
     
     @State private var googleSheetsRow: String = ""
+    private var googleSheetsPreviewRow: String {
+        googleSheetsRow
+            .replacingOccurrences(of: "\t", with: " | ")
+    }
     @State private var googleSheetsCopyStatus: String? = nil
     
     @State private var isLoading: Bool = false
@@ -73,7 +77,7 @@ struct MainView: View {
             Group {
                 if !googleSheetsRow.isEmpty {
                     GoogleSheetsRowPreview(
-                        row: googleSheetsRow,
+                        row: googleSheetsPreviewRow,
                         status: googleSheetsCopyStatus
                     ) {
                         googleSheetsRowBuilder.copyToPasteboard(googleSheetsRow)
