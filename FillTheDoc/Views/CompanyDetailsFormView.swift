@@ -134,7 +134,7 @@ struct CompanyDetailsFormView: View {
                         ZStack{
                             Rectangle().fill(.ultraThinMaterial)
                             
-                            if discountError != nil {
+                            if minDiscountError != nil {
                                 LinearGradient(
                                     colors: [
                                         .clear,
