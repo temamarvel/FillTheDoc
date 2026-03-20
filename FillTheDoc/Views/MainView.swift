@@ -233,7 +233,7 @@ struct MainView: View {
                 try await Task.sleep(nanoseconds: 2_200_000_000)
                 
                 // MARK: valid test data
-                var reqs = CompanyDetails(companyName: "Тест компания", legalForm: "ТЕСТ_ЗАО", ceoFullName: "Тест Тестович Тестов", ceoShortenName: "Тестов Т. Т.", ogrn: "1187746707280", inn: "9731007287", kpp: "773101001", email: "test_test@test.com", address: """
+                var reqs = CompanyDetails(companyName: "Тест компания", legalForm: LegalForm.parse("ЗАО"), ceoFullName: "Тест Тестович Тестов", ceoShortenName: "Тестов Т. Т.", ogrn: "1187746707280", inn: "9731007287", kpp: "773101001", email: "test_test@test.com", address: """
                                           город Москва, ул Горбунова, д. 2 стр. 3
                                           """)
                 

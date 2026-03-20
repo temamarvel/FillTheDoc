@@ -97,7 +97,7 @@ final class CompanyDetailsModel: ObservableObject {
         
         return CompanyDetails(
             companyName: present(value(for: .companyName)),
-            legalForm: present(value(for: .legalForm)),
+            legalForm: LegalForm.parse(value(for: .legalForm)),
             ceoFullName: present(value(for: .ceoFullName)),
             ceoShortenName: present(value(for: .ceoShortenName)),
             ogrn: present(value(for: .ogrn)),

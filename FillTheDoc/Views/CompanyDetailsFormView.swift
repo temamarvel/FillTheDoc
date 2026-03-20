@@ -263,7 +263,7 @@ private struct PreviewWrapper: View {
     @State private var result: DocumentData? = nil
     @State private var requisites = CompanyDetails(
         companyName: "ООО «Ромашка»",
-        legalForm: "ООО",
+        legalForm: LegalForm.parse("OOO"),
         ceoFullName: "Иванов Иван Иванович",
         ceoShortenName: "Иванов И.И.",
         ogrn: "1234567890123",
