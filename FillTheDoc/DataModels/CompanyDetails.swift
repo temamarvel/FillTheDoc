@@ -136,6 +136,7 @@ public struct CompanyDetails: Decodable, LLMExtractable, Sendable {
     public let kpp: String?
     public let email: String?
     public let address: String?
+    public let ceoRole: String?
     
     public init(
         companyName: String?,
@@ -157,6 +158,7 @@ public struct CompanyDetails: Decodable, LLMExtractable, Sendable {
         self.kpp = kpp
         self.email = email
         self.address = address
+        self.ceoRole = legalForm == .ip ? "Индивидуальный предприниматель" : "Генеральный директор"
     }
     
     public enum CodingKeys: String, CodingKey, CaseIterable {
@@ -169,6 +171,7 @@ public struct CompanyDetails: Decodable, LLMExtractable, Sendable {
         case kpp
         case email
         case address
+        case ceoRole = "ceo_role"
     }
     
     public init(from decoder: Decoder) throws {
@@ -188,6 +191,8 @@ public struct CompanyDetails: Decodable, LLMExtractable, Sendable {
         } else {
             self.legalForm = nil
         }
+        
+        self.ceoRole = try container.decodeIfPresent(String.self, forKey: .ceoRole)
     }
 }
 
@@ -230,6 +235,8 @@ public extension CompanyDetails {
                 return email
             case .address:
                 return address
+            case .ceoRole:
+                return ceoRole
         }
     }
     
@@ -253,6 +260,8 @@ public extension CompanyDetails {
                 return email
             case .address:
                 return address
+            case .ceoRole:
+                return ceoRole
         }
     }
     
