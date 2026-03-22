@@ -52,7 +52,7 @@ final class CompanyDetailsModel: ObservableObject {
     func message(for key: Key) -> FieldMessage? { fields[key]?.message }
     func title(for key: Key) -> String { metadata[key]?.title ?? key.stringValue } // если нет метадаты — хотя бы json-key покажем
     func placeholder(for key: Key) -> String { metadata[key]?.placeholder ?? "" }
-    var hasErrors: Bool { fields.values.contains { $0.message != nil } }
+    var hasErrors: Bool { fields.values.contains { $0.message?.severity == .error } }
     
     // MARK: - Set value (local only)
     
