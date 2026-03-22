@@ -74,7 +74,7 @@ struct MainView: View {
                     }
                 )
             }
-
+            
             
             Group {
                 if let googleSheetsRow = googleSheetsRow, !googleSheetsRow.isEmpty {
@@ -129,23 +129,23 @@ struct MainView: View {
                 Spacer()
             }
             
-//            if !apiKeyStore.hasKey {
-//                Text("Добавь API ключ (появится окно ввода).")
-//                    .font(.footnote)
-//                    .foregroundStyle(.secondary)
-//            }
-//            
-//            if !isTemplateValid || !isDetailsValid {
-//                Text("Добавь оба файла: шаблон и реквизиты.")
-//                    .font(.footnote)
-//                    .foregroundStyle(.secondary)
-//            }
-//            
-//            if let err = apiKeyStore.errorText {
-//                Text(err)
-//                    .font(.footnote)
-//                    .foregroundStyle(.red)
-//            }
+            //            if !apiKeyStore.hasKey {
+            //                Text("Добавь API ключ (появится окно ввода).")
+            //                    .font(.footnote)
+            //                    .foregroundStyle(.secondary)
+            //            }
+            //
+            //            if !isTemplateValid || !isDetailsValid {
+            //                Text("Добавь оба файла: шаблон и реквизиты.")
+            //                    .font(.footnote)
+            //                    .foregroundStyle(.secondary)
+            //            }
+            //
+            //            if let err = apiKeyStore.errorText {
+            //                Text(err)
+            //                    .font(.footnote)
+            //                    .foregroundStyle(.red)
+            //            }
         }
         .padding(20)
         .fileExporter(
@@ -221,49 +221,49 @@ struct MainView: View {
                 //            """
                 
                 //TODO: real request to openai
-                //                let openAIClient = OpenAIClient(apiKey: apiKeyStore.apiKey ?? "", model: "gpt-4o-mini")
-                //                let system = PromptBuilder.system(for: CompanyDetails.self)
-                //                let user = PromptBuilder.user(sourceText: extractedResult.text)
+                let openAIClient = OpenAIClient(apiKey: apiKeyStore.apiKey ?? "", model: "gpt-4o-mini")
+                let system = PromptBuilder.system(for: CompanyDetails.self)
+                let user = PromptBuilder.user(sourceText: extractedResult.text)
                 
-                //                let (reqs, status) = try await openAIClient.request(
-                //                    system: system,
-                //                    user: user,
-                //                    as: Requisites.self
-                //                )
+                let (reqs, status) = try await openAIClient.request(
+                    system: system,
+                    user: user,
+                    as: CompanyDetails.self
+                )
                 
                 // симуляция
-                try await Task.sleep(nanoseconds: 2_200_000_000)
+                //try await Task.sleep(nanoseconds: 2_200_000_000)
                 
                 // MARK: valid test data
-                var reqs = CompanyDetails(companyName: "Тест компания", legalForm: LegalForm.parse("ЗАО"), ceoFullName: "Тест Тестович Тестов", ceoShortenName: "Тестов Т. Т.", ogrn: "1187746707280", inn: "9731007287", kpp: "773101001", email: "test_test@test.com", address: """
-                                          город Москва, ул Горбунова, д. 2 стр. 3
-                                          """, phone: "+79991234567")
+                //                var reqs = CompanyDetails(companyName: "Тест компания", legalForm: LegalForm.parse("ЗАО"), ceoFullName: "Тест Тестович Тестов", ceoShortenName: "Тестов Т. Т.", ogrn: "1187746707280", inn: "9731007287", kpp: "773101001", email: "test_test@test.com", address: """
+                //                                          город Москва, ул Горбунова, д. 2 стр. 3
+                //                                          """, phone: "+79991234567")
+                //
+                //                let token = Bundle.main.infoDictionary?["DADATA_TOKEN"] as? String ?? "N_T"
+                //                let client = DaDataClient(configuration: .init(token: token))
                 
-                let token = Bundle.main.infoDictionary?["DADATA_TOKEN"] as? String ?? "N_T"
-                let client = DaDataClient(configuration: .init(token: token))
-                
-                if let address = reqs.address {
-                    let normalizedAddres = try await client.suggestAddressFirst(query: address)
-                    if let na = normalizedAddres?.value {
-                        let updated = CompanyDetails(
-                            companyName: reqs.companyName,
-                            legalForm: reqs.legalForm,
-                            ceoFullName: reqs.ceoFullName,
-                            ceoShortenName: reqs.ceoShortenName,
-                            ogrn: reqs.ogrn,
-                            inn: reqs.inn,
-                            kpp: reqs.kpp,
-                            email: reqs.email,
-                            address: na,
-                            phone: reqs.phone
-                        )
-                        
-                        reqs = updated
-                    }
-                }
+                //                if let address = reqs.address {
+                //                    let normalizedAddres = try await client.suggestAddressFirst(query: address)
+                //                    if let na = normalizedAddres?.value {
+                //                        let updated = CompanyDetails(
+                //                            companyName: reqs.companyName,
+                //                            legalForm: reqs.legalForm,
+                //                            ceoFullName: reqs.ceoFullName,
+                //                            ceoShortenName: reqs.ceoShortenName,
+                //                            ogrn: reqs.ogrn,
+                //                            inn: reqs.inn,
+                //                            kpp: reqs.kpp,
+                //                            email: reqs.email,
+                //                            address: na,
+                //                            phone: reqs.phone
+                //                        )
+                //
+                //                        reqs = updated
+                //                    }
+                //                }
                 
                 //MARK: invalid test data
-//                let reqs = CompanyDetails(companyName: "Тест компания", legalForm: "ТЕСТ_ЗАО", ceoFullName: "Тест Тестович Тестов", ceoShortenName: "Тестов Т. Т.", ogrn: "11877467072801", inn: "97310107287", kpp: "7731010101", email: "test_test@test.com", address: "Город, ул. Улица, д. 8")
+                //                let reqs = CompanyDetails(companyName: "Тест компания", legalForm: "ТЕСТ_ЗАО", ceoFullName: "Тест Тестович Тестов", ceoShortenName: "Тестов Т. Т.", ogrn: "11877467072801", inn: "97310107287", kpp: "7731010101", email: "test_test@test.com", address: "Город, ул. Улица, д. 8")
                 
                 let dtoText = reqs.toMultilineString()
                 details = reqs
