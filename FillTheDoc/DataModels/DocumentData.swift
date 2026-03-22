@@ -40,6 +40,8 @@ public struct DocumentData: Codable {
         
         dict["date"] = getDate()
         
+        dict["rules"] = companyDetails?.legalForm == .ip ? "Листа  записи в Едином государственном реестре индивидуальных предпринимателей (ЕГРИП)" : "Устава"
+        
         return dict
     }
 }
