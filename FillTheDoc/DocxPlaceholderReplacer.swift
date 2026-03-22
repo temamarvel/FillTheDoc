@@ -586,7 +586,7 @@ private extension Archive {
         guard let enumerator = fm.enumerator(
             at: directory,
             includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
+            options: []
         ) else { return }
         
         for case let fileURL as URL in enumerator {
