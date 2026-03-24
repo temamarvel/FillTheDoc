@@ -14,7 +14,6 @@ struct DocumentDataFormView: View {
     
     @StateObject private var model: CompanyDetailsModel
     
-    @State private var showErrorAlert = false
     @State private var errorText = ""
     @State private var fee = ""
     @State private var minFee = ""
@@ -100,15 +99,14 @@ struct DocumentDataFormView: View {
                 Spacer()
                 Button("Применить") {
                     do {
-                        let dto = try model.buildResult()
-                        let result = DocumentData(fee: fee, minFee: minFee, companyDetails: dto)
+                        let validatedCompanyDatails = try model.buildResult()
+                        let result = DocumentData(fee: fee, minFee: minFee, companyDetails: validatedCompanyDatails)
                         onApply(result)
                     } catch {
                         errorText = error.localizedDescription
-                        showErrorAlert = true
                     }
                 }
-                .disabled(model.hasErrors)
+                .disabled(model.hasErrors || feeError != nil || minFeeError != nil)
                 .keyboardShortcut(.defaultAction)
             }
         }
@@ -119,11 +117,6 @@ struct DocumentDataFormView: View {
         .onChange(of: focusedKey) { old, new in
             guard let lost = old, lost != new else { return }
             Task { await model.validateFieldsWithReference() }
-        }
-        .alert("Ошибка", isPresented: $showErrorAlert) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text(errorText)
         }
         .animation(.easeInOut(duration: 0.15), value: model.fields)
         .animation(.easeInOut(duration: 0.15), value: feeError)
