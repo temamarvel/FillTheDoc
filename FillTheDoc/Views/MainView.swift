@@ -203,70 +203,14 @@ struct MainView: View {
             defer { Task { @MainActor in isLoading = false } }
             
             do {
-                let extractedResult = try extractor.extract(from: detailsURL)
-                
-                print("Method:", extractedResult.method)
-                print("Chars:", extractedResult.diagnostics.producedChars)
-                
-                // симуляция
-                //                try await Task.sleep(nanoseconds: 2_200_000_000)
-                //                print("OK")
-                //
-                //                let fakeJSON = """
-                //            {
-                //                "company": "ООО Ромашка",
-                //                "director": "Иванов Иван Иванович",
-                //                "form": "ООО"
-                //            }
-                //            """
+                let extractedDetails = try extractor.extract(from: detailsURL)
                 
                 //TODO: real request to openai
-//                let openAIClient = OpenAIClient(apiKey: apiKeyStore.apiKey ?? "", model: "gpt-4o-mini")
-//                let system = PromptBuilder.system(for: CompanyDetails.self)
-//                let user = PromptBuilder.user(sourceText: extractedResult.text)
-//                
-//                let (reqs, status) = try await openAIClient.request(
-//                    system: system,
-//                    user: user,
-//                    as: CompanyDetails.self
-//                )
                 
-                // симуляция
-                try await Task.sleep(nanoseconds: 1_000_000_000)
+                let companyDetails = try await realOpenAICall(extractedDetails: extractedDetails)
                 
-                // MARK: valid test data
-                                var reqs = CompanyDetails(companyName: "Тест компания", legalForm: LegalForm.parse("ЗАО"), ceoFullName: "Тест Тестович Тестов", ceoShortenName: "Тестов Т. Т.", ogrn: "1187746707280", inn: "9731007287", kpp: "773101001", email: "test_test@test.com", address: """
-                                                          город Москва, ул Горбунова, д. 2 стр. 3
-                                                          """, phone: "+79991234567")
-                //
-                //                let token = Bundle.main.infoDictionary?["DADATA_TOKEN"] as? String ?? "N_T"
-                //                let client = DaDataClient(configuration: .init(token: token))
-                
-                //                if let address = reqs.address {
-                //                    let normalizedAddres = try await client.suggestAddressFirst(query: address)
-                //                    if let na = normalizedAddres?.value {
-                //                        let updated = CompanyDetails(
-                //                            companyName: reqs.companyName,
-                //                            legalForm: reqs.legalForm,
-                //                            ceoFullName: reqs.ceoFullName,
-                //                            ceoShortenName: reqs.ceoShortenName,
-                //                            ogrn: reqs.ogrn,
-                //                            inn: reqs.inn,
-                //                            kpp: reqs.kpp,
-                //                            email: reqs.email,
-                //                            address: na,
-                //                            phone: reqs.phone
-                //                        )
-                //
-                //                        reqs = updated
-                //                    }
-                //                }
-                
-                //MARK: invalid test data
-                //                let reqs = CompanyDetails(companyName: "Тест компания", legalForm: "ТЕСТ_ЗАО", ceoFullName: "Тест Тестович Тестов", ceoShortenName: "Тестов Т. Т.", ogrn: "11877467072801", inn: "97310107287", kpp: "7731010101", email: "test_test@test.com", address: "Город, ул. Улица, д. 8")
-                
-                let dtoText = reqs.toMultilineString()
-                details = reqs
+                let dtoText = companyDetails.toMultilineString()
+                details = companyDetails
                 print("DTO:", dtoText)
                 detailsText = dtoText
                 
@@ -274,7 +218,32 @@ struct MainView: View {
                 print("Extraction failed:", error)
             }
         }
+    }
+    
+    private func realOpenAICall(extractedDetails: ExtractionResult) async throws -> CompanyDetails {
+        let openAIClient = OpenAIClient(apiKey: apiKeyStore.apiKey ?? "", model: "gpt-4o-mini")
+        let system = PromptBuilder.system(for: CompanyDetails.self)
+        let user = PromptBuilder.user(sourceText: extractedDetails.text)
         
+        let (companyDetails, _) = try await openAIClient.request(
+            system: system,
+            user: user,
+            as: CompanyDetails.self
+        )
+        
+        return companyDetails
+    }
+    
+    private func fakeOpenAICall(extractedDetails: ExtractionResult) async throws -> CompanyDetails {
+        // симуляция
+        try await Task.sleep(nanoseconds: 1_000_000_000)
+        
+        // MARK: valid test data
+        return CompanyDetails(companyName: "Тест компания", legalForm: LegalForm.parse("ЗАО"), ceoFullName: "Тест Тестович Тестов", ceoShortenName: "Тестов Т. Т.", ogrn: "1187746707280", inn: "9731007287", kpp: "773101001", email: "test_test@test.com", address: "город Москва, ул Горбунова, д. 2 стр. 3", phone: "+79991234567")
+        
+        
+        //MARK: invalid test data
+        // return CompanyDetails(companyName: "Тест компания", legalForm: "ТЕСТ_ЗАО", ceoFullName: "Тест Тестович Тестов", ceoShortenName: "Тестов Т. Т.", ogrn: "11877467072801", inn: "97310107287", kpp: "7731010101", email: "test_test@test.com", address: "Город, ул. Улица, д. 8")
     }
     
     private func makeTempOutputURL(from templateURL: URL) -> URL {
