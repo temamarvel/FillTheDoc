@@ -78,7 +78,7 @@ struct DocumentDataFormView: View {
                 Button("Применить") {
                     do {
                         let validatedCompanyDatails = try model.buildResult()
-                        let result = DocumentData(fee: fee, minFee: minFee, companyDetails: validatedCompanyDatails)
+                        let result = DocumentData(fee: fee.trimmed, minFee: minFee.trimmed, companyDetails: validatedCompanyDatails)
                         onApply(result)
                     } catch {
                         errorText = error.localizedDescription

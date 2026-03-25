@@ -15,10 +15,10 @@ public final class APIKeyStore: ObservableObject {
     @Published public private(set) var apiKey: String?
     @Published public var isPromptPresented: Bool = false
     @Published public var errorText: String?
-
+    
     private let keychain: KeychainService
     private let account: String
-
+    
     public init(
         keychain: KeychainService = KeychainService(),
         account: String = "openai_api_key"
@@ -26,13 +26,13 @@ public final class APIKeyStore: ObservableObject {
         self.keychain = keychain
         self.account = account
     }
-
+    
     public func load() {
         Task {
             do {
                 let loaded = try await keychain.loadString(account: account)?
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-
+                    .trimmed
+                
                 if let loaded, !loaded.isEmpty {
                     apiKey = loaded
                     isPromptPresented = false
@@ -48,16 +48,16 @@ public final class APIKeyStore: ObservableObject {
             }
         }
     }
-
+    
     public func save(_ enteredKey: String) {
-        let trimmed = enteredKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = enteredKey.trimmed
         guard !trimmed.isEmpty else {
             apiKey = nil
             isPromptPresented = true
             errorText = "Ключ не может быть пустым."
             return
         }
-
+        
         Task {
             do {
                 try await keychain.saveString(trimmed, account: account)
@@ -71,7 +71,7 @@ public final class APIKeyStore: ObservableObject {
             }
         }
     }
-
+    
     public func clear() {
         Task {
             do {
@@ -84,10 +84,10 @@ public final class APIKeyStore: ObservableObject {
             }
         }
     }
-
+    
     /// Удобно для guard’ов в действиях.
     public var hasKey: Bool {
-        let k = apiKey?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let k = apiKey?.trimmed ?? ""
         return !k.isEmpty
     }
 }

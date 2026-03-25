@@ -52,15 +52,15 @@ public struct CompanyDetails: Decodable, LLMExtractable, Sendable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        self.companyName = try container.decodeIfPresent(String.self, forKey: .companyName)
-        self.ceoFullName = try container.decodeIfPresent(String.self, forKey: .ceoFullName)
-        self.ceoShortenName = try container.decodeIfPresent(String.self, forKey: .ceoShortenName)
-        self.ogrn = try container.decodeIfPresent(String.self, forKey: .ogrn)
-        self.inn = try container.decodeIfPresent(String.self, forKey: .inn)
-        self.kpp = try container.decodeIfPresent(String.self, forKey: .kpp)
-        self.email = try container.decodeIfPresent(String.self, forKey: .email)
-        self.address = try container.decodeIfPresent(String.self, forKey: .address)
-        self.phone = try container.decodeIfPresent(String.self, forKey: .phone)
+        self.companyName = try container.decodeIfPresent(String.self, forKey: .companyName)?.trimmedNilIfEmpty
+        self.ceoFullName = try container.decodeIfPresent(String.self, forKey: .ceoFullName)?.trimmedNilIfEmpty
+        self.ceoShortenName = try container.decodeIfPresent(String.self, forKey: .ceoShortenName)?.trimmedNilIfEmpty
+        self.ogrn = try container.decodeIfPresent(String.self, forKey: .ogrn)?.trimmedNilIfEmpty
+        self.inn = try container.decodeIfPresent(String.self, forKey: .inn)?.trimmedNilIfEmpty
+        self.kpp = try container.decodeIfPresent(String.self, forKey: .kpp)?.trimmedNilIfEmpty
+        self.email = try container.decodeIfPresent(String.self, forKey: .email)?.trimmedNilIfEmpty
+        self.address = try container.decodeIfPresent(String.self, forKey: .address)?.trimmedNilIfEmpty
+        self.phone = try container.decodeIfPresent(String.self, forKey: .phone)?.trimmedNilIfEmpty
         
         if let rawLegalForm = try container.decodeIfPresent(String.self, forKey: .legalForm) {
             self.legalForm = LegalForm.parse(rawLegalForm)

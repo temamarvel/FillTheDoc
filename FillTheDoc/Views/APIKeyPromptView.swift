@@ -37,7 +37,7 @@ struct APIKeyPromptView: View {
                 Spacer()
                 
                 Button("Сохранить") {
-                    let trimmed = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let trimmed = apiKey.trimmed
                     guard !trimmed.isEmpty else {
                         errorText = "Ключ не может быть пустым."
                         return
@@ -46,7 +46,7 @@ struct APIKeyPromptView: View {
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(apiKey.trimmed.isEmpty)
             }
         }
         .padding(20)

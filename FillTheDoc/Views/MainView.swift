@@ -294,7 +294,7 @@ struct MainView: View {
     }
     
     private func url(from path: String) -> URL? {
-        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = path.trimmed
         guard !trimmed.isEmpty else { return nil }
         return URL(fileURLWithPath: trimmed)
     }

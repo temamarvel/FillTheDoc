@@ -23,11 +23,11 @@ public struct DocumentData: Codable {
     func asDictionary() -> [String: String] {
         var dict = companyDetails?.asDictionary() ?? [:]
         
-        if let fee = fee {
+        if let fee = fee?.trimmedNilIfEmpty {
             dict["fee"] = fee
         }
         
-        if let minFee = minFee {
+        if let minFee = minFee?.trimmedNilIfEmpty {
             dict["min_fee"] = minFee
         }
         

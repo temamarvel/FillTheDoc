@@ -128,7 +128,7 @@ struct DropZoneCardView<Bottom: View>: View {
     }
     
     private var pathPreview: String {
-        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = path.trimmed
         return trimmed.isEmpty ? "Путь не выбран" : trimmed
     }
     

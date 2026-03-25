@@ -33,14 +33,21 @@ final class CompanyDetailsModel: ObservableObject {
         self.allFieldKeys = keys
         self.validator = validator
         self.dadata = dadata
-        self.fields = Self.createFields(companyDetails: companyDetails, allFieldKeys: allFieldKeys)
+        self.fields = Self.createFields(companyDetails: companyDetails, allFieldKeys: allFieldKeys, metadata: metadata)
     }
     
-    private static func createFields(companyDetails: CompanyDetails, allFieldKeys: [Key]) -> [Key: FieldState] {
+    private static func createFields(
+        companyDetails: CompanyDetails,
+        allFieldKeys: [Key],
+        metadata: [Key: FieldMetadata]
+    ) -> [Key: FieldState] {
         var fields: [Key: FieldState] = [:]
         for key in allFieldKeys {
-            let fieldValue = companyDetails[key]
-            fields[key] = FieldState(value: fieldValue, message: nil)
+            let raw = companyDetails[key]
+            let normalized = raw.flatMap { value in
+                metadata[key].map { $0.normalizer(value) } ?? value.trimmedNilIfEmpty
+            }
+            fields[key] = FieldState(value: normalized, message: nil)
         }
         return fields
     }
