@@ -17,25 +17,11 @@ struct FieldMetadata {
 
 enum FieldRules {
     
-    // MARK: - Normalizers
-    
-    nonisolated static func trim(_ s: String) -> String {
-        s.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-    
-    nonisolated static func digitsOnly(_ s: String) -> String {
-        String(s.unicodeScalars.filter { CharacterSet.decimalDigits.contains($0) })
-    }
-    
-    nonisolated static func lowercased(_ s: String) -> String {
-        trim(s).lowercased()
-    }
-    
     // MARK: - Validators
     
     nonisolated static func optional(_ validate: @escaping (String) -> String?) -> (String) -> String? {
         { raw in
-            let v = trim(raw)
+            let v = raw.trimmed
             guard !v.isEmpty else { return nil }
             return validate(v)
         }
@@ -79,64 +65,64 @@ extension CompanyDetails {
         .companyName: .init(
             title: "Название",
             placeholder: "ООО «Ромашка»",
-            normalizer: FieldRules.trim,
+            normalizer: { $0.trimmed },
             validator: { v in
-                let t = FieldRules.trim(v)
+                let t = v.trimmed
                 return t.isEmpty ? FieldValidationResult(.error, "Поле не может быть пустым") : FieldValidationResult(.pass, "Название ок")
             }
         ),
         .inn: .init(
             title: "ИНН",
             placeholder: "10/12 цифр",
-            normalizer: { FieldRules.digitsOnly(FieldRules.trim($0)) },
+            normalizer: { $0.trimmed.digitsOnly },
             validator: { inn in FormatValidators.isValidINN(inn) }
         ),
         .kpp: .init(
             title: "КПП",
             placeholder: "9 цифр",
-            normalizer: { FieldRules.digitsOnly(FieldRules.trim($0)) },
+            normalizer: { $0.trimmed.digitsOnly },
             validator: { kpp in FormatValidators.isValidKPP(kpp) }
         ),
         .ogrn: .init(
             title: "ОГРН/ОГРНИП",
             placeholder: "13/15 цифр",
-            normalizer: { FieldRules.digitsOnly(FieldRules.trim($0)) },
+            normalizer: { $0.trimmed.digitsOnly },
             validator: { ogrn in FormatValidators.isValidOGRN(ogrn) }
         ),
         .ceoFullName: .init(
             title: "Руководитель",
             placeholder: "Иванов Иван Иванович",
-            normalizer: FieldRules.trim,
+            normalizer: { $0.trimmed },
             validator: { _ in FieldValidationResult(.pass, "ФИО ок") }
         ),
         .ceoShortenName: .init(
             title: "Руководитель (кратко)",
             placeholder: "Иванов И.И.",
-            normalizer: FieldRules.trim,
+            normalizer: { $0.trimmed },
             validator: { _ in FieldValidationResult(.pass, "Краткое ФИО ок") }
         ),
         .legalForm: .init(
             title: "Правовая форма",
             placeholder: "ООО / АО / ИП",
-            normalizer: FieldRules.trim,
+            normalizer: { $0.trimmed },
             validator: { _ in FieldValidationResult(.pass, "Правовая форма ок") }
         ),
         .email: .init(
             title: "Email",
             placeholder: "example@domain.com",
-            normalizer: FieldRules.trim,
+            normalizer: { $0.trimmed },
             validator: { _ in FieldValidationResult(.pass, "email ок") }
         ),
         .address: .init(
             title: "Адрес",
             placeholder: "город, улица, дом",
-            normalizer: FieldRules.trim,
+            normalizer: { $0.trimmed },
             validator: { _ in FieldValidationResult(.pass, "адрес ок") }
         ),
         .phone : .init(
             title: "Телефон",
             placeholder: "+79991234567",
-            normalizer: FieldRules.trim,
+            normalizer: { $0.trimmed },
             validator: { _ in FieldValidationResult(.pass, "Телефон ок") }
         )
     ]

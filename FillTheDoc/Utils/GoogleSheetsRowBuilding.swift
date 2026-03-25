@@ -18,19 +18,19 @@ final class GoogleSheetsRowBuilder: GoogleSheetsRowBuilding {
     
     func makeRow(from data: DocumentData) -> String {
         let values: [String] = [
-            sanitize(data.companyDetails?.fullCompanyName),   // Наименование
-            sanitize(data.companyDetails?.ceoFullName),   // ФИО
-            sanitize(data.companyDetails?.inn),           // ИНН
-            sanitize(data.companyDetails?.phone),         // Телефон компании
-            sanitize(data.companyDetails?.email),         // E-mail Компании
-            "",                                           // Номер договора
-            sanitize(data.date),                          // Дата договора
-            "",                                           // Расч.счет
-            sanitize(data.fee),                      // %
-            sanitize(data.minFee),                   // Min
-            "",                                           // Прямые выплаты
-            "",                                           // МП. Карты
-            ""                                            // МП. СБП
+            data.companyDetails?.fullCompanyName.sanitizedForTSV ?? "",   // Наименование
+            data.companyDetails?.ceoFullName?.sanitizedForTSV ?? "",      // ФИО
+            data.companyDetails?.inn?.sanitizedForTSV ?? "",              // ИНН
+            data.companyDetails?.phone?.sanitizedForTSV ?? "",            // Телефон компании
+            data.companyDetails?.email?.sanitizedForTSV ?? "",            // E-mail Компании
+            "",                                                           // Номер договора
+            data.date.sanitizedForTSV,                                    // Дата договора
+            "",                                                           // Расч.счет
+            data.fee?.sanitizedForTSV ?? "",                              // %
+            data.minFee?.sanitizedForTSV ?? "",                           // Min
+            "",                                                           // Прямые выплаты
+            "",                                                           // МП. Карты
+            ""                                                            // МП. СБП
         ]
         
         return values.joined(separator: "\t")
@@ -40,15 +40,5 @@ final class GoogleSheetsRowBuilder: GoogleSheetsRowBuilding {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(row, forType: .string)
-    }
-    
-    private func sanitize(_ value: String?) -> String {
-        guard let value else { return "" }
-        
-        return value
-            .replacingOccurrences(of: "\t", with: " ")
-            .replacingOccurrences(of: "\r\n", with: " ")
-            .replacingOccurrences(of: "\n", with: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

@@ -63,7 +63,7 @@ final class CompanyDetailsModel: ObservableObject {
         if let normalizer = metadata[key]?.normalizer {
             normalized = normalizer(newValue)
         } else {
-            normalized = FieldRules.trim(newValue)
+            normalized = newValue.trimmed
         }
         fieldState.value = normalized
         fieldState.message = validateField(for: key, state: fieldState)
@@ -72,7 +72,7 @@ final class CompanyDetailsModel: ObservableObject {
     }
     
     // MARK: - Remote validation on blur
-
+    
     func validateFieldsWithReference() async {
         fields = await validator.validateFieldsWithReference(fields: fields)
     }
@@ -96,16 +96,16 @@ final class CompanyDetailsModel: ObservableObject {
         }
         
         return CompanyDetails(
-            companyName: present(value(for: .companyName)),
+            companyName: value(for: .companyName).trimmedNilIfEmpty,
             legalForm: LegalForm.parse(value(for: .legalForm)),
-            ceoFullName: present(value(for: .ceoFullName)),
-            ceoShortenName: present(value(for: .ceoShortenName)),
-            ogrn: present(value(for: .ogrn)),
-            inn: present(value(for: .inn)),
-            kpp: present(value(for: .kpp)),
-            email: present(value(for: .email)),
-            address: present(value(for: .address)),
-            phone: present(value(for: .phone))
+            ceoFullName: value(for: .ceoFullName).trimmedNilIfEmpty,
+            ceoShortenName: value(for: .ceoShortenName).trimmedNilIfEmpty,
+            ogrn: value(for: .ogrn).trimmedNilIfEmpty,
+            inn: value(for: .inn).trimmedNilIfEmpty,
+            kpp: value(for: .kpp).trimmedNilIfEmpty,
+            email: value(for: .email).trimmedNilIfEmpty,
+            address: value(for: .address).trimmedNilIfEmpty,
+            phone: value(for: .phone).trimmedNilIfEmpty
         )
     }
     
@@ -113,14 +113,5 @@ final class CompanyDetailsModel: ObservableObject {
     
     private func validateField(for key: Key, state: FieldState) -> FieldMessage? {
         return validator.validateField(for: key, state: state)
-    }
-    
-    
-    // MARK: - Helpers
-    
-    private func present(_ s: String?) -> String? {
-        guard let s else { return nil }
-        let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
-        return t.isEmpty ? nil : t
     }
 }

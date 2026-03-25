@@ -144,8 +144,7 @@ public extension CompanyDetails {
         
         for key in CodingKeys.allCases {
             if let value = value(for: key, expandedLegalForm: expandedLegalForm)?
-                .trimmingCharacters(in: .whitespacesAndNewlines),
-               !value.isEmpty {
+                .trimmedNilIfEmpty {
                 result[key.rawValue] = value
             }
         }
@@ -154,9 +153,4 @@ public extension CompanyDetails {
     }
 }
 
-private extension String {
-    var trimmedNilIfEmpty: String? {
-        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
-    }
-}
+

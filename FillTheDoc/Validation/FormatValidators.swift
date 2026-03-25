@@ -7,13 +7,9 @@
 
 
 enum FormatValidators {
-
-    static func digitsOnly(_ s: String) -> String {
-        s.filter { $0.isNumber }
-    }
-
+    
     static func isValidINN(_ innRaw: String) -> FieldValidationResult {
-        let inn = digitsOnly(innRaw)
+        let inn = innRaw.digitsOnly
         var isValid: Bool = false
         if inn.count == 10 {
             isValid = innChecksum10(inn)
@@ -23,7 +19,7 @@ enum FormatValidators {
         }
         return isValid ? FieldValidationResult(.pass, "Верный ИНН") : FieldValidationResult(.error, "Не верный ИНН")
     }
-
+    
     private static func innChecksum10(_ inn: String) -> Bool {
         guard inn.count == 10, let digits = innDigits(inn) else { return false }
         let weights = [2,4,10,3,5,9,4,6,8]
@@ -31,41 +27,41 @@ enum FormatValidators {
         let check = (sum % 11) % 10
         return check == digits[9]
     }
-
+    
     private static func innChecksum12(_ inn: String) -> Bool {
         guard inn.count == 12, let digits = innDigits(inn) else { return false }
         let w1 = [7,2,4,10,3,5,9,4,6,8,0]
         let w2 = [3,7,2,4,10,3,5,9,4,6,8,0]
-
+        
         let sum1 = zip(w1, digits.prefix(11)).map(*).reduce(0,+)
         let c1 = (sum1 % 11) % 10
-
+        
         let sum2 = zip(w2, digits.prefix(11)).map(*).reduce(0,+)
         let c2 = (sum2 % 11) % 10
-
+        
         return c1 == digits[10] && c2 == digits[11]
     }
-
+    
     private static func innDigits(_ s: String) -> [Int]? {
         let arr = s.compactMap { Int(String($0)) }
         return arr.count == s.count ? arr : nil
     }
-
+    
     static func isValidKPP(_ kppRaw: String) -> FieldValidationResult {
-        let kpp = digitsOnly(kppRaw)
+        let kpp = kppRaw.digitsOnly
         let isValid = kpp.count == 9
         return isValid ? FieldValidationResult(.pass, "Верный КПП") : FieldValidationResult(.error, "Не верный КПП")
     }
-
+    
     static func isValidOGRN(_ ogrnRaw: String) -> FieldValidationResult {
-        let ogrn = digitsOnly(ogrnRaw)
+        let ogrn = ogrnRaw.digitsOnly
         var isValid: Bool = false
         if ogrn.count == 13 { isValid = ogrnChecksum(ogrn, modBase: 11, checkDigits: 1) }
         if ogrn.count == 15 { isValid = ogrnChecksum(ogrn, modBase: 13, checkDigits: 1) }
         
         return isValid ? FieldValidationResult(.pass, "Верный ОГРН") : FieldValidationResult(.error, "Не верный ОГРН")
     }
-
+    
     private static func ogrnChecksum(_ ogrn: String, modBase: Int, checkDigits: Int) -> Bool {
         // Для ОГРН: контрольная цифра = (число без последней цифры % 11) % 10 (для 13)
         // Для ОГРНИП (15): (число без последней % 13) % 10
@@ -74,22 +70,22 @@ enum FormatValidators {
         guard let bodyNumber = Int(body),
               let last = Int(String(ogrn.last!))
         else { return false }
-
+        
         let check = (bodyNumber % modBase) % 10
         return check == last
     }
-
+    
     /// Очень простая эвристика: в адресе должны быть буквы, числа и один из "маркеров адреса"
     static func looksLikeAddress(_ s: String) -> Bool {
         let normalized = TextNormalization.normalize(s)
         guard normalized.count >= 8 else { return false }
-
+        
         let hasDigit = normalized.contains(where: { $0.isNumber })
         let hasLetter = normalized.contains(where: { $0.isLetter })
-
+        
         let markers = ["г", "город", "ул", "улица", "пр", "проспект", "д", "дом", "корп", "кв", "обл", "респ", "край", "р-н", "район", "пер", "проезд", "ш", "шоссе"]
         let hasMarker = markers.contains { normalized.contains($0) }
-
+        
         return hasDigit && hasLetter && hasMarker
     }
 }

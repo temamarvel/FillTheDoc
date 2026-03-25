@@ -147,24 +147,24 @@ public final class CompanyDetailsValidator: Sendable {
         switch fieldKey {
             case .inn:
                 guard let llmINN = state.value else { return nil }
-                let apiINN = companyInfo.inn.map{FormatValidators.digitsOnly($0)}
-                if let apiINN, apiINN != FormatValidators.digitsOnly(llmINN) {
+                let apiINN = companyInfo.inn.map { $0.digitsOnly }
+                if let apiINN, apiINN != llmINN.digitsOnly {
                     return FieldMessage(error: nil, warning: "ИНН не совпадает с DaData.")
                 }
                 return nil
                 
             case .kpp:
                 guard let llmKPP = state.value else { return nil }
-                if let apiKPP = companyInfo.kpp.map({FormatValidators.digitsOnly($0)}),
-                   apiKPP != FormatValidators.digitsOnly(llmKPP) {
+                if let apiKPP = companyInfo.kpp.map({ $0.digitsOnly }),
+                   apiKPP != llmKPP.digitsOnly {
                     return FieldMessage(error: nil, warning: "КПП не совпадает с DaData.")
                 }
                 return nil
                 
             case .ogrn:
                 guard let llmOGRN = state.value else { return nil }
-                if let apiOGRN = companyInfo.ogrn.map({FormatValidators.digitsOnly($0)}),
-                   apiOGRN != FormatValidators.digitsOnly(llmOGRN) {
+                if let apiOGRN = companyInfo.ogrn.map({ $0.digitsOnly }),
+                   apiOGRN != llmOGRN.digitsOnly {
                     return FieldMessage(error: nil, warning: "ОГРН/ОГРНИП не совпадает с DaData.")
                 }
                 return nil
@@ -216,11 +216,5 @@ public final class CompanyDetailsValidator: Sendable {
                 
                 return nil
         }
-    }
-    
-    private func present(_ s: String?) -> String? {
-        guard let s else { return nil }
-        let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
-        return t.isEmpty ? nil : t
     }
 }
