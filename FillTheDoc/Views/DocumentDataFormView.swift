@@ -45,33 +45,11 @@ struct DocumentDataFormView: View {
     }
     
     private var feeError: String? {
-        validateNumericRequired(fee)
+        Validators.percentage(fee)
     }
     
     private var minFeeError: String? {
-        validateNumericRequired(minFee)
-    }
-    
-    private func validateNumericRequired(_ value: String) -> String? {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        if trimmed.isEmpty {
-            return "Поле обязательно для заполнения"
-        }
-        
-        if !trimmed.allSatisfy(\.isNumber) {
-            return "Разрешены только цифры"
-        }
-        
-        guard let number = Int(trimmed) else {
-            return "Некорректное число"
-        }
-        
-        if number < 0 || number > 100 {
-            return "Значение должно быть от 0 до 100"
-        }
-        
-        return nil
+        Validators.percentage(minFee)
     }
     
     var body: some View {

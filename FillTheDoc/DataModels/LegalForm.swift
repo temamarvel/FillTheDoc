@@ -42,7 +42,7 @@ public extension LegalForm {
     }
     
     static func parse(_ raw: String) -> LegalForm? {
-        let normalized = normalize(raw)
+        let normalized = Normalizers.legalForm(raw)
         
         for form in Self.allCases {
             let aliases = aliases(for: form)
@@ -93,23 +93,6 @@ private extension LegalForm {
                     "публичное акционерное общество"
                 ]
         }
-    }
-    
-    static func normalize(_ value: String) -> String {
-        value
-            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
-            .lowercased()
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: "«", with: "")
-            .replacingOccurrences(of: "»", with: "")
-            .replacingOccurrences(of: "\"", with: "")
-            .replacingOccurrences(of: "'", with: "")
-            .replacingOccurrences(of: ".", with: "")
-            .replacingOccurrences(of: ",", with: "")
-            .replacingOccurrences(of: ";", with: "")
-            .replacingOccurrences(of: "(", with: "")
-            .replacingOccurrences(of: ")", with: "")
-            .replacingOccurrences(of: "  ", with: " ")
     }
 }
 

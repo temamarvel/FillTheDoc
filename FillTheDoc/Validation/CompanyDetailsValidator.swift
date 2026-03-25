@@ -180,8 +180,8 @@ public final class CompanyDetailsValidator: Sendable {
                 
                 guard let apiName else { return nil }
                 
-                let sim = TextNormalization.jaccard(llmName, apiName)
-                let contains = TextNormalization.containsNormalized(llmName, apiName)
+                let sim = Validators.jaccardSimilarity(llmName, apiName)
+                let contains = Validators.containsNormalized(llmName, apiName)
                 
                 if !(contains || sim >= policy.nameSimilarityThreshold) {
                     return FieldMessage(error: nil, warning: "Название слабо похоже на DaData (sim=\(String(format: "%.2f", sim))).")
@@ -191,8 +191,8 @@ public final class CompanyDetailsValidator: Sendable {
             case .ceoFullName:
                 guard let llmCEO = state.value else { return nil }
                 if let apiCEO = companyInfo.management?.name, !apiCEO.isEmpty {
-                    let sim = TextNormalization.jaccard(llmCEO, apiCEO)
-                    let contains = TextNormalization.containsNormalized(llmCEO, apiCEO)
+                    let sim = Validators.jaccardSimilarity(llmCEO, apiCEO)
+                    let contains = Validators.containsNormalized(llmCEO, apiCEO)
                     if !(contains || sim >= 0.70) {
                         return FieldMessage(error: nil, warning: "ФИО руководителя слабо похоже на DaData (sim=\(String(format: "%.2f", sim))).")
                     }
@@ -207,8 +207,8 @@ public final class CompanyDetailsValidator: Sendable {
                 guard let llmAddress = state.value else { return nil }
                 
                 if let apiAddress = companyInfo.address?.value, !apiAddress.isEmpty {
-                    let sim = TextNormalization.jaccard(llmAddress, apiAddress)
-                    let contains = TextNormalization.containsNormalized(llmAddress, apiAddress)
+                    let sim = Validators.jaccardSimilarity(llmAddress, apiAddress)
+                    let contains = Validators.containsNormalized(llmAddress, apiAddress)
                     if !(contains || sim >= 0.70) {
                         return FieldMessage(error: nil, warning: "Адрес слабо похож на DaData \(apiAddress) (sim=\(String(format: "%.2f", sim))).")
                     }
