@@ -45,19 +45,19 @@ extension CompanyDetails {
             title: "Руководитель",
             placeholder: "Иванов Иван Иванович",
             normalizer: Normalizers.trimmed,
-            validator: { _ in FieldValidationResult(.pass, "ФИО ок") }
+            validator: Validators.fullName
         ),
         .ceoShortenName: .init(
             title: "Руководитель (кратко)",
             placeholder: "Иванов И.И.",
             normalizer: Normalizers.trimmed,
-            validator: { _ in FieldValidationResult(.pass, "Краткое ФИО ок") }
+            validator: Validators.shortenName
         ),
         .legalForm: .init(
             title: "Правовая форма",
             placeholder: "ООО / АО / ИП",
-            normalizer: Normalizers.trimmed,
-            validator: { _ in FieldValidationResult(.pass, "Правовая форма ок") }
+            normalizer: { $0.trimmed.uppercased() },
+            validator: Validators.legalFormField
         ),
         .email: .init(
             title: "Email",
@@ -69,13 +69,13 @@ extension CompanyDetails {
             title: "Адрес",
             placeholder: "город, улица, дом",
             normalizer: Normalizers.trimmed,
-            validator: { _ in FieldValidationResult(.pass, "адрес ок") }
+            validator: Validators.address
         ),
         .phone: .init(
             title: "Телефон",
             placeholder: "+79991234567",
-            normalizer: Normalizers.trimmed,
-            validator: { _ in FieldValidationResult(.pass, "Телефон ок") }
+            normalizer: Normalizers.phone,
+            validator: Validators.phone
         )
     ]
 }

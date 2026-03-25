@@ -9,7 +9,7 @@ import Foundation
 
 /// Централизованное место для всех нормализаторов полей.
 /// Структурированы по уровню: базовые, комбинированные, специализированные.
-enum Normalizers {
+nonisolated enum Normalizers {
     
     // MARK: - Basic normalizers (использованы в других)
     
@@ -47,7 +47,19 @@ enum Normalizers {
     
     // MARK: - Specialized normalizers
     
-    /// Нормализирует правовую форму компании для парсинга.
+    /// Нормализует телефонный номер: убирает скобки, лишние пробелы, оставляет +, цифры и дефисы.
+    static func phone(_ s: String) -> String {
+        let t = s.trimmed
+        // Убираем скобки и множественные пробелы, оставляем цифры, +, -
+        let cleaned = t
+            .replacingOccurrences(of: "(", with: "")
+            .replacingOccurrences(of: ")", with: "")
+            .replacingOccurrences(of: "–", with: "-")   // длинное тире → короткий дефис
+            .replacingOccurrences(of: "\\s+", with: "", options: .regularExpression)
+        return cleaned
+    }
+    
+    /// Нормализирует правовую форму: приводит к верхнему регистру после обрезки.
     /// Удаляет диакритику, кавычки, пунктуацию.
     static func legalForm(_ value: String) -> String {
         value
@@ -103,22 +115,22 @@ enum Normalizers {
         s = s.replacingOccurrences(of: "\r\n", with: "\n")
         s = s.replacingOccurrences(of: "\r", with: "\n")
         s = s.replacingOccurrences(of: "\u{00A0}", with: " ")
-
+        
         s = collapseBlankLines(s, maxConsecutive: 2)
         s = s.trimmed
-
+        
         guard s.count > maxChars else { return s }
-
+        
         let headCount = Int(Double(maxChars) * 0.65)
         let tailCount = maxChars - headCount
-
+        
         let head = s.prefix(headCount)
         let tail = s.suffix(tailCount)
         return """
         \(head)
-
+        
         ...[TRUNCATED]...
-
+        
         \(tail)
         """
     }
@@ -126,7 +138,7 @@ enum Normalizers {
     private static func collapseBlankLines(_ s: String, maxConsecutive: Int) -> String {
         var result = ""
         result.reserveCapacity(s.count)
-
+        
         var blanks = 0
         for line in s.split(separator: "\n", omittingEmptySubsequences: false) {
             let isBlank = line.trimmingCharacters(in: .whitespaces).isEmpty

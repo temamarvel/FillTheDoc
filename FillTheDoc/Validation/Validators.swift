@@ -9,7 +9,7 @@ import Foundation
 
 /// Централизованное место для всех валидаторов полей.
 /// Структурированы по типам: формат, диапазон, синтаксис, подобие.
-enum Validators {
+nonisolated enum Validators {
     
     // MARK: - Generic helpers
     
@@ -87,7 +87,7 @@ enum Validators {
         guard let bodyNumber = Int(body),
               let last = Int(String(ogrn.last!))
         else { return false }
-
+        
         let check = (bodyNumber % modBase) % 10
         return check == last
     }
@@ -170,6 +170,89 @@ enum Validators {
     static func nonEmpty(_ v: String) -> FieldValidationResult {
         let t = v.trimmed
         return t.isEmpty ? FieldValidationResult(.error, "Поле не может быть пустым") : FieldValidationResult(.pass, "ОК")
+    }
+    
+    /// Валидация ФИО: минимум 2 слова, только буквы и дефисы.
+    static func fullName(_ v: String) -> FieldValidationResult {
+        let t = v.trimmed
+        guard !t.isEmpty else { return FieldValidationResult(.error, "Поле не может быть пустым") }
+        
+        let words = t.split(separator: " ").filter { !$0.isEmpty }
+        if words.count < 2 {
+            return FieldValidationResult(.warning, "Ожидается минимум Фамилия и Имя")
+        }
+        
+        let hasInvalidChars = t.contains(where: { !$0.isLetter && $0 != " " && $0 != "-" })
+        if hasInvalidChars {
+            return FieldValidationResult(.warning, "ФИО обычно содержит только буквы")
+        }
+        
+        return FieldValidationResult(.pass, "ФИО ок")
+    }
+    
+    /// Валидация краткого ФИО: формат «Фамилия И.О.» или «Фамилия И.».
+    static func shortenName(_ v: String) -> FieldValidationResult {
+        let t = v.trimmed
+        guard !t.isEmpty else { return FieldValidationResult(.error, "Поле не может быть пустым") }
+        
+        // Паттерн: одно или несколько слов (фамилия), затем инициалы с точками
+        // Примеры: "Иванов И.И.", "Иванов-Петров И. И.", "Иванов И."
+        let pattern = #"^[А-ЯЁA-Z][а-яёa-zА-ЯЁA-Z\-]+\s+[А-ЯЁA-Z]\.\s*[А-ЯЁA-Z]?\.*$"#
+        let matches = t.range(of: pattern, options: .regularExpression) != nil
+        
+        if !matches {
+            return FieldValidationResult(.warning, "Ожидается формат «Фамилия И.О.»")
+        }
+        
+        return FieldValidationResult(.pass, "Краткое ФИО ок")
+    }
+    
+    /// Валидация правовой формы (возвращает FieldValidationResult).
+    static func legalFormField(_ v: String) -> FieldValidationResult {
+        let t = v.trimmed
+        guard !t.isEmpty else { return FieldValidationResult(.error, "Поле не может быть пустым") }
+        
+        if let error = legalForm(t) {
+            return FieldValidationResult(.error, error)
+        }
+        return FieldValidationResult(.pass, "Правовая форма ок")
+    }
+    
+    /// Валидация адреса (мягкая эвристика — warning, не error).
+    static func address(_ v: String) -> FieldValidationResult {
+        let t = v.trimmed
+        guard !t.isEmpty else { return FieldValidationResult(.error, "Поле не может быть пустым") }
+        
+        if t.count < 10 {
+            return FieldValidationResult(.warning, "Адрес выглядит слишком коротким")
+        }
+        
+        if !looksLikeAddress(t) {
+            return FieldValidationResult(.warning, "Не похоже на адрес (нет маркеров: г., ул., д. и т.п.)")
+        }
+        
+        return FieldValidationResult(.pass, "адрес ок")
+    }
+    
+    /// Валидация телефона: должен начинаться с + или 8, содержать 10-11 цифр.
+    static func phone(_ v: String) -> FieldValidationResult {
+        let t = v.trimmed
+        guard !t.isEmpty else { return FieldValidationResult(.error, "Поле не может быть пустым") }
+        
+        let digits = t.digitsOnly
+        
+        guard digits.count >= 10 && digits.count <= 15 else {
+            return FieldValidationResult(.warning, "Телефон обычно содержит 10–11 цифр")
+        }
+        
+        // Проверяем допустимые символы: цифры, +, -, (, ), пробел
+        let allowed = CharacterSet(charactersIn: "0123456789+()-– ").union(.whitespaces)
+        let hasInvalid = t.unicodeScalars.contains { !allowed.contains($0) }
+        if hasInvalid {
+            return FieldValidationResult(.warning, "Телефон содержит необычные символы")
+        }
+        
+        return FieldValidationResult(.pass, "Телефон ок")
     }
     
     /// Валидация: только числа в диапазоне 0-100 (для процентов).
