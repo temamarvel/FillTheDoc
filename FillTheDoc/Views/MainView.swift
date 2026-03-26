@@ -16,12 +16,6 @@ struct MainView: View {
     @State private var documentData: DocumentData? = nil
     
     @State private var googleSheetsRow: String? = nil
-    private var googleSheetsPreviewRow: String? {
-        guard let googleSheetsRow = googleSheetsRow else { return nil}
-        return googleSheetsRow
-            .replacingOccurrences(of: "\t", with: " | ")
-    }
-    @State private var googleSheetsCopyStatus: String? = nil
     
     @State private var isLoading: Bool = false
     
@@ -75,19 +69,10 @@ struct MainView: View {
                 )
             }
             
-            
             Group {
                 if let googleSheetsRow = googleSheetsRow, !googleSheetsRow.isEmpty {
-                    GoogleSheetsRowPreviewView(
-                        row: googleSheetsPreviewRow ?? "",
-                        status: googleSheetsCopyStatus
-                    ) {
-                        googleSheetsRowBuilder.copyToPasteboard(googleSheetsRow)
-                        googleSheetsCopyStatus = "Строка снова скопирована"
-                    }
+                    CodeBlockView(content: googleSheetsRow)
                 } else {
-                    
-                    
                     if let details {
                         let keys = templatePlaceholders.compactMap {
                             CompanyDetails.CodingKeys(rawValue: $0)
@@ -207,7 +192,9 @@ struct MainView: View {
                 
                 //TODO: real request to openai
                 
-                let companyDetails = try await realOpenAICall(extractedDetails: extractedDetails)
+                //let companyDetails = try await realOpenAICall(extractedDetails: extractedDetails)
+                
+                let companyDetails = try await fakeOpenAICall(extractedDetails: extractedDetails)
                 
                 let dtoText = companyDetails.toMultilineString()
                 details = companyDetails
@@ -282,7 +269,6 @@ struct MainView: View {
             let row = googleSheetsRowBuilder.makeRow(from: documentData)
             googleSheetsRow = row
             googleSheetsRowBuilder.copyToPasteboard(row)
-            googleSheetsCopyStatus = "Строка для Google Sheets скопирована в буфер обмена"
             
             print("missing", report.missingKeys)
             print("found", report.foundKeys)
