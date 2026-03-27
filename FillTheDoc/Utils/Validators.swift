@@ -124,19 +124,6 @@ nonisolated enum Validators {
         return nil
     }
     
-    // MARK: - Range validators
-    
-    /// Валидирует длину значения (в цифрах).
-    static func lengthIn(_ allowed: Set<Int>, label: String) -> (String) -> String? {
-        { value in
-            guard allowed.contains(value.count) else {
-                let list = allowed.sorted().map(String.init).joined(separator: " или ")
-                return "\(label) должен содержать \(list) цифр"
-            }
-            return nil
-        }
-    }
-    
     // MARK: - Content heuristics
     
     /// Эвристика: проверяет, похожа ли строка на адрес (буквы + цифры + маркеры).

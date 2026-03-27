@@ -245,21 +245,21 @@ struct MainView: View {
         isLoading = true
         defer { isLoading = false  }
         
+        guard let templateURL else { return }
+        
         do {
-            let values = documentData?.asDictionary() as? [String: String]
+            guard let values = documentData?.asDictionary() else { return }
             
-            guard let values = values else { return }
-            
-            let tempOutURL = makeTempOutputURL(from: templateURL!)
+            let tempOutURL = makeTempOutputURL(from: templateURL)
             
             let report = try replacer.fill(
-                template: templateURL!,
+                template: templateURL,
                 output: tempOutURL,
                 values: values
             )
             
             exportDocument = try DocxFileDocument(fileURL: tempOutURL)
-            exportDefaultFilename = "\(templateURL!.deletingPathExtension().lastPathComponent)_filled"
+            exportDefaultFilename = "\(templateURL.deletingPathExtension().lastPathComponent)_filled"
             
             // 4) показываем SavePanel
             showExporter = true

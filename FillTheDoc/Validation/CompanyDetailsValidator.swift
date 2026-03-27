@@ -9,7 +9,8 @@ public struct FieldState: Sendable, Equatable {
     }
 }
 
-public final class CompanyDetailsValidator: Sendable {
+@MainActor
+public final class CompanyDetailsValidator {
     
     public typealias Key = CompanyDetails.CodingKeys
     
