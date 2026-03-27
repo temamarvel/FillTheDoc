@@ -25,7 +25,7 @@ nonisolated enum Validators {
     // MARK: - Format validators (for specific document IDs)
     
     /// Валидирует ИНН (10 или 12 цифр с контрольной суммой).
-    static func inn(_ innRaw: String) -> FieldValidationResult {
+    static func inn(_ innRaw: String) -> FieldIssue? {
         let inn = innRaw.digitsOnly
         var isValid: Bool = false
         if inn.count == 10 {
@@ -34,7 +34,7 @@ nonisolated enum Validators {
         if inn.count == 12 {
             isValid = innChecksum12(inn)
         }
-        return isValid ? FieldValidationResult(.pass, "Верный ИНН") : FieldValidationResult(.error, "Не верный ИНН")
+        return isValid ? nil : .error("Не верный ИНН")
     }
     
     private static func innChecksum10(_ inn: String) -> Bool {
@@ -65,20 +65,20 @@ nonisolated enum Validators {
     }
     
     /// Валидирует КПП (ровно 9 цифр).
-    static func kpp(_ kppRaw: String) -> FieldValidationResult {
+    static func kpp(_ kppRaw: String) -> FieldIssue? {
         let kpp = kppRaw.digitsOnly
         let isValid = kpp.count == 9
-        return isValid ? FieldValidationResult(.pass, "Верный КПП") : FieldValidationResult(.error, "Не верный КПП")
+        return isValid ? nil : .error("Не верный КПП")
     }
     
     /// Валидирует ОГРН/ОГРНИП (13 или 15 цифр с контрольной суммой).
-    static func ogrn(_ ogrnRaw: String) -> FieldValidationResult {
+    static func ogrn(_ ogrnRaw: String) -> FieldIssue? {
         let ogrn = ogrnRaw.digitsOnly
         var isValid: Bool = false
         if ogrn.count == 13 { isValid = ogrnChecksum(ogrn, modBase: 11) }
         if ogrn.count == 15 { isValid = ogrnChecksum(ogrn, modBase: 13) }
         
-        return isValid ? FieldValidationResult(.pass, "Верный ОГРН") : FieldValidationResult(.error, "Не верный ОГРН")
+        return isValid ? nil : .error("Не верный ОГРН")
     }
     
     private static func ogrnChecksum(_ ogrn: String, modBase: Int) -> Bool {
@@ -162,33 +162,33 @@ nonisolated enum Validators {
     // MARK: - Field-specific convenience validators
     
     /// Простая валидация непустого текста.
-    static func nonEmpty(_ v: String) -> FieldValidationResult {
+    static func nonEmpty(_ v: String) -> FieldIssue? {
         let t = v.trimmed
-        return t.isEmpty ? FieldValidationResult(.error, "Поле не может быть пустым") : FieldValidationResult(.pass, "ОК")
+        return t.isEmpty ? .error("Поле не может быть пустым") : nil
     }
     
     /// Валидация ФИО: минимум 2 слова, только буквы и дефисы.
-    static func fullName(_ v: String) -> FieldValidationResult {
+    static func fullName(_ v: String) -> FieldIssue? {
         let t = v.trimmed
-        guard !t.isEmpty else { return FieldValidationResult(.error, "Поле не может быть пустым") }
+        guard !t.isEmpty else { return .error("Поле не может быть пустым") }
         
         let words = t.split(separator: " ").filter { !$0.isEmpty }
         if words.count < 2 {
-            return FieldValidationResult(.warning, "Ожидается минимум Фамилия и Имя")
+            return .warning("Ожидается минимум Фамилия и Имя")
         }
         
         let hasInvalidChars = t.contains(where: { !$0.isLetter && $0 != " " && $0 != "-" })
         if hasInvalidChars {
-            return FieldValidationResult(.warning, "ФИО обычно содержит только буквы")
+            return .warning("ФИО обычно содержит только буквы")
         }
         
-        return FieldValidationResult(.pass, "ФИО ок")
+        return nil
     }
     
     /// Валидация краткого ФИО: формат «Фамилия И.О.» или «Фамилия И.».
-    static func shortenName(_ v: String) -> FieldValidationResult {
+    static func shortenName(_ v: String) -> FieldIssue? {
         let t = v.trimmed
-        guard !t.isEmpty else { return FieldValidationResult(.error, "Поле не может быть пустым") }
+        guard !t.isEmpty else { return .error("Поле не может быть пустым") }
         
         // Паттерн: одно или несколько слов (фамилия), затем инициалы с точками
         // Примеры: "Иванов И.И.", "Иванов-Петров И. И.", "Иванов И."
@@ -196,58 +196,58 @@ nonisolated enum Validators {
         let matches = t.range(of: pattern, options: .regularExpression) != nil
         
         if !matches {
-            return FieldValidationResult(.warning, "Ожидается формат «Фамилия И.О.»")
+            return .warning("Ожидается формат «Фамилия И.О.»")
         }
         
-        return FieldValidationResult(.pass, "Краткое ФИО ок")
+        return nil
     }
     
     /// Валидация правовой формы (возвращает FieldValidationResult).
-    static func legalFormField(_ v: String) -> FieldValidationResult {
+    static func legalFormField(_ v: String) -> FieldIssue? {
         let t = v.trimmed
-        guard !t.isEmpty else { return FieldValidationResult(.error, "Поле не может быть пустым") }
+        guard !t.isEmpty else { return .error("Поле не может быть пустым") }
         
         if let error = legalForm(t) {
-            return FieldValidationResult(.error, error)
+            return .error(error)
         }
-        return FieldValidationResult(.pass, "Правовая форма ок")
+        return nil
     }
     
     /// Валидация адреса (мягкая эвристика — warning, не error).
-    static func address(_ v: String) -> FieldValidationResult {
+    static func address(_ v: String) -> FieldIssue? {
         let t = v.trimmed
-        guard !t.isEmpty else { return FieldValidationResult(.error, "Поле не может быть пустым") }
+        guard !t.isEmpty else { return .error("Поле не может быть пустым") }
         
         if t.count < 10 {
-            return FieldValidationResult(.warning, "Адрес выглядит слишком коротким")
+            return .warning("Адрес выглядит слишком коротким")
         }
         
         if !looksLikeAddress(t) {
-            return FieldValidationResult(.warning, "Не похоже на адрес (нет маркеров: г., ул., д. и т.п.)")
+            return .warning("Не похоже на адрес (нет маркеров: г., ул., д. и т.п.)")
         }
         
-        return FieldValidationResult(.pass, "адрес ок")
+        return nil
     }
     
     /// Валидация телефона: должен начинаться с + или 8, содержать 10-11 цифр.
-    static func phone(_ v: String) -> FieldValidationResult {
+    static func phone(_ v: String) -> FieldIssue? {
         let t = v.trimmed
-        guard !t.isEmpty else { return FieldValidationResult(.error, "Поле не может быть пустым") }
+        guard !t.isEmpty else { return .error("Поле не может быть пустым") }
         
         let digits = t.digitsOnly
         
         guard digits.count >= 10 && digits.count <= 15 else {
-            return FieldValidationResult(.warning, "Телефон обычно содержит 10–11 цифр")
+            return .warning("Телефон обычно содержит 10–11 цифр")
         }
         
         // Проверяем допустимые символы: цифры, +, -, (, ), пробел
         let allowed = CharacterSet(charactersIn: "0123456789+()-– ").union(.whitespaces)
         let hasInvalid = t.unicodeScalars.contains { !allowed.contains($0) }
         if hasInvalid {
-            return FieldValidationResult(.warning, "Телефон содержит необычные символы")
+            return .warning("Телефон содержит необычные символы")
         }
         
-        return FieldValidationResult(.pass, "Телефон ок")
+        return nil
     }
     
     /// Валидация: только числа в диапазоне 0-100 (для процентов).

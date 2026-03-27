@@ -12,7 +12,7 @@ struct FieldMetadata {
     let title: String
     let placeholder: String
     let normalizer: (String) -> String
-    let validator: (String) -> FieldValidationResult
+    let validator: (String) -> FieldIssue?
 }
 
 extension CompanyDetails {
@@ -63,7 +63,7 @@ extension CompanyDetails {
             title: "Email",
             placeholder: "example@domain.com",
             normalizer: Normalizers.trimmed,
-            validator: { v in Validators.email(v).map { FieldValidationResult(.error, $0) } ?? FieldValidationResult(.pass, "email ок") }
+            validator: { v in Validators.email(v).map { .error($0) } }
         ),
         .address: .init(
             title: "Адрес",

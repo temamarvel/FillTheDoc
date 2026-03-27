@@ -103,15 +103,15 @@ struct DocumentDataFormView: View {
     
     @ViewBuilder
     private func fieldRow(key: CompanyDetailsModel.Key, state: FieldState) -> some View {
-        let message = state.message
-        let color = messageColor(for: message)
+        let issue = state.issue
+        let color = issueColor(for: issue)
         
         DocumentDataRowView(
             title: model.title(for: key),
             placeholder: model.placeholder(for: key),
             text: binding(for: key),
             errorColor: color,
-            errorText: message?.text,
+            errorText: issue?.text,
             focusedKey: $focusedKey,
             key: key
         )
@@ -126,12 +126,10 @@ struct DocumentDataFormView: View {
         )
     }
     
-    private func messageColor(for message: CompanyDetailsValidator.FieldMessage?) -> Color {
-        guard let message, let severity = message.severity else {
-            return .clear
-        }
+    private func issueColor(for issue: FieldIssue?) -> Color {
+        guard let issue else { return .clear }
         
-        switch severity {
+        switch issue.severity {
             case .error: return .red
             case .warning: return .orange
         }

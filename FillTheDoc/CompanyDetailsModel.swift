@@ -11,7 +11,6 @@ final class CompanyDetailsModel: ObservableObject {
     
     typealias Key = CompanyDetails.CodingKeys
     typealias Validator = CompanyDetailsValidator
-    typealias FieldMessage = CompanyDetailsValidator.FieldMessage
     
     // UI читает одно место
     @Published private(set) var fields: [Key: FieldState] = [:]
@@ -47,7 +46,7 @@ final class CompanyDetailsModel: ObservableObject {
             let normalized = raw.flatMap { value in
                 metadata[key].map { $0.normalizer(value) } ?? value.trimmedNilIfEmpty
             }
-            fields[key] = FieldState(value: normalized, message: nil)
+            fields[key] = FieldState(value: normalized, issue: nil)
         }
         return fields
     }
@@ -56,10 +55,10 @@ final class CompanyDetailsModel: ObservableObject {
     
     func keysInOrder() -> [Key] { allFieldKeys }
     func value(for key: Key) -> String { fields[key]?.value ?? "" }
-    func message(for key: Key) -> FieldMessage? { fields[key]?.message }
-    func title(for key: Key) -> String { metadata[key]?.title ?? key.stringValue } // если нет метадаты — хотя бы json-key покажем
+    func issue(for key: Key) -> FieldIssue? { fields[key]?.issue }
+    func title(for key: Key) -> String { metadata[key]?.title ?? key.stringValue }
     func placeholder(for key: Key) -> String { metadata[key]?.placeholder ?? "" }
-    var hasErrors: Bool { fields.values.contains { $0.message?.severity == .error } }
+    var hasErrors: Bool { fields.values.contains { $0.issue?.severity == .error } }
     
     // MARK: - Set value (local only)
     
@@ -73,7 +72,7 @@ final class CompanyDetailsModel: ObservableObject {
             normalized = newValue.trimmed
         }
         fieldState.value = normalized
-        fieldState.message = validateField(for: key, state: fieldState)
+        fieldState.issue = validateField(for: key, state: fieldState)
         
         fields[key] = fieldState
     }
@@ -84,14 +83,13 @@ final class CompanyDetailsModel: ObservableObject {
         fields = await validator.validateFieldsWithReference(fields: fields)
     }
     
-    func validateAllFields(){
+    func validateAllFields() {
         for key in keysInOrder() {
             if var fieldState = fields[key] {
-                fieldState.message = validateField(for: key, state: fieldState)
+                fieldState.issue = validateField(for: key, state: fieldState)
                 fields[key] = fieldState
             }
         }
-        
     }
     
     // MARK: - Build DTO
@@ -118,7 +116,7 @@ final class CompanyDetailsModel: ObservableObject {
     
     // MARK: - Local messages policy
     
-    private func validateField(for key: Key, state: FieldState) -> FieldMessage? {
+    private func validateField(for key: Key, state: FieldState) -> FieldIssue? {
         return validator.validateField(for: key, state: state)
     }
 }
