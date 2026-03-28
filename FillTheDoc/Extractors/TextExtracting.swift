@@ -9,6 +9,5 @@
 import Foundation
 
 protocol TextExtracting {
-    /// Возвращает (text, method, needsOCR, notes)
-    func extract(from url: URL) throws -> (String, ExtractionResult.Method, Bool, [String])
+    func extract(from url: URL) throws -> RawExtractionOutput
 }

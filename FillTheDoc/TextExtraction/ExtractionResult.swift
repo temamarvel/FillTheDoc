@@ -15,12 +15,12 @@ struct ExtractionResult: Sendable {
         case textutil
         case failed
     }
-
+    
     let text: String
     let method: Method
     let needsOCR: Bool
     let diagnostics: Diagnostics
-
+    
     struct Diagnostics: Sendable {
         var originalURL: URL
         var fileExtension: String
@@ -29,6 +29,15 @@ struct ExtractionResult: Sendable {
         var notes: [String]
         var errors: [String]
     }
+}
+
+/// Raw output from a single TextExtracting implementation.
+/// `DocumentTextExtractorService` wraps this into a full `ExtractionResult` with diagnostics.
+struct RawExtractionOutput {
+    let text: String
+    let method: ExtractionResult.Method
+    let needsOCR: Bool
+    let notes: [String]
 }
 
 enum TextExtractionError: Error {

@@ -71,7 +71,7 @@ struct DocumentTextExtractorService {
             let ext = tempURL.pathExtension.lowercased()
             
             do {
-                let (rawText, method, needsOCR, notes): (String, ExtractionResult.Method, Bool, [String]) = try {
+                let raw: RawExtractionOutput = try {
                     switch ext {
                         case "txt":
                             return try txtExtractor.extract(from: tempURL)
@@ -84,13 +84,13 @@ struct DocumentTextExtractorService {
                     }
                 }()
                 
-                diagnostics.notes.append(contentsOf: notes)
+                diagnostics.notes.append(contentsOf: raw.notes)
                 
-                let normalized = Normalizers.forDocumentDisplay(rawText, maxChars: config.maxChars)
+                let normalized = Normalizers.forDocumentDisplay(raw.text, maxChars: config.maxChars)
                 let finalText = normalized.trimmed
                 diagnostics.producedChars = finalText.count
                 
-                let finalNeedsOCR = needsOCR || (ext == "pdf" && finalText.isEmpty)
+                let finalNeedsOCR = raw.needsOCR || (ext == "pdf" && finalText.isEmpty)
                 if finalText.isEmpty {
                     diagnostics.notes.append("Text is empty after normalization.")
                     if config.requireNonEmptyText { throw TextExtractionError.emptyResult }
@@ -98,7 +98,7 @@ struct DocumentTextExtractorService {
                 
                 return ExtractionResult(
                     text: finalText,
-                    method: method,
+                    method: raw.method,
                     needsOCR: finalNeedsOCR,
                     diagnostics: diagnostics
                 )

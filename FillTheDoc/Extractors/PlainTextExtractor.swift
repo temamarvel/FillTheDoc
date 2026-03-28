@@ -10,10 +10,10 @@ import Foundation
 
 struct PlainTextExtractor: TextExtracting {
     init() {}
-
-    func extract(from url: URL) throws -> (String, ExtractionResult.Method, Bool, [String]) {
+    
+    func extract(from url: URL) throws -> RawExtractionOutput {
         let data = try Data(contentsOf: url)
         let text = TextDecoding.decodeBestEffort(data)
-        return (text, .plainText, false, ["TXT decoded with fallbacks."])
+        return RawExtractionOutput(text: text, method: .plainText, needsOCR: false, notes: ["TXT decoded with fallbacks."])
     }
 }
