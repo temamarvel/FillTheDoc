@@ -1,7 +1,7 @@
 import Foundation
 import DaDataAPIClient
 
-public struct FieldState: Sendable, Equatable {
+struct FieldState: Sendable, Equatable {
     var value : String?
     var issue: FieldIssue?
     var isValid: Bool {
@@ -10,18 +10,18 @@ public struct FieldState: Sendable, Equatable {
 }
 
 @MainActor
-public final class CompanyDetailsValidator {
+final class CompanyDetailsValidator {
     
-    public typealias Key = CompanyDetails.CodingKeys
+    typealias Key = CompanyDetails.CodingKeys
     
-    public struct Policy: Sendable {
-        public var nameSimilarityThreshold: Double
-        public var addressSimilarityThreshold: Double
+    struct Policy: Sendable {
+        var nameSimilarityThreshold: Double
+        var addressSimilarityThreshold: Double
         
-        public var preferRemoteOnTie: Bool
-        public var combineTextsOnTie: Bool
+        var preferRemoteOnTie: Bool
+        var combineTextsOnTie: Bool
         
-        public nonisolated init(
+        nonisolated init(
             nameSimilarityThreshold: Double = 0.72,
             addressSimilarityThreshold: Double = 0.55,
             preferRemoteOnTie: Bool = false,
@@ -38,7 +38,7 @@ public final class CompanyDetailsValidator {
     private let dadataClient: DaDataClient
     private var cache: [String: DaDataCompanyInfo]
     
-    public init(dadataClient: DaDataClient, policy: Policy = .init()) {
+    init(dadataClient: DaDataClient, policy: Policy = .init()) {
         self.policy = policy
         self.dadataClient = dadataClient
         self.cache = [:]
@@ -46,7 +46,7 @@ public final class CompanyDetailsValidator {
     
     // MARK: - Local validation (no network)
     
-    public func validateField(for fieldKey: Key, state: FieldState) -> FieldIssue? {
+    func validateField(for fieldKey: Key, state: FieldState) -> FieldIssue? {
         guard let validator = CompanyDetails.fieldMetadata[fieldKey]?.validator else {
             return nil
         }
@@ -58,7 +58,7 @@ public final class CompanyDetailsValidator {
         return validator(value)
     }
     
-    public func validateFieldsWithReference(fields: [Key: FieldState]) async -> [Key: FieldState] {
+    func validateFieldsWithReference(fields: [Key: FieldState]) async -> [Key: FieldState] {
         //fields have to be normalized and not null before validation
         
         let ogrn = fields[.ogrn]?.value

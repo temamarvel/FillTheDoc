@@ -8,13 +8,13 @@
 import Foundation
 
 
-public struct DocumentTextExtractorService {
+struct DocumentTextExtractorService {
     
-    public struct Configuration {
-        public var maxChars: Int = 60_000
-        public var officeTimeout: TimeInterval = 15
-        public var requireNonEmptyText: Bool = false
-        public init() {}
+    struct Configuration {
+        var maxChars: Int = 60_000
+        var officeTimeout: TimeInterval = 15
+        var requireNonEmptyText: Bool = false
+        init() {}
     }
     
     private let config: Configuration
@@ -25,7 +25,7 @@ public struct DocumentTextExtractorService {
     private let officeExtractor: TextExtracting
     
     // ✅ Designated init for DI / tests
-    public init(
+    init(
         config: Configuration = .init(),
         security: SecurityScopedAccessing,
         tempStore: TempFileStoring,
@@ -42,7 +42,7 @@ public struct DocumentTextExtractorService {
     }
     
     // ✅ Convenience init for production (config only)
-    public init(config: Configuration = .init()) {
+    init(config: Configuration = .init()) {
         let runner = DefaultProcessRunner()
         self.init(
             config: config,
@@ -54,7 +54,7 @@ public struct DocumentTextExtractorService {
         )
     }
     
-    public func extract(from originalURL: URL) throws -> ExtractionResult {
+    func extract(from originalURL: URL) throws -> ExtractionResult {
         var diagnostics = ExtractionResult.Diagnostics(
             originalURL: originalURL,
             fileExtension: originalURL.pathExtension.lowercased(),

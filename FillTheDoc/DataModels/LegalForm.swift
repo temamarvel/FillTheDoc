@@ -7,7 +7,7 @@
 
 
 import Foundation
-public enum LegalForm: String, CaseIterable, Sendable {
+enum LegalForm: String, CaseIterable, Sendable {
     case ooo
     case zao
     case ao
@@ -15,7 +15,7 @@ public enum LegalForm: String, CaseIterable, Sendable {
     case pao
 }
 
-public extension LegalForm {
+extension LegalForm {
     var shortName: String {
         switch self {
             case .ooo: return "ООО"
@@ -97,7 +97,7 @@ private extension LegalForm {
 }
 
 extension LegalForm: Codable {
-    public init(from decoder: Decoder) throws {
+    init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let raw = try container.decode(String.self)
         
@@ -111,7 +111,7 @@ extension LegalForm: Codable {
         self = value
     }
     
-    public func encode(to encoder: Encoder) throws {
+    func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
         try container.encode(shortName)
     }

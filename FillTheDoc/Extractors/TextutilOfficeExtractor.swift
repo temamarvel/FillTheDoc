@@ -8,16 +8,16 @@
 import Foundation
 
 
-public struct TextutilOfficeExtractor: TextExtracting {
+struct TextutilOfficeExtractor: TextExtracting {
     private let runner: ProcessRunning
     private let timeout: TimeInterval
 
-    public init(runner: ProcessRunning, timeout: TimeInterval) {
+    init(runner: ProcessRunning, timeout: TimeInterval) {
         self.runner = runner
         self.timeout = timeout
     }
 
-    public func extract(from url: URL) throws -> (String, ExtractionResult.Method, Bool, [String]) {
+    func extract(from url: URL) throws -> (String, ExtractionResult.Method, Bool, [String]) {
         let tool = URL(fileURLWithPath: "/usr/bin/textutil")
         let out = try runner.run(
             executable: tool,

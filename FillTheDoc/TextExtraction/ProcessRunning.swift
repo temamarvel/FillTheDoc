@@ -8,25 +8,25 @@
 import Foundation
 
 
-public protocol ProcessRunning {
+protocol ProcessRunning {
     func run(executable: URL, arguments: [String], timeout: TimeInterval) throws -> ProcessOutput
 }
 
-public struct ProcessOutput {
-    public let stdout: Data
-    public let stderr: Data
-    public let exitCode: Int32
+struct ProcessOutput {
+    let stdout: Data
+    let stderr: Data
+    let exitCode: Int32
 }
 
-public enum ProcessRunnerError: Error {
+enum ProcessRunnerError: Error {
     case nonZeroExit(code: Int32, stderr: String)
     case timeout
 }
 
-public final class DefaultProcessRunner: ProcessRunning {
-    public init() {}
+final class DefaultProcessRunner: ProcessRunning {
+    init() {}
 
-    public func run(executable: URL, arguments: [String], timeout: TimeInterval) throws -> ProcessOutput {
+    func run(executable: URL, arguments: [String], timeout: TimeInterval) throws -> ProcessOutput {
         let process = Process()
         process.executableURL = executable
         process.arguments = arguments

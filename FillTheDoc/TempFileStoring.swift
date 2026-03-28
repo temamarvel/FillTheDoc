@@ -8,15 +8,15 @@
 import Foundation
 
 
-public protocol TempFileStoring {
+protocol TempFileStoring {
     func copyToTemp(_ url: URL) throws -> URL
     func cleanup(forTempCopy tempURL: URL)
 }
 
-public struct DefaultTempFileStore: TempFileStoring {
-    public init() {}
+struct DefaultTempFileStore: TempFileStoring {
+    init() {}
 
-    public func copyToTemp(_ url: URL) throws -> URL {
+    func copyToTemp(_ url: URL) throws -> URL {
         let fm = FileManager.default
         let dir = fm.temporaryDirectory
             .appendingPathComponent("FillTheDoc-Extract-\(UUID().uuidString)", isDirectory: true)
@@ -27,7 +27,7 @@ public struct DefaultTempFileStore: TempFileStoring {
         return dst
     }
 
-    public func cleanup(forTempCopy tempURL: URL) {
+    func cleanup(forTempCopy tempURL: URL) {
         let parent = tempURL.deletingLastPathComponent()
         try? FileManager.default.removeItem(at: parent)
     }

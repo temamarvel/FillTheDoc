@@ -8,18 +8,18 @@
 
 import Foundation
 import SwiftUI
-public import Combine
+import Combine
 
 @MainActor
-public final class APIKeyStore: ObservableObject {
-    @Published public private(set) var apiKey: String?
-    @Published public var isPromptPresented: Bool = false
-    @Published public var errorText: String?
+final class APIKeyStore: ObservableObject {
+    @Published private(set) var apiKey: String?
+    @Published var isPromptPresented: Bool = false
+    @Published var errorText: String?
     
     private let keychain: KeychainService
     private let account: String
     
-    public init(
+    init(
         keychain: KeychainService = KeychainService(),
         account: String = "openai_api_key"
     ) {
@@ -27,7 +27,7 @@ public final class APIKeyStore: ObservableObject {
         self.account = account
     }
     
-    public func load() {
+    func load() {
         Task {
             do {
                 let loaded = try await keychain.loadString(account: account)?
@@ -49,7 +49,7 @@ public final class APIKeyStore: ObservableObject {
         }
     }
     
-    public func save(_ enteredKey: String) {
+    func save(_ enteredKey: String) {
         let trimmed = enteredKey.trimmed
         guard !trimmed.isEmpty else {
             apiKey = nil
@@ -72,7 +72,7 @@ public final class APIKeyStore: ObservableObject {
         }
     }
     
-    public func clear() {
+    func clear() {
         Task {
             do {
                 try await keychain.delete(account: account)
@@ -86,7 +86,7 @@ public final class APIKeyStore: ObservableObject {
     }
     
     /// Удобно для guard’ов в действиях.
-    public var hasKey: Bool {
+    var hasKey: Bool {
         let k = apiKey?.trimmed ?? ""
         return !k.isEmpty
     }

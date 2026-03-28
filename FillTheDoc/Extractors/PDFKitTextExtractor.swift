@@ -9,10 +9,10 @@ import Foundation
 import PDFKit
 
 
-public struct PDFKitTextExtractor: TextExtracting {
-    public init() {}
+struct PDFKitTextExtractor: TextExtracting {
+    init() {}
 
-    public func extract(from url: URL) throws -> (String, ExtractionResult.Method, Bool, [String]) {
+    func extract(from url: URL) throws -> (String, ExtractionResult.Method, Bool, [String]) {
         guard let doc = PDFDocument(url: url) else {
             return ("", .pdfKit, false, ["PDFDocument init failed."])
         }

@@ -1,12 +1,12 @@
 import Foundation
 import Security
 
-public enum KeychainError: Error, LocalizedError {
+enum KeychainError: Error, LocalizedError {
     case unexpectedStatus(OSStatus)
     case invalidData
     case stringEncoding
     
-    public var errorDescription: String? {
+    var errorDescription: String? {
         switch self {
             case .unexpectedStatus(let status):
                 return "Keychain error: \(status)"
@@ -19,14 +19,14 @@ public enum KeychainError: Error, LocalizedError {
 }
 
 /// Низкоуровневый сервис Keychain: хранение/чтение/удаление значений по account.
-public actor KeychainService {
+actor KeychainService {
     private let service: String
     
-    public init(service: String = Bundle.main.bundleIdentifier ?? "FillTheDoc") {
+    init(service: String = Bundle.main.bundleIdentifier ?? "FillTheDoc") {
         self.service = service
     }
     
-    public func saveString(_ value: String, account: String) throws {
+    func saveString(_ value: String, account: String) throws {
         guard let data = value.data(using: .utf8) else { throw KeychainError.stringEncoding }
         
         let baseQuery: [String: Any] = [
@@ -60,7 +60,7 @@ public actor KeychainService {
         guard addStatus == errSecSuccess else { throw KeychainError.unexpectedStatus(addStatus) }
     }
     
-    public func loadString(account: String) throws -> String? {
+    func loadString(account: String) throws -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -79,7 +79,7 @@ public actor KeychainService {
         return String(data: data, encoding: .utf8)
     }
     
-    public func delete(account: String) throws {
+    func delete(account: String) throws {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,

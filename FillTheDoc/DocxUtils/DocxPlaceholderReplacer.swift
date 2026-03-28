@@ -10,34 +10,34 @@ import ZIPFoundation
 
 // MARK: - Public
 
-public final class DocxPlaceholderReplacer {
+final class DocxPlaceholderReplacer {
     
     // MARK: Options / Report
     
-    public struct Options: Sendable {
-        public enum MissingKeyPolicy: Sendable {
+    struct Options: Sendable {
+        enum MissingKeyPolicy: Sendable {
             case error
             case keep
             case blank
         }
         
-        public var includeFootnotes: Bool = true
-        public var includeEndnotes: Bool = true
-        public var includeComments: Bool = true
-        public var selection: PartsSelection = .standard
-        public var missingKeyPolicy: MissingKeyPolicy = .keep
-        public var preserveWhitespaceWhenNeeded: Bool = true
-        public var includeFieldInstructionText: Bool = false
-        public var validateTemplate: Bool = true
-        public var sanitizeValues: Bool = true
-        public var onWarning: (@Sendable (String) -> Void)? = nil
+        var includeFootnotes: Bool = true
+        var includeEndnotes: Bool = true
+        var includeComments: Bool = true
+        var selection: PartsSelection = .standard
+        var missingKeyPolicy: MissingKeyPolicy = .keep
+        var preserveWhitespaceWhenNeeded: Bool = true
+        var includeFieldInstructionText: Bool = false
+        var validateTemplate: Bool = true
+        var sanitizeValues: Bool = true
+        var onWarning: (@Sendable (String) -> Void)? = nil
         
-        public enum PartsSelection: Sendable {
+        enum PartsSelection: Sendable {
             case standard
             case allWordXML
         }
         
-        public init() {}
+        init() {}
         
         var coreOptions: DocxPartsOptions {
             DocxPartsOptions(
@@ -50,21 +50,21 @@ public final class DocxPlaceholderReplacer {
         }
     }
     
-    public struct Report: Sendable {
-        public var processedParts: [String] = []
-        public var foundKeys: Set<String> = []
-        public var replacedKeys: Set<String> = []
-        public var missingKeys: Set<String> = []
-        public var replacementsCount: Int = 0
+    struct Report: Sendable {
+        var processedParts: [String] = []
+        var foundKeys: Set<String> = []
+        var replacedKeys: Set<String> = []
+        var missingKeys: Set<String> = []
+        var replacementsCount: Int = 0
         
-        public init() {}
+        init() {}
     }
     
-    public enum Error: Swift.Error, LocalizedError {
+    enum Error: Swift.Error, LocalizedError {
         case cannotCreateOutputArchive
         case missingKeys([String])
         
-        public var errorDescription: String? {
+        var errorDescription: String? {
             switch self {
                 case .cannotCreateOutputArchive:
                     return "Cannot create output DOCX archive."
@@ -74,10 +74,10 @@ public final class DocxPlaceholderReplacer {
         }
     }
     
-    public init() {}
+    init() {}
     
     /// Replaces placeholders like `<!company_name!>` in a DOCX template.
-    public func fill(
+    func fill(
         template: URL,
         output: URL,
         values: [String: String],

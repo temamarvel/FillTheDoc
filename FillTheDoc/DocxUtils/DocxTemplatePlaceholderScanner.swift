@@ -8,25 +8,25 @@
 import Foundation
 import ZIPFoundation
 
-public final class DocxTemplatePlaceholderScanner {
+final class DocxTemplatePlaceholderScanner {
     
     // MARK: - Public types
     
-    public struct Options: Sendable {
-        public var includeFootnotes: Bool = true
-        public var includeEndnotes: Bool = true
-        public var includeComments: Bool = true
-        public var selection: PartsSelection = .standard
-        public var includeFieldInstructionText: Bool = false
-        public var validateTemplate: Bool = true
-        public var onWarning: (@Sendable (String) -> Void)? = nil
+    struct Options: Sendable {
+        var includeFootnotes: Bool = true
+        var includeEndnotes: Bool = true
+        var includeComments: Bool = true
+        var selection: PartsSelection = .standard
+        var includeFieldInstructionText: Bool = false
+        var validateTemplate: Bool = true
+        var onWarning: (@Sendable (String) -> Void)? = nil
         
-        public enum PartsSelection: Sendable {
+        enum PartsSelection: Sendable {
             case standard
             case allWordXML
         }
         
-        public init() {}
+        init() {}
         
         var coreOptions: DocxPartsOptions {
             DocxPartsOptions(
@@ -39,23 +39,23 @@ public final class DocxTemplatePlaceholderScanner {
         }
     }
     
-    public struct Report: Sendable {
-        public var processedParts: [String] = []
-        public var orderedKeys: [String] = []
-        public var foundKeys: Set<String> = []
-        public var occurrences: [String: Int] = [:]
-        public var partsByKey: [String: Set<String>] = [:]
+    struct Report: Sendable {
+        var processedParts: [String] = []
+        var orderedKeys: [String] = []
+        var foundKeys: Set<String> = []
+        var occurrences: [String: Int] = [:]
+        var partsByKey: [String: Set<String>] = [:]
         
-        public init() {}
+        init() {}
         
-        public var sortedKeys: [String] { foundKeys.sorted() }
+        var sortedKeys: [String] { foundKeys.sorted() }
     }
     
-    public init() {}
+    init() {}
     
     // MARK: - Public API
     
-    public func scan(
+    func scan(
         template: URL,
         options: Options = .init()
     ) throws -> Report {
@@ -103,7 +103,7 @@ public final class DocxTemplatePlaceholderScanner {
         return report
     }
     
-    public func scanKeys(
+    func scanKeys(
         template: URL,
         options: Options = .init()
     ) throws -> [String] {

@@ -8,30 +8,30 @@
 
 import Foundation
 
-public struct ExtractionResult: Sendable {
-    public enum Method: Sendable {
+struct ExtractionResult: Sendable {
+    enum Method: Sendable {
         case plainText
         case pdfKit
         case textutil
         case failed
     }
 
-    public let text: String
-    public let method: Method
-    public let needsOCR: Bool
-    public let diagnostics: Diagnostics
+    let text: String
+    let method: Method
+    let needsOCR: Bool
+    let diagnostics: Diagnostics
 
-    public struct Diagnostics: Sendable {
-        public var originalURL: URL
-        public var fileExtension: String
-        public var fileSizeBytes: Int64?
-        public var producedChars: Int
-        public var notes: [String]
-        public var errors: [String]
+    struct Diagnostics: Sendable {
+        var originalURL: URL
+        var fileExtension: String
+        var fileSizeBytes: Int64?
+        var producedChars: Int
+        var notes: [String]
+        var errors: [String]
     }
 }
 
-public enum TextExtractionError: Error {
+enum TextExtractionError: Error {
     case unsupportedExtension(String)
     case emptyResult
 }

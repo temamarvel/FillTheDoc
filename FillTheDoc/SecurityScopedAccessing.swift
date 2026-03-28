@@ -8,14 +8,14 @@
 import Foundation
 
 
-public protocol SecurityScopedAccessing {
+protocol SecurityScopedAccessing {
     func withAccess<T>(_ url: URL, _ body: () throws -> T) throws -> T
 }
 
-public struct DefaultSecurityScopedAccessor: SecurityScopedAccessing {
-    public init() {}
+struct DefaultSecurityScopedAccessor: SecurityScopedAccessing {
+    init() {}
 
-    public func withAccess<T>(_ url: URL, _ body: () throws -> T) throws -> T {
+    func withAccess<T>(_ url: URL, _ body: () throws -> T) throws -> T {
         let didStart = url.startAccessingSecurityScopedResource()
         defer { if didStart { url.stopAccessingSecurityScopedResource() } }
         return try body()

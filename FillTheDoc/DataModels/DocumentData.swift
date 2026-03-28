@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct DocumentData: Codable {
+struct DocumentData: Codable {
     let fee: String?
     let minFee: String?
     let companyDetails: CompanyDetails?

@@ -1,18 +1,18 @@
 import Foundation
 
-public struct CompanyDetails: Decodable, LLMExtractable, Sendable {
-    public let companyName: String?
-    public let legalForm: LegalForm?
-    public let ceoFullName: String?
-    public let ceoShortenName: String?
-    public let ogrn: String?
-    public let inn: String?
-    public let kpp: String?
-    public let email: String?
-    public let address: String?
-    public let phone: String?
+struct CompanyDetails: Decodable, LLMExtractable, Sendable {
+    let companyName: String?
+    let legalForm: LegalForm?
+    let ceoFullName: String?
+    let ceoShortenName: String?
+    let ogrn: String?
+    let inn: String?
+    let kpp: String?
+    let email: String?
+    let address: String?
+    let phone: String?
     
-    public init(
+    init(
         companyName: String?,
         legalForm: LegalForm?,
         ceoFullName: String?,
@@ -36,7 +36,7 @@ public struct CompanyDetails: Decodable, LLMExtractable, Sendable {
         self.phone = phone
     }
     
-    public enum CodingKeys: String, CodingKey, CaseIterable {
+    enum CodingKeys: String, CodingKey, CaseIterable {
         case companyName = "company_name"
         case legalForm = "legal_form"
         case ceoFullName = "ceo_full_name"
@@ -49,7 +49,7 @@ public struct CompanyDetails: Decodable, LLMExtractable, Sendable {
         case phone
     }
     
-    public init(from decoder: Decoder) throws {
+    init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
         self.companyName = try container.decodeIfPresent(String.self, forKey: .companyName)?.trimmedNilIfEmpty
@@ -70,7 +70,7 @@ public struct CompanyDetails: Decodable, LLMExtractable, Sendable {
     }
 }
 
-public extension CompanyDetails {
+extension CompanyDetails {
     var fullCompanyName: String {
         [
             legalForm?.shortName,
