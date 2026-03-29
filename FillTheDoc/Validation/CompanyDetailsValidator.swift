@@ -1,7 +1,7 @@
 import Foundation
 import DaDataAPIClient
 
-struct FieldState: Sendable, Equatable {
+public struct FieldState: Sendable, Equatable {
     var value : String?
     var issue: FieldIssue?
     var isValid: Bool {
@@ -9,19 +9,18 @@ struct FieldState: Sendable, Equatable {
     }
 }
 
-@MainActor
-final class CompanyDetailsValidator {
+public actor CompanyDetailsValidator {
     
     typealias Key = CompanyDetails.CodingKeys
     
-    struct Policy: Sendable {
-        var nameSimilarityThreshold: Double
-        var addressSimilarityThreshold: Double
+    public struct Policy: Sendable {
+        public var nameSimilarityThreshold: Double
+        public var addressSimilarityThreshold: Double
         
-        var preferRemoteOnTie: Bool
-        var combineTextsOnTie: Bool
+        public var preferRemoteOnTie: Bool
+        public var combineTextsOnTie: Bool
         
-        nonisolated init(
+        public nonisolated init(
             nameSimilarityThreshold: Double = 0.72,
             addressSimilarityThreshold: Double = 0.55,
             preferRemoteOnTie: Bool = false,
@@ -38,7 +37,7 @@ final class CompanyDetailsValidator {
     private let dadataClient: DaDataClient
     private var cache: [String: DaDataCompanyInfo]
     
-    init(dadataClient: DaDataClient, policy: Policy = .init()) {
+    public init(dadataClient: DaDataClient, policy: Policy = .init()) {
         self.policy = policy
         self.dadataClient = dadataClient
         self.cache = [:]
@@ -46,7 +45,7 @@ final class CompanyDetailsValidator {
     
     // MARK: - Local validation (no network)
     
-    func validateField(for fieldKey: Key, state: FieldState) -> FieldIssue? {
+    nonisolated func validateField(for fieldKey: Key, state: FieldState) -> FieldIssue? {
         guard let validator = CompanyDetails.fieldMetadata[fieldKey]?.validator else {
             return nil
         }

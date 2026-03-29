@@ -2,7 +2,7 @@ import Foundation
 import DaDataAPIClient
 import Combine
 
-struct ValidationError: Error {
+public struct ValidationError: Error {
     let message: String
 }
 
@@ -20,6 +20,11 @@ final class CompanyDetailsModel: ObservableObject {
     
     private var validator: Validator
     private let dadata: DaDataClient
+    
+    // MARK: - Debounce / cancellation state
+    
+    private var validationTask: Task<Void, Never>?
+    private var lastLookupKey: String?
     
     init(
         companyDetails: CompanyDetails,
@@ -77,8 +82,39 @@ final class CompanyDetailsModel: ObservableObject {
         fields[key] = fieldState
     }
     
-    // MARK: - Remote validation on blur
+    // MARK: - Remote validation on blur (debounced + cancellation-aware)
     
+    /// Вызывается из View при потере фокуса полем.
+    /// Запускает удалённую проверку с задержкой 300 мс; предыдущая задача отменяется.
+    func scheduleReferenceValidation() {
+        let lookupKey = fields[.ogrn]?.value ?? fields[.inn]?.value
+        guard let lookupKey, !lookupKey.isEmpty else { return }
+        
+        // Не запускаем повторно по тому же ключу
+        if lookupKey == lastLookupKey { return }
+        
+        validationTask?.cancel()
+        validationTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                // Debounce 300 мс
+                try await Task.sleep(for: .milliseconds(300))
+                try Task.checkCancellation()
+                
+                let newFields = await self.validator.validateFieldsWithReference(fields: self.fields)
+                try Task.checkCancellation()
+                
+                self.fields = newFields
+                self.lastLookupKey = lookupKey
+            } catch is CancellationError {
+                // нормальная отмена
+            } catch {
+                print("Reference validation failed:", error)
+            }
+        }
+    }
+    
+    /// Немедленная удалённая проверка (без debounce). Оставлена для обратной совместимости.
     func validateFieldsWithReference() async {
         fields = await validator.validateFieldsWithReference(fields: fields)
     }

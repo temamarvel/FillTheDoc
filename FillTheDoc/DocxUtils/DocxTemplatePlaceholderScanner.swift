@@ -8,25 +8,25 @@
 import Foundation
 import ZIPFoundation
 
-final class DocxTemplatePlaceholderScanner {
+public final class DocxTemplatePlaceholderScanner: Sendable {
     
     // MARK: - Public types
     
-    struct Options: Sendable {
-        var includeFootnotes: Bool = true
-        var includeEndnotes: Bool = true
-        var includeComments: Bool = true
-        var selection: PartsSelection = .standard
-        var includeFieldInstructionText: Bool = false
-        var validateTemplate: Bool = true
-        var onWarning: (@Sendable (String) -> Void)? = nil
+    public struct Options: Sendable {
+        public var includeFootnotes: Bool = true
+        public var includeEndnotes: Bool = true
+        public var includeComments: Bool = true
+        public var selection: PartsSelection = .standard
+        public var includeFieldInstructionText: Bool = false
+        public var validateTemplate: Bool = true
+        public var onWarning: (@Sendable (String) -> Void)? = nil
         
-        enum PartsSelection: Sendable {
+        public enum PartsSelection: Sendable {
             case standard
             case allWordXML
         }
         
-        init() {}
+        public init() {}
         
         var coreOptions: DocxPartsOptions {
             DocxPartsOptions(
@@ -39,23 +39,23 @@ final class DocxTemplatePlaceholderScanner {
         }
     }
     
-    struct Report: Sendable {
-        var processedParts: [String] = []
-        var orderedKeys: [String] = []
-        var foundKeys: Set<String> = []
-        var occurrences: [String: Int] = [:]
-        var partsByKey: [String: Set<String>] = [:]
+    public struct Report: Sendable {
+        public var processedParts: [String] = []
+        public var orderedKeys: [String] = []
+        public var foundKeys: Set<String> = []
+        public var occurrences: [String: Int] = [:]
+        public var partsByKey: [String: Set<String>] = [:]
         
-        init() {}
+        public init() {}
         
-        var sortedKeys: [String] { foundKeys.sorted() }
+        public var sortedKeys: [String] { foundKeys.sorted() }
     }
     
-    init() {}
+    public init() {}
     
     // MARK: - Public API
     
-    func scan(
+    public nonisolated func scan(
         template: URL,
         options: Options = .init()
     ) throws -> Report {
@@ -103,7 +103,7 @@ final class DocxTemplatePlaceholderScanner {
         return report
     }
     
-    func scanKeys(
+    public nonisolated func scanKeys(
         template: URL,
         options: Options = .init()
     ) throws -> [String] {

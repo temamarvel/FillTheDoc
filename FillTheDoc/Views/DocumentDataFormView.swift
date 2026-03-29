@@ -94,7 +94,7 @@ struct DocumentDataFormView: View {
         }
         .onChange(of: focusedKey) { old, new in
             guard let lost = old, lost != new else { return }
-            Task { await model.validateFieldsWithReference() }
+            model.scheduleReferenceValidation()
         }
         .animation(.easeInOut(duration: 0.15), value: model.fields)
         .animation(.easeInOut(duration: 0.15), value: feeError)

@@ -17,7 +17,6 @@ final class MainViewModel {
     // MARK: - State (paths)
     
     var templatePath: String = ""
-    
     var detailsPath: String = ""
     
     // MARK: - State (data)
@@ -31,6 +30,12 @@ final class MainViewModel {
     
     private(set) var isLoading: Bool = false
     var isDataApproved: Bool = false
+    
+    // MARK: - Task management
+    
+    private var extractTask: Task<Void, Never>?
+    private var scanTask: Task<Void, Never>?
+    private var extractionGeneration: Int = 0
     
     // MARK: - State (exporter)
     
@@ -54,16 +59,27 @@ final class MainViewModel {
     
     init(
         apiKeyStore: APIKeyStore,
-        scanner: DocxTemplatePlaceholderScanner = DocxTemplatePlaceholderScanner(),
-        replacer: DocxPlaceholderReplacer = DocxPlaceholderReplacer(),
-        googleSheetsRowBuilder: GoogleSheetsRowBuilding = GoogleSheetsRowBuilder(),
-        extractorService: DocumentTextExtractorService = DocumentTextExtractorService()
+        scanner: DocxTemplatePlaceholderScanner,
+        replacer: DocxPlaceholderReplacer,
+        googleSheetsRowBuilder: GoogleSheetsRowBuilding,
+        extractorService: DocumentTextExtractorService
     ) {
         self.apiKeyStore = apiKeyStore
         self.scanner = scanner
         self.replacer = replacer
         self.googleSheetsRowBuilder = googleSheetsRowBuilder
         self.extractorService = extractorService
+    }
+    
+    /// Convenience init with default dependencies for production use.
+    convenience init(apiKeyStore: APIKeyStore) {
+        self.init(
+            apiKeyStore: apiKeyStore,
+            scanner: DocxTemplatePlaceholderScanner(),
+            replacer: DocxPlaceholderReplacer(),
+            googleSheetsRowBuilder: GoogleSheetsRowBuilder(),
+            extractorService: DocumentTextExtractorService()
+        )
     }
     
     // MARK: - Actions
@@ -98,39 +114,62 @@ final class MainViewModel {
         exportDocument = nil
     }
     
-    // MARK: - Scan placeholders
+    // MARK: - Scan placeholders (IO off main thread)
     
     func scanPlaceholders() {
         guard let templateURL else { return }
-        do {
-            templatePlaceholders = try scanner.scanKeys(template: templateURL)
-        } catch {
-            print("Scan failed:", error)
+        let scanner = self.scanner
+        
+        scanTask?.cancel()
+        scanTask = Task {
+            do {
+                let keys = try await Self.scanKeysInBackground(scanner: scanner, templateURL: templateURL)
+                try Task.checkCancellation()
+                self.templatePlaceholders = keys
+            } catch is CancellationError {
+                // игнорируем отмену
+            } catch {
+                print("Scan failed:", error)
+            }
         }
     }
     
-    // MARK: - Extract details (text → OpenAI → CompanyDetails)
+    // MARK: - Extract details (IO + OpenAI off main thread)
     
     func extractDetails() {
         guard let detailsURL else { return }
+        let extractorService = self.extractorService
         
-        Task {
-            isLoading = true
-            defer { isLoading = false }
+        extractTask?.cancel()
+        extractionGeneration += 1
+        let generation = extractionGeneration
+        
+        extractTask = Task { [weak self] in
+            guard let self else { return }
+            
+            self.isLoading = true
+            defer { Task { @MainActor [weak self] in self?.isLoading = false } }
             
             do {
-                let extractedDetails = try extractorService.extract(from: detailsURL)
-                //let companyDetails = try await callOpenAI(extractedDetails: extractedDetails)
-                let companyDetails = try await fakeOpenAICall(extractedDetails: extractedDetails)
-                details = companyDetails
+                let extractedDetails = try await Self.extractInBackground(service: extractorService, url: detailsURL)
+                try Task.checkCancellation()
+                
+                let companyDetails = try await self.fakeOpenAICall(extractedDetails: extractedDetails)
+                try Task.checkCancellation()
+                
+                // Защита от out-of-order: записываем только если нет более свежей задачи
+                guard generation == self.extractionGeneration else { return }
+                self.details = companyDetails
                 print("DTO:", companyDetails.toMultilineString())
+            } catch is CancellationError {
+                // нормальная отмена — ничего не делаем
             } catch {
                 print("Extraction failed:", error)
             }
         }
     }
     
-    // MARK: - Fill template
+    // MARK: - Fill template (IO off main thread)
     
     func runFill() async {
         guard let templateURL else { return }
@@ -142,10 +181,12 @@ final class MainViewModel {
             guard let values = documentData?.asDictionary() else { return }
             
             let tempOutURL = makeTempOutputURL(from: templateURL)
+            let replacer = self.replacer
             
-            let report = try replacer.fill(
-                template: templateURL,
-                output: tempOutURL,
+            let report = try await Self.fillInBackground(
+                replacer: replacer,
+                templateURL: templateURL,
+                outputURL: tempOutURL,
                 values: values
             )
             
@@ -191,7 +232,6 @@ final class MainViewModel {
         // MARK: valid test data
         return CompanyDetails(companyName: "Тест компания", legalForm: LegalForm.parse("ЗАО"), ceoFullName: "Тест Тестович Тестов", ceoShortenName: "Тестов Т. Т.", ogrn: "1187746707280", inn: "9731007287", kpp: "773101001", email: "test_test@test.com", address: "город Москва, ул Горбунова, д. 2 стр. 3", phone: "+79991234567")
         
-        
         //MARK: invalid test data
         // return CompanyDetails(companyName: "Тест компания", legalForm: "ТЕСТ_ЗАО", ceoFullName: "Тест Тестович Тестов", ceoShortenName: "Тестов Т. Т.", ogrn: "11877467072801", inn: "97310107287", kpp: "7731010101", email: "test_test@test.com", address: "Город, ул. Улица, д. 8")
     }
@@ -200,6 +240,40 @@ final class MainViewModel {
         let base = templateURL.deletingPathExtension().lastPathComponent
         let name = "\(base)_out_\(UUID().uuidString).docx"
         return FileManager.default.temporaryDirectory.appendingPathComponent(name)
+    }
+    
+    // MARK: - Background helpers (nonisolated — уходят с MainActor)
+    
+    /// Сканирует плейсхолдеры шаблона вне MainActor.
+    private nonisolated static func scanKeysInBackground(
+        scanner: DocxTemplatePlaceholderScanner,
+        templateURL: URL
+    ) async throws -> [String] {
+        try await Task.detached(priority: .userInitiated) {
+            try scanner.scanKeys(template: templateURL)
+        }.value
+    }
+    
+    /// Извлекает текст из файла вне MainActor.
+    private nonisolated static func extractInBackground(
+        service: DocumentTextExtractorService,
+        url: URL
+    ) async throws -> ExtractionResult {
+        try await Task.detached(priority: .userInitiated) {
+            try service.extract(from: url)
+        }.value
+    }
+    
+    /// Заполняет docx-шаблон вне MainActor.
+    private nonisolated static func fillInBackground(
+        replacer: DocxPlaceholderReplacer,
+        templateURL: URL,
+        outputURL: URL,
+        values: [String: String]
+    ) async throws -> DocxPlaceholderReplacer.Report {
+        try await Task.detached(priority: .userInitiated) {
+            try replacer.fill(template: templateURL, output: outputURL, values: values)
+        }.value
     }
     
     private func url(from path: String) -> URL? {

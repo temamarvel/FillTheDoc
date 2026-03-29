@@ -10,34 +10,34 @@ import ZIPFoundation
 
 // MARK: - Public
 
-final class DocxPlaceholderReplacer {
+public final class DocxPlaceholderReplacer: Sendable {
     
     // MARK: Options / Report
     
-    struct Options: Sendable {
-        enum MissingKeyPolicy: Sendable {
+    public struct Options: Sendable {
+        public enum MissingKeyPolicy: Sendable {
             case error
             case keep
             case blank
         }
         
-        var includeFootnotes: Bool = true
-        var includeEndnotes: Bool = true
-        var includeComments: Bool = true
-        var selection: PartsSelection = .standard
-        var missingKeyPolicy: MissingKeyPolicy = .keep
-        var preserveWhitespaceWhenNeeded: Bool = true
-        var includeFieldInstructionText: Bool = false
-        var validateTemplate: Bool = true
-        var sanitizeValues: Bool = true
-        var onWarning: (@Sendable (String) -> Void)? = nil
+        public var includeFootnotes: Bool = true
+        public var includeEndnotes: Bool = true
+        public var includeComments: Bool = true
+        public var selection: PartsSelection = .standard
+        public var missingKeyPolicy: MissingKeyPolicy = .keep
+        public var preserveWhitespaceWhenNeeded: Bool = true
+        public var includeFieldInstructionText: Bool = false
+        public var validateTemplate: Bool = true
+        public var sanitizeValues: Bool = true
+        public var onWarning: (@Sendable (String) -> Void)? = nil
         
-        enum PartsSelection: Sendable {
+        public enum PartsSelection: Sendable {
             case standard
             case allWordXML
         }
         
-        init() {}
+        public init() {}
         
         var coreOptions: DocxPartsOptions {
             DocxPartsOptions(
@@ -50,21 +50,21 @@ final class DocxPlaceholderReplacer {
         }
     }
     
-    struct Report: Sendable {
-        var processedParts: [String] = []
-        var foundKeys: Set<String> = []
-        var replacedKeys: Set<String> = []
-        var missingKeys: Set<String> = []
-        var replacementsCount: Int = 0
+    public struct Report: Sendable {
+        public var processedParts: [String] = []
+        public var foundKeys: Set<String> = []
+        public var replacedKeys: Set<String> = []
+        public var missingKeys: Set<String> = []
+        public var replacementsCount: Int = 0
         
-        init() {}
+        public init() {}
     }
     
-    enum Error: Swift.Error, LocalizedError {
+    public enum Error: Swift.Error, LocalizedError {
         case cannotCreateOutputArchive
         case missingKeys([String])
         
-        var errorDescription: String? {
+        public var errorDescription: String? {
             switch self {
                 case .cannotCreateOutputArchive:
                     return "Cannot create output DOCX archive."
@@ -74,10 +74,10 @@ final class DocxPlaceholderReplacer {
         }
     }
     
-    init() {}
+    public init() {}
     
     /// Replaces placeholders like `<!company_name!>` in a DOCX template.
-    func fill(
+    public nonisolated func fill(
         template: URL,
         output: URL,
         values: [String: String],
@@ -152,11 +152,11 @@ final class DocxPlaceholderReplacer {
     
     // MARK: - Sanitization
     
-    private func sanitizeValuesDictionary(_ values: [String: String]) -> [String: String] {
+    private nonisolated func sanitizeValuesDictionary(_ values: [String: String]) -> [String: String] {
         values.mapValues { sanitizeValue($0) }
     }
     
-    private func sanitizeValue(_ value: String) -> String {
+    private nonisolated func sanitizeValue(_ value: String) -> String {
         var sanitized = value
         sanitized = sanitized.replacingOccurrences(of: "<!", with: "&lt;!")
         sanitized = sanitized.replacingOccurrences(of: "!>", with: "!&gt;")
@@ -173,7 +173,7 @@ private struct PartReport {
     var replacementsCount: Int = 0
 }
 
-private func replaceInPartXML(
+private nonisolated func replaceInPartXML(
     partURL: URL,
     values: [String: String],
     options: DocxPlaceholderReplacer.Options,
