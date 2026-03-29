@@ -9,12 +9,12 @@ import Foundation
 
 /// Централизованное место для всех валидаторов полей.
 /// Структурированы по типам: формат, диапазон, синтаксис, подобие.
-nonisolated enum Validators {
+enum Validators {
     
     // MARK: - Generic helpers
     
     /// Валидатор, который пропускает пустые значения.
-    nonisolated static func optional(_ validate: @escaping (String) -> String?) -> (String) -> String? {
+    static func optional(_ validate: @escaping (String) -> String?) -> (String) -> String? {
         { raw in
             let v = raw.trimmed
             guard !v.isEmpty else { return nil }
