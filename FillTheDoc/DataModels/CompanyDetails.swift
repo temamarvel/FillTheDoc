@@ -5,6 +5,7 @@ struct CompanyDetails: Decodable, LLMExtractable, Sendable {
     let legalForm: LegalForm?
     let ceoFullName: String?
     let ceoShortenName: String?
+    let ceoFullGenitiveName: String?
     let ogrn: String?
     let inn: String?
     let kpp: String?
@@ -16,6 +17,7 @@ struct CompanyDetails: Decodable, LLMExtractable, Sendable {
         companyName: String?,
         legalForm: LegalForm?,
         ceoFullName: String?,
+        ceoFullGenitiveName: String?,
         ceoShortenName: String?,
         ogrn: String?,
         inn: String?,
@@ -27,6 +29,7 @@ struct CompanyDetails: Decodable, LLMExtractable, Sendable {
         self.companyName = companyName
         self.legalForm = legalForm
         self.ceoFullName = ceoFullName
+        self.ceoFullGenitiveName = ceoFullGenitiveName
         self.ceoShortenName = ceoShortenName
         self.ogrn = ogrn
         self.inn = inn
@@ -40,6 +43,7 @@ struct CompanyDetails: Decodable, LLMExtractable, Sendable {
         case companyName = "company_name"
         case legalForm = "legal_form"
         case ceoFullName = "ceo_full_name"
+        case ceoFullGenitiveName = "ceo_full_genitive_name"
         case ceoShortenName = "ceo_shorten_name"
         case ogrn
         case inn
@@ -54,6 +58,7 @@ struct CompanyDetails: Decodable, LLMExtractable, Sendable {
         
         self.companyName = try container.decodeIfPresent(String.self, forKey: .companyName)?.trimmedNilIfEmpty
         self.ceoFullName = try container.decodeIfPresent(String.self, forKey: .ceoFullName)?.trimmedNilIfEmpty
+        self.ceoFullGenitiveName = try container.decodeIfPresent(String.self, forKey: .ceoFullGenitiveName)?.trimmedNilIfEmpty
         self.ceoShortenName = try container.decodeIfPresent(String.self, forKey: .ceoShortenName)?.trimmedNilIfEmpty
         self.ogrn = try container.decodeIfPresent(String.self, forKey: .ogrn)?.trimmedNilIfEmpty
         self.inn = try container.decodeIfPresent(String.self, forKey: .inn)?.trimmedNilIfEmpty
@@ -97,6 +102,8 @@ extension CompanyDetails {
                 return legalForm?.shortName
             case .ceoFullName:
                 return ceoFullName
+            case .ceoFullGenitiveName:
+                return ceoFullGenitiveName
             case .ceoShortenName:
                 return ceoShortenName
             case .ogrn:
@@ -122,6 +129,8 @@ extension CompanyDetails {
                 return expandedLegalForm ? legalForm?.fullName : legalForm?.shortName
             case .ceoFullName:
                 return ceoFullName
+            case .ceoFullGenitiveName:
+                return ceoFullGenitiveName
             case .ceoShortenName:
                 return ceoShortenName
             case .ogrn:
@@ -143,10 +152,7 @@ extension CompanyDetails {
         var result: [String: String] = [:]
         
         for key in CodingKeys.allCases {
-            if let value = value(for: key, expandedLegalForm: expandedLegalForm)?
-                .trimmedNilIfEmpty {
-                result[key.rawValue] = value
-            }
+            result[key.rawValue] = value(for: key, expandedLegalForm: expandedLegalForm) ?? ""
         }
         
         return result

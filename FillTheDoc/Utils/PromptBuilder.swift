@@ -17,7 +17,7 @@ enum PromptBuilder {
         Hard rules:
         - Output must be a single JSON object.
         - No markdown, no comments, no explanations, no extra text.
-        - Use exactly these keys: "company_name", "legal_form", "ceo_full_name", "ceo_shorten_name", "ogrn", "inn", "kpp", "email", "address", "phone"
+        - Use exactly these keys: "company_name", "legal_form", "ceo_full_name", ceo_full_genitive_name, "ceo_shorten_name", "ogrn", "inn", "kpp", "email", "address", "phone"
         - Do not add any extra keys.
         - Every value must be either a string or null.
         - If a value is missing, unknown, unreadable, ambiguous, or not explicitly present in the source text, return null.
@@ -50,6 +50,13 @@ enum PromptBuilder {
         - ceo_full_name:
           Extract the full name of the head, signer, or entrepreneur only if explicitly present.
           Prefer Russian full-name form such as "Иванов Иван Иванович".
+        
+        - ceo_full_genitive_name:
+          Return the full name in genitive case.
+          Use the same person as in ceo_full_name.
+          If this exact full-name form is present in the source, use it.
+          Otherwise, if ceo_full_name is present and can be safely converted with high confidence, derive it from ceo_full_name.
+          Otherwise return null.
         
         - ceo_shorten_name:
           Return the shortened name in format "Фамилия И.О.".

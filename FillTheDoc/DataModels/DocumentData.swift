@@ -31,6 +31,7 @@ struct DocumentData: Codable {
             dict["min_fee"] = minFee
         }
         
+        dict["full_company_name"] = companyDetails?.legalForm == .ip ? "\(companyDetails?.legalForm?.shortName ?? "") \(companyDetails?.companyName ?? "")" : "\(companyDetails?.legalForm?.shortName ?? "") «\(companyDetails?.companyName ?? "")»"
         dict["date"] = date
         dict["ceo_role"] = ceoRole
         dict["rules"] = companyDetails?.legalForm == .ip ? "Листа  записи в Едином государственном реестре индивидуальных предпринимателей (ЕГРИП)" : "Устава"

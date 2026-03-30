@@ -47,6 +47,12 @@ extension CompanyDetails {
             normalizer: { $0.trimmed },
             validator: Validators.fullName
         ),
+        .ceoFullGenitiveName: .init(
+            title: "Руководитель (в родительном падеже)",
+            placeholder: "Иванова Ивана Ивановича",
+            normalizer: { $0.trimmed },
+            validator: Validators.fullName
+        ),
         .ceoShortenName: .init(
             title: "Руководитель (кратко)",
             placeholder: "Иванов И.И.",
@@ -63,7 +69,7 @@ extension CompanyDetails {
             title: "Email",
             placeholder: "example@domain.com",
             normalizer: { $0.trimmed },
-            validator: { v in Validators.email(v).map { .error($0) } }
+            validator: Validators.email
         ),
         .address: .init(
             title: "Адрес",

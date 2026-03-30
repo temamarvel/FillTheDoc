@@ -30,14 +30,14 @@ struct MainView: View {
                     CodeBlockView(content: googleSheetsRow)
                 } else {
                     if let details = viewModel.details {
-                        let keys = viewModel.templatePlaceholders.compactMap {
-                            CompanyDetails.CodingKeys(rawValue: $0)
-                        }
+//                        let keys = viewModel.templatePlaceholders.compactMap {
+//                            CompanyDetails.CodingKeys(rawValue: $0)
+//                        }
                         
                         DocumentDataFormView(
                             companyDetails: details,
                             metadata: CompanyDetails.fieldMetadata,
-                            keys: keys
+                            keys: CompanyDetails.CodingKeys.allCases
                         ) { updated in
                             viewModel.applyDocumentData(updated)
                         }

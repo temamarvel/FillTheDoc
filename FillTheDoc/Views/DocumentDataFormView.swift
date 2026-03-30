@@ -146,6 +146,7 @@ private struct PreviewWrapper: View {
         companyName: "ООО «Ромашка»",
         legalForm: LegalForm.parse("OOO"),
         ceoFullName: "Иванов Иван Иванович",
+        ceoFullGenitiveName: "Иванова Ивана Ивановича",
         ceoShortenName: "Иванов И.И.",
         ogrn: "1234567890123",
         inn: "7701234567",

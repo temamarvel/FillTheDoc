@@ -51,7 +51,7 @@ public actor CompanyDetailsValidator {
         }
         
         guard let value = state.value else {
-            return nil
+            return .warning("\(CompanyDetails.fieldMetadata[fieldKey]?.title ?? "Поле") не введен")
         }
         
         return validator(value)
@@ -171,7 +171,7 @@ public actor CompanyDetailsValidator {
                 return nil
                 
                 // сейчас не кросс-валидируем
-            case .legalForm, .ceoShortenName, .email, .phone:
+            case .legalForm, .ceoShortenName, .ceoFullGenitiveName, .email, .phone:
                 return nil
                 // TODO: address
             case .address:

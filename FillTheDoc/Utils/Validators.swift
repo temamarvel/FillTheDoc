@@ -66,6 +66,10 @@ enum Validators {
     
     /// Валидирует КПП (ровно 9 цифр).
     static func kpp(_ kppRaw: String) -> FieldIssue? {
+        if kppRaw.isEmpty {
+            return .warning("КПП не введен")
+        }
+        
         let kpp = kppRaw.digitsOnly
         let isValid = kpp.count == 9
         return isValid ? nil : .error("Не верный КПП")
@@ -95,7 +99,11 @@ enum Validators {
     // MARK: - Syntax validators
     
     /// Валидирует email-адрес.
-    static func email(_ value: String) -> String? {
+    static func email(_ value: String) -> FieldIssue? {
+        if value.isEmpty {
+            return .warning("E-main не введен")
+        }
+
         // NSDataDetector на macOS работает нормально, быстрее и надёжнее большинства regex.
         let range = NSRange(value.startIndex..<value.endIndex, in: value)
         let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
@@ -105,7 +113,7 @@ enum Validators {
             guard m.resultType == .link, let url = m.url else { return false }
             return url.scheme == "mailto" && m.range.length == range.length
         }
-        return ok ? nil : "Некорректный email"
+        return ok ? nil : .error("Некорректный email")
     }
     
     // MARK: - Enum validators
@@ -231,6 +239,10 @@ enum Validators {
     
     /// Валидация телефона: должен начинаться с + или 8, содержать 10-11 цифр.
     static func phone(_ v: String) -> FieldIssue? {
+        if v.isEmpty {
+            return .warning("Телефон не введен")
+        }
+        
         let t = v.trimmed
         guard !t.isEmpty else { return .error("Поле не может быть пустым") }
         

@@ -38,6 +38,7 @@ final class CompanyDetailsModel: ObservableObject {
         self.validator = validator
         self.dadata = dadata
         self.fields = Self.createFields(companyDetails: companyDetails, allFieldKeys: allFieldKeys, metadata: metadata)
+        validateAllFields()
     }
     
     private static func createFields(
@@ -140,6 +141,7 @@ final class CompanyDetailsModel: ObservableObject {
             companyName: value(for: .companyName).trimmedNilIfEmpty,
             legalForm: LegalForm.parse(value(for: .legalForm)),
             ceoFullName: value(for: .ceoFullName).trimmedNilIfEmpty,
+            ceoFullGenitiveName: value(for: .ceoFullGenitiveName).trimmedNilIfEmpty,
             ceoShortenName: value(for: .ceoShortenName).trimmedNilIfEmpty,
             ogrn: value(for: .ogrn).trimmedNilIfEmpty,
             inn: value(for: .inn).trimmedNilIfEmpty,

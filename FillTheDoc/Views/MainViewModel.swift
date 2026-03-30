@@ -154,7 +154,8 @@ final class MainViewModel {
                 let extractedDetails = try await extractorService.extract(from: detailsURL)
                 try Task.checkCancellation()
                 
-                let companyDetails = try await self.fakeOpenAICall(extractedDetails: extractedDetails)
+                //let companyDetails = try await self.fakeOpenAICall(extractedDetails: extractedDetails)
+                let companyDetails = try await self.callOpenAI(extractedDetails: extractedDetails)
                 try Task.checkCancellation()
                 
                 // Защита от out-of-order: записываем только если нет более свежей задачи
@@ -227,7 +228,7 @@ final class MainViewModel {
         try await Task.sleep(nanoseconds: 1_000_000_000)
         
         // MARK: valid test data
-        return CompanyDetails(companyName: "Тест компания", legalForm: LegalForm.parse("ЗАО"), ceoFullName: "Тест Тестович Тестов", ceoShortenName: "Тестов Т. Т.", ogrn: "1187746707280", inn: "9731007287", kpp: "773101001", email: "test_test@test.com", address: "город Москва, ул Горбунова, д. 2 стр. 3", phone: "+79991234567")
+        return CompanyDetails(companyName: "Тест компания", legalForm: LegalForm.parse("ЗАО"), ceoFullName: "Тест Тестович Тестов", ceoFullGenitiveName: "Теста Тестовича Тестова", ceoShortenName: "Тестов Т. Т.", ogrn: "1187746707280", inn: "9731007287", kpp: "773101001", email: "test_test@test.com", address: "город Москва, ул Горбунова, д. 2 стр. 3", phone: "+79991234567")
         
         //MARK: invalid test data
         // return CompanyDetails(companyName: "Тест компания", legalForm: "ТЕСТ_ЗАО", ceoFullName: "Тест Тестович Тестов", ceoShortenName: "Тестов Т. Т.", ogrn: "11877467072801", inn: "97310107287", kpp: "7731010101", email: "test_test@test.com", address: "Город, ул. Улица, д. 8")
