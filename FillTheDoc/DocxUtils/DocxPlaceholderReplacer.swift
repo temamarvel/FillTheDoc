@@ -257,6 +257,7 @@ private struct WordprocessingMLRewriter {
             else { continue }
             
             applyReplacement(segments: &segments, start: start, end: end, replacement: repl)
+            clearPlaceholderHighlight(in: segments, from: start.segmentIndex, to: end.segmentIndex)
             part.replacementsCount += 1
             changed = true
         }
@@ -369,6 +370,44 @@ private struct WordprocessingMLRewriter {
             wTElement.addAttribute(a)
         } else {
             wTElement.attribute(forName: attrName)?.stringValue = "preserve"
+        }
+    }
+    
+    private func clearPlaceholderHighlight(in segments: [TextSegment], from startIndex: Int, to endIndex: Int) {
+        guard startIndex <= endIndex else { return }
+        var handledRuns = Set<ObjectIdentifier>()
+        
+        for index in startIndex...endIndex {
+            guard let run = segments[index].runElement else { continue }
+            let runID = ObjectIdentifier(run)
+            guard handledRuns.insert(runID).inserted else { continue }
+            clearHighlightAttributes(from: run)
+        }
+    }
+    
+    private func clearHighlightAttributes(from run: XMLElement) {
+        let path = "./*[local-name()='rPr']"
+        let rPr: XMLElement
+        if let existing = (try? run.nodes(forXPath: path) as? [XMLElement])??.first {
+            rPr = existing
+        } else {
+            let created = XMLElement(name: "w:rPr")
+            run.insertChild(created, at: 0)
+            rPr = created
+        }
+        
+        removeChildren(named: "shd", from: rPr)
+        removeChildren(named: "highlight", from: rPr)
+    }
+    
+    private func removeChildren(named localName: String, from element: XMLElement) {
+        let children = element.children ?? []
+        for child in children.reversed() {
+            guard let childElement = child as? XMLElement else { continue }
+            let childLocalName = childElement.localName ?? childElement.name ?? ""
+            if childLocalName == localName {
+                child.detach()
+            }
         }
     }
 }

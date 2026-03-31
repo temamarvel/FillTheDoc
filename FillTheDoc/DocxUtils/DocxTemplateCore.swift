@@ -28,6 +28,7 @@ struct PlaceholderMatch {
 
 struct TextSegment {
     let element: XMLElement
+    let runElement: XMLElement?
     let kind: Kind
     var text: String
     
@@ -101,8 +102,25 @@ func collectTextSegments(in paragraph: XMLElement, includeFieldInstructionText: 
     return nodes.map { element in
         let local = element.localName ?? element.name ?? ""
         let kind: TextSegment.Kind = (local == "instrText") ? .instrText : .wT
-        return TextSegment(element: element, kind: kind, text: element.stringValue ?? "")
+        return TextSegment(
+            element: element,
+            runElement: owningRunElement(for: element),
+            kind: kind,
+            text: element.stringValue ?? ""
+        )
     }
+}
+
+private func owningRunElement(for element: XMLElement) -> XMLElement? {
+    var current = element.parent
+    while let node = current {
+        if let run = node as? XMLElement,
+           (run.localName ?? run.name ?? "") == "r" {
+            return run
+        }
+        current = node.parent
+    }
+    return nil
 }
 
 // MARK: - Placeholder search
