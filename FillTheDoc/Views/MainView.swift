@@ -65,6 +65,17 @@ struct MainView: View {
                 
                 Spacer()
             }
+            
+            HStack{
+                Spacer()
+                
+                if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,
+                   let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String {
+                    Text("v\(version) (\(build))")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .padding(20)
         .fileExporter(
