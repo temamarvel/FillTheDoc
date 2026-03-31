@@ -252,8 +252,8 @@ private struct WordprocessingMLRewriter {
             
             guard let repl = replacement else { continue }
             
-            guard let start = locate(position: m.range.lowerBound, in: fullText, prefix: prefix),
-                  let end   = locate(position: m.range.upperBound, in: fullText, prefix: prefix)
+            guard let start = locateStart(position: m.range.lowerBound, in: fullText, prefix: prefix),
+                  let end   = locateEnd(position: m.range.upperBound, in: fullText, prefix: prefix)
             else { continue }
             
             applyReplacement(segments: &segments, start: start, end: end, replacement: repl)
@@ -289,12 +289,36 @@ private struct WordprocessingMLRewriter {
         return out
     }
     
-    private func locate(position: String.Index, in fullText: String, prefix: [Int]) -> SegmentLocation? {
+    private func locateStart(position: String.Index, in fullText: String, prefix: [Int]) -> SegmentLocation? {
         let target = fullText.distance(from: fullText.startIndex, to: position)
         for i in 0..<(prefix.count - 1) {
             let start = prefix[i]
             let end = prefix[i + 1]
-            if target >= start && target <= end {
+            if target >= start && target < end {
+                return SegmentLocation(segmentIndex: i, offset: target - start)
+            }
+        }
+        return nil
+    }
+    
+    private func locateEnd(position: String.Index, in fullText: String, prefix: [Int]) -> SegmentLocation? {
+        let target = fullText.distance(from: fullText.startIndex, to: position)
+        
+        if target == fullText.count {
+            for i in stride(from: prefix.count - 2, through: 0, by: -1) {
+                let start = prefix[i]
+                let end = prefix[i + 1]
+                if end > start {
+                    return SegmentLocation(segmentIndex: i, offset: end - start)
+                }
+            }
+        }
+        
+        for i in 0..<(prefix.count - 1) {
+            let start = prefix[i]
+            let end = prefix[i + 1]
+            guard end > start else { continue }
+            if target > start && target <= end {
                 return SegmentLocation(segmentIndex: i, offset: target - start)
             }
         }
