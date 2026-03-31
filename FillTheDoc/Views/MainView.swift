@@ -55,7 +55,7 @@ struct MainView: View {
                 Button {
                     Task { await viewModel.runFill() }
                 } label: {
-                    Text("Извлечь реквизиты и заполнить шаблон")
+                    Text("Заполнить шаблон")
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
                 }
