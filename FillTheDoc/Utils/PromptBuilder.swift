@@ -59,7 +59,7 @@ enum PromptBuilder {
           Otherwise return null.
         
         - ceo_shorten_name:
-          Return the shortened name in format "Фамилия И.О.".
+          Return the shortened name in format " И.О. Фамилия".
           If this exact shortened form is present in the source, use it.
           Otherwise, if ceo_full_name is present and can be safely converted with high confidence, derive it from ceo_full_name.
           Otherwise return null.

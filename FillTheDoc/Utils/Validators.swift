@@ -200,7 +200,7 @@ enum Validators {
         
         // Паттерн: одно или несколько слов (фамилия), затем инициалы с точками
         // Примеры: "Иванов И.И.", "Иванов-Петров И. И.", "Иванов И."
-        let pattern = #"^[А-ЯЁA-Z][а-яёa-zА-ЯЁA-Z\-]+\s+[А-ЯЁA-Z]\.\s*[А-ЯЁA-Z]?\.*$"#
+        let pattern = #"^[А-ЯЁA-Z]\.\s*(?:[А-ЯЁA-Z]\.\s*)?[А-ЯЁA-Z][а-яёa-zА-ЯЁA-Z\-]+$"#
         let matches = t.range(of: pattern, options: .regularExpression) != nil
         
         if !matches {
