@@ -84,7 +84,7 @@ struct DropZoneView<Bottom: View>: View {
             
             Spacer()
             
-            Image(systemName: isValid ? "checkmark.circle.fill" : "circle")
+            Image(systemName: isValid ? "checkmark.circle" : "circle")
                 .foregroundStyle(isValid ? .green : .red)
                 .imageScale(.large)
                 .accessibilityLabel(isValid ? "Valid" : "Not selected")
@@ -94,7 +94,7 @@ struct DropZoneView<Bottom: View>: View {
     private var dropArea: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
-                Image(systemName: isValid ? "doc.badge.checkmark" : "doc")
+                Image(systemName:"doc")
                     .imageScale(.large)
                     .foregroundStyle(isValid ? .green : .red)
                 
