@@ -5,44 +5,27 @@ import UniformTypeIdentifiers
 /// - Поддерживает drag&drop файлов (UTType.fileURL)
 /// - Показывает path (как текст) и валидность (иконка/цвет)
 /// - Может "расти по контенту" (heightToContent) или быть фиксированной по высоте
-struct DropZoneView<Bottom: View>: View {
+struct DropZoneView: View {
     let title: String
-    var subtitle: String? = nil
-    
+    let subtitle: String?
     let isValid: Bool
     let path: String
-    
-    /// Если true — карточка не фиксирует высоту и растёт под контентом (включая bottom).
-    var heightToContent: Bool = true
-    
-    /// Callback: что делать с за-дропанными URL.
     let onDropURLs: ([URL]) -> Void
     
-    /// Опциональный нижний контент (например: ProgressView, ошибки, превью текста и т.п.)
-    private let bottom: Bottom
-    
-    // UI state
     @State private var isTargeted: Bool = false
-    
-    // MARK: - Initializers
     
     init(
         title: String,
         subtitle: String? = nil,
         isValid: Bool,
         path: String,
-        onDropURLs: @escaping ([URL]) -> Void,
-        heightToContent: Bool = true,
-        fixedHeight: CGFloat = 120,
-        @ViewBuilder bottom: () -> Bottom
+        onDropURLs: @escaping ([URL]) -> Void
     ) {
         self.title = title
         self.subtitle = subtitle
         self.isValid = isValid
         self.path = path
         self.onDropURLs = onDropURLs
-        self.heightToContent = heightToContent
-        self.bottom = bottom()
     }
     
     var body: some View {
@@ -50,13 +33,6 @@ struct DropZoneView<Bottom: View>: View {
             header
             
             dropArea
-            
-            Divider().opacity(hasBottomContent ? 0.6 : 0.0)
-                .frame(height: hasBottomContent ? nil : 0)
-            
-            if hasBottomContent {
-                bottom
-            }
         }
         .padding(12)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -66,8 +42,6 @@ struct DropZoneView<Bottom: View>: View {
         )
         .animation(.easeInOut(duration: 0.15), value: isTargeted)
     }
-    
-    // MARK: - Subviews
     
     private var header: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
@@ -132,11 +106,6 @@ struct DropZoneView<Bottom: View>: View {
         return trimmed.isEmpty ? "Путь не выбран" : trimmed
     }
     
-    private var hasBottomContent: Bool {
-        // Для EmptyView мы не хотим показывать Divider и лишнее пространство.
-        Bottom.self != EmptyView.self
-    }
-    
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
         guard let provider = providers.first(where: {
             $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier)
@@ -153,31 +122,6 @@ struct DropZoneView<Bottom: View>: View {
             }
         }
         return true
-    }
-}
-
-// MARK: - Convenience init for “no bottom content”
-extension DropZoneView where Bottom == EmptyView {
-    init(
-        title: String,
-        subtitle: String? = nil,
-        isValid: Bool,
-        path: String,
-        onDropURLs: @escaping ([URL]) -> Void,
-        heightToContent: Bool = true,
-        fixedHeight: CGFloat = 120
-    ) {
-        self.init(
-            title: title,
-            subtitle: subtitle,
-            isValid: isValid,
-            path: path,
-            onDropURLs: onDropURLs,
-            heightToContent: heightToContent,
-            fixedHeight: fixedHeight
-        ) {
-            EmptyView()
-        }
     }
 }
 
@@ -206,38 +150,11 @@ private struct DropZoneCardPreviewContainer: View {
                 path: validPath,
                 onDropURLs: { _ in }
             )
-            
-            // 3. С нижним контентом (например, загрузка)
-            DropZoneView(
-                title: "Обработка",
-                subtitle: "Извлечение данных из документа",
-                isValid: true,
-                path: loadingPath,
-                onDropURLs: { _ in }
-            ) {
-                VStack(spacing: 12) {
-                    HStack(spacing: 12) {
-                        ProgressView()
-                            .controlSize(.small)
-                        
-                        Text("Извлечение текста через textutil...")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        
-                        Spacer()
-                    }
-                    .padding(.top, 4)
-                    
-                    RoundedRectangle(cornerRadius: 4)
-                        .background(.yellow)
-                        .frame(height: 30)
-                }
-            }
         }
     }
 }
 
-#Preview("DropZoneCard States") {
+#Preview {
     DropZoneCardPreviewContainer()
         .frame(width: 520)
         .padding()
