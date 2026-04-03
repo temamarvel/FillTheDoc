@@ -2,8 +2,8 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct MainView: View {
-    @State var viewModel: MainViewModel
-    @State var apiKeyStore: APIKeyStore
+    @State private var viewModel: MainViewModel
+    @State private var apiKeyStore: APIKeyStore
     
     init() {
         let apiKeyStore = APIKeyStore()
