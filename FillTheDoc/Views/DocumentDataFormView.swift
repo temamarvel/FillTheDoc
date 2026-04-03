@@ -12,7 +12,7 @@ struct DocumentDataFormView: View {
     
     typealias Key = CompanyDetails.CodingKeys
     
-    @StateObject private var model: CompanyDetailsModel
+    @State private var model: CompanyDetailsModel
     
     @State private var errorText = ""
     @State private var fee = ""
@@ -33,8 +33,8 @@ struct DocumentDataFormView: View {
         let client = DaDataClient(configuration: .init(token: token))
         let validator = CompanyDetailsValidator(dadataClient: client)
         
-        _model = StateObject(
-            wrappedValue: CompanyDetailsModel(
+        _model = State(
+            initialValue: CompanyDetailsModel(
                 companyDetails: companyDetails,
                 metadata: metadata,
                 keys: keys,

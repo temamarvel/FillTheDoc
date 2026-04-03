@@ -7,13 +7,14 @@ public struct ValidationError: Error {
 }
 
 @MainActor
-final class CompanyDetailsModel: ObservableObject {
+@Observable
+final class CompanyDetailsModel {
     
     typealias Key = CompanyDetails.CodingKeys
     typealias Validator = CompanyDetailsValidator
     
     // UI читает одно место
-    @Published private(set) var fields: [Key: FieldState] = [:]
+    private(set) var fields: [Key: FieldState] = [:]
     
     private let metadata: [Key: FieldMetadata]
     private let allFieldKeys: [Key]
