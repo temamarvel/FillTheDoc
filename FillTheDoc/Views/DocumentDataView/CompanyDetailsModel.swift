@@ -12,14 +12,12 @@ final class CompanyDetailsModel {
     typealias Key = CompanyDetails.CodingKeys
     typealias Validator = CompanyDetailsValidator
     
-    // UI читает одно место
     private(set) var fields: [Key: FieldState] = [:]
-    
     private let metadata: [Key: FieldMetadata]
     private let allFieldKeys: [Key]
     
     private var validator: Validator
-    private let dadata: DaDataClient
+    
     
     // MARK: - Debounce / cancellation state
     
@@ -30,13 +28,11 @@ final class CompanyDetailsModel {
         companyDetails: CompanyDetails,
         metadata: [Key: FieldMetadata],
         keys: [Key],
-        validator: Validator,
-        dadata: DaDataClient
+        validator: Validator
     ) {
         self.metadata = metadata
         self.allFieldKeys = keys
         self.validator = validator
-        self.dadata = dadata
         self.fields = Self.createFields(companyDetails: companyDetails, allFieldKeys: allFieldKeys, metadata: metadata)
         validateAllFields()
     }

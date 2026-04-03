@@ -29,17 +29,15 @@ struct DocumentDataFormView: View {
         keys: [Key],
         onApply: @escaping (DocumentData) -> Void
     ) {
-        let token = Bundle.main.infoDictionary?["DADATA_TOKEN"] as? String ?? "N_T"
-        let client = DaDataClient(configuration: .init(token: token))
-        let validator = CompanyDetailsValidator(dadataClient: client)
+        
+        let validator = CompanyDetailsValidator()
         
         _model = State(
             initialValue: CompanyDetailsModel(
                 companyDetails: companyDetails,
                 metadata: metadata,
                 keys: keys,
-                validator: validator,
-                dadata: client
+                validator: validator
             )
         )
         self.onApply = onApply

@@ -37,9 +37,12 @@ public actor CompanyDetailsValidator {
     private let dadataClient: DaDataClient
     private var cache: [String: DaDataCompanyInfo]
     
-    public init(dadataClient: DaDataClient, policy: Policy = .init()) {
+    public init(policy: Policy = .init()) {
+        let token = Bundle.main.infoDictionary?["DADATA_TOKEN"] as? String ?? "N_T"
+        let client = DaDataClient(configuration: .init(token: token))
+        
         self.policy = policy
-        self.dadataClient = dadataClient
+        self.dadataClient = client
         self.cache = [:]
     }
     
