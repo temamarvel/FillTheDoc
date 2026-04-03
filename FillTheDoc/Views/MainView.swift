@@ -3,13 +3,13 @@ import UniformTypeIdentifiers
 
 struct MainView: View {
     @State private var viewModel: MainViewModel
-    @State private var apiKeyStore: APIKeyStore
+//    @State private var apiKeyStore: APIKeyStore
     
     init() {
-        let apiKeyStore = APIKeyStore()
-        let viewModel = MainViewModel(apiKeyStore: apiKeyStore)
+        //let apiKeyStore = APIKeyStore()
+        let viewModel = MainViewModel()
         
-        _apiKeyStore = State(initialValue: apiKeyStore)
+        //_apiKeyStore = State(initialValue: apiKeyStore)
         _viewModel = State(initialValue: viewModel)
     }
     
@@ -94,7 +94,7 @@ struct MainView: View {
             await viewModel.updateStore.checkForUpdates()
         }
         .task {
-            await apiKeyStore.load()
+            await viewModel.apiKeyStore.load()
         }
         .padding(20)
         .fileExporter(

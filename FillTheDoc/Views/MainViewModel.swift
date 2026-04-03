@@ -75,13 +75,15 @@ final class MainViewModel {
     }
     
     /// Convenience init with default dependencies for production use.
-    convenience init(apiKeyStore: APIKeyStore) {
+    convenience init() {
         let updateStore = AppUpdateStore(
             service: AppUpdateService(
                 owner: "temamarvel",
                 repo: "FillTheDoc"
             )
         )
+        
+        let apiKeyStore = APIKeyStore()
         
         self.init(
             apiKeyStore: apiKeyStore,
