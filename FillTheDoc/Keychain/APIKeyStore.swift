@@ -27,8 +27,8 @@ final class APIKeyStore {
         self.account = account
     }
     
-    func load() {
-        Task {
+    func load() async {
+        
             do {
                 let loaded = try await keychain.loadString(account: account)?
                     .trimmed
@@ -46,10 +46,10 @@ final class APIKeyStore {
                 errorText = "Не удалось прочитать ключ из Keychain: \(error.localizedDescription)"
                 isPromptPresented = true
             }
-        }
+        
     }
     
-    func save(_ enteredKey: String) {
+    func save(_ enteredKey: String) async {
         let trimmed = enteredKey.trimmed
         guard !trimmed.isEmpty else {
             apiKey = nil
@@ -58,7 +58,7 @@ final class APIKeyStore {
             return
         }
         
-        Task {
+        
             do {
                 try await keychain.saveString(trimmed, account: account)
                 apiKey = trimmed
@@ -69,10 +69,10 @@ final class APIKeyStore {
                 errorText = "Не удалось сохранить ключ в Keychain: \(error.localizedDescription)"
                 isPromptPresented = true
             }
-        }
+        
     }
     
-    func clear() {
+    func clear() async {
         Task {
             do {
                 try await keychain.delete(account: account)

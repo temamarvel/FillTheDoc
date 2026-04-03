@@ -94,7 +94,7 @@ struct MainView: View {
             await viewModel.updateStore.checkForUpdates()
         }
         .task {
-            apiKeyStore.load()
+            await apiKeyStore.load()
         }
         .padding(20)
         .fileExporter(
@@ -110,7 +110,9 @@ struct MainView: View {
             set: { viewModel.apiKeyStore.isPromptPresented = $0 }
         )) {
             APIKeyPromptView { enteredKey in
-                viewModel.apiKeyStore.save(enteredKey)
+                Task {
+                    await viewModel.apiKeyStore.save(enteredKey)
+                }
             }
             .interactiveDismissDisabled(true)
         }
