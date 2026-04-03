@@ -51,7 +51,7 @@ struct MainView: View {
                             viewModel.applyDocumentData(updated)
                         }
                     } else {
-                        EmptyCompanyDetailsPlaceholderView()
+                        EmptyCompanyDetailsView()
                     }
                 }
             }

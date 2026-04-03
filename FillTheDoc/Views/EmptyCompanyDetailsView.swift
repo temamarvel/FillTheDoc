@@ -8,7 +8,7 @@
 
 import SwiftUI
 
-struct EmptyCompanyDetailsPlaceholderView: View {
+struct EmptyCompanyDetailsView: View {
     var title: String = "Нет извлечённых данных о компании"
     var message: String = "Загрузите файл с реквизитами и выполните извлечение, чтобы здесь появилась форма для проверки и редактирования."
     
@@ -46,7 +46,7 @@ struct EmptyCompanyDetailsPlaceholderView: View {
 }
 
 #Preview {
-    EmptyCompanyDetailsPlaceholderView()
+    EmptyCompanyDetailsView()
         .frame(width: 640, height: 420)
         .padding()
 }
