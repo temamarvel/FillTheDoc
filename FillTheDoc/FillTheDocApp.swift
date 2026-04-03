@@ -9,15 +9,9 @@ import SwiftUI
 
 @main
 struct FillTheDocApp: App {
-    @StateObject private var apiKeyStore = APIKeyStore()
-    
     var body: some Scene {
         WindowGroup {
-            MainView(viewModel: MainViewModel(apiKeyStore: apiKeyStore))
-                .environmentObject(apiKeyStore)
-                .onAppear {
-                    apiKeyStore.load()
-                }
+            MainView()                
         }
     }
 }

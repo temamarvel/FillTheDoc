@@ -3,6 +3,15 @@ import UniformTypeIdentifiers
 
 struct MainView: View {
     @State var viewModel: MainViewModel
+    @State var apiKeyStore: APIKeyStore
+    
+    init() {
+        let apiKeyStore = APIKeyStore()
+        let viewModel = MainViewModel(apiKeyStore: apiKeyStore)
+        
+        _apiKeyStore = State(initialValue: apiKeyStore)
+        _viewModel = State(initialValue: viewModel)
+    }
     
     var body: some View {
         VStack(spacing: 16) {
@@ -84,6 +93,9 @@ struct MainView: View {
         .task {
             await viewModel.updateStore.checkForUpdates()
         }
+        .task {
+            apiKeyStore.load()
+        }
         .padding(20)
         .fileExporter(
             isPresented: $viewModel.showExporter,
@@ -113,5 +125,5 @@ struct MainView: View {
 }
 
 #Preview {
-    MainView(viewModel: MainViewModel(apiKeyStore: APIKeyStore()))
+    MainView()
 }
