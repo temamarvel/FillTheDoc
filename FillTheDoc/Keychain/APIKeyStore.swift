@@ -8,11 +8,10 @@
 
 import Foundation
 import SwiftUI
-import Combine
 
 @MainActor
 @Observable
-final class APIKeyStore: ObservableObject {
+final class APIKeyStore {
     private(set) var apiKey: String?
     var isPromptPresented: Bool = false
     var errorText: String?
