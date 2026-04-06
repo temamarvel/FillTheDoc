@@ -62,7 +62,7 @@ private extension DocumentData {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ru_RU")
         formatter.timeZone = TimeZone.current
-        formatter.dateFormat = "dd.mm.yyyy"
+        formatter.dateFormat = "dd.MM.yyyy"
         return formatter
     }()
 }
