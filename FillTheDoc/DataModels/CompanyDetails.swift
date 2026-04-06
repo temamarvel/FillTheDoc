@@ -77,21 +77,11 @@ struct CompanyDetails: Decodable, LLMExtractable, Sendable {
 
 extension CompanyDetails {
     var fullCompanyName: String {
-        [
-            legalForm?.shortName,
-            companyName?.trimmedNilIfEmpty
-        ]
-            .compactMap { $0 }
-            .joined(separator: " ")
+        legalForm == .ip ? "\(legalForm?.shortName ?? "") \(companyName ?? "")" : "\(legalForm?.shortName ?? "") «\(companyName ?? "")»"
     }
     
     var fullCompanyNameExpanded: String {
-        [
-            legalForm?.fullName,
-            companyName?.trimmedNilIfEmpty
-        ]
-            .compactMap { $0 }
-            .joined(separator: " ")
+        legalForm == .ip ? "\(legalForm?.fullName ?? "") \(companyName ?? "")" : "\(legalForm?.fullName ?? "") «\(companyName ?? "")»"
     }
     
     subscript(key: CodingKeys) -> String? {

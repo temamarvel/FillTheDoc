@@ -13,8 +13,11 @@ struct DocumentData: Codable {
     let minFee: String?
     let companyDetails: CompanyDetails?
     
-    var date: String {
-        Self.dateFormatter.string(from: .now)
+    var dateLong: String {
+        Self.dateFormatterLong.string(from: .now)
+    }
+    var dateShort: String {
+        Self.dateFormatterShort.string(from: .now)
     }
     
     var ceoRole: String {
@@ -36,8 +39,9 @@ struct DocumentData: Codable {
             dict["min_fee"] = minFee
         }
         
-        dict["full_company_name"] = companyDetails?.legalForm == .ip ? "\(companyDetails?.legalForm?.shortName ?? "") \(companyDetails?.companyName ?? "")" : "\(companyDetails?.legalForm?.shortName ?? "") «\(companyDetails?.companyName ?? "")»"
-        dict["date"] = date
+        dict["full_company_name"] = companyDetails?.fullCompanyName
+        dict["full_company_name_expanded"] = companyDetails?.fullCompanyNameExpanded
+        dict["date_long"] = dateLong
         dict["ceo_role"] = ceoRole
         dict["rules"] = companyDetails?.legalForm == .ip ? "Листа  записи в Едином государственном реестре индивидуальных предпринимателей (ЕГРИП)" : "Устава"
         
@@ -46,11 +50,19 @@ struct DocumentData: Codable {
 }
 
 private extension DocumentData {
-    static let dateFormatter: DateFormatter = {
+    static let dateFormatterLong: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ru_RU")
         formatter.timeZone = TimeZone.current
         formatter.dateFormat = "«dd» MMMM yyyy 'г.'"
+        return formatter
+    }()
+    
+    static let dateFormatterShort: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.timeZone = TimeZone.current
+        formatter.dateFormat = "dd.mm.yyyy"
         return formatter
     }()
 }

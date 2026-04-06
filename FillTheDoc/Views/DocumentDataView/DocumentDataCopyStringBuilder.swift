@@ -19,7 +19,7 @@ final class DocumentDataCopyStringBuilder {
             data.companyDetails?.phone?.sanitizedForTSV ?? "",            // Телефон компании
             data.companyDetails?.email?.sanitizedForTSV ?? "",            // E-mail Компании
             data.docNumber?.sanitizedForTSV ?? "",                        // Номер договора
-            data.date.sanitizedForTSV,                                    // Дата договора
+            data.dateShort.sanitizedForTSV,                               // Дата договора
             "",                                                           // Расч.счет
             data.fee?.sanitizedForTSV ?? "",                              // %
             data.minFee?.sanitizedForTSV ?? "",                           // Min
