@@ -37,6 +37,7 @@ public actor CompanyDetailsValidator {
     private let dadataClient: DaDataClient
     private var cache: [String: DaDataCompanyInfo]
     
+    // TODO: pass metadata
     public init(policy: Policy = .init()) {
         let token = Bundle.main.infoDictionary?["DADATA_TOKEN"] as? String ?? "N_T"
         let client = DaDataClient(configuration: .init(token: token))
@@ -49,11 +50,13 @@ public actor CompanyDetailsValidator {
     // MARK: - Local validation (no network)
     
     nonisolated func validateField(for fieldKey: Key, state: FieldState) -> FieldIssue? {
+        // TODO: not use metadata directly
         guard let validator = CompanyDetails.fieldMetadata[fieldKey]?.validator else {
             return nil
         }
         
         guard let value = state.value else {
+            // TODO: not use metadata directly
             return .warning("\(CompanyDetails.fieldMetadata[fieldKey]?.title ?? "Поле") не введен")
         }
         
