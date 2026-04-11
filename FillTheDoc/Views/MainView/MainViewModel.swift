@@ -23,7 +23,7 @@ final class MainViewModel {
     // MARK: - State (data)
     
     private(set) var details: CompanyDetails?
-    var documentData: DocumentData?
+    var documentData: DocumentDetails?
     private(set) var templatePlaceholders: [String] = []
     private(set) var googleSheetsRow: String?
     
@@ -105,7 +105,7 @@ final class MainViewModel {
         extractDetails()
     }
     
-    func applyDocumentData(_ updated: DocumentData) {
+    func applyDocumentData(_ updated: DocumentDetails) {
         details = updated.companyDetails
         documentData = updated
         isDataApproved = true

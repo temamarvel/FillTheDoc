@@ -16,7 +16,7 @@ struct FieldMetadata {
 }
 
 extension CompanyDetails {
-    static let fieldMetadata: [CodingKeys: FieldMetadata] = [
+    static let fieldMetadata: [CompanyDetailsKeys: FieldMetadata] = [
         .companyName: .init(
             title: "Название",
             placeholder: "ООО «Ромашка»",

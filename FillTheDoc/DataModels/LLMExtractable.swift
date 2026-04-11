@@ -9,12 +9,12 @@ import Foundation
 
 
 protocol LLMExtractable: Codable {
-    associatedtype CodingKeys: CaseIterable & CodingKey
+    associatedtype CompanyDetailsKeys: CaseIterable & CodingKey
 }
 
 extension LLMExtractable {
     static var llmSchemaKeys: [String] {
-        CodingKeys.allCases.map(\.stringValue)
+        CompanyDetailsKeys.allCases.map(\.stringValue)
     }
 
     static var llmSchemaKeysLine: String {

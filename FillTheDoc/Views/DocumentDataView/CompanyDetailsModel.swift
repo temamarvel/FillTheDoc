@@ -9,7 +9,7 @@ public struct ValidationError: Error {
 @Observable
 final class CompanyDetailsModel {
     
-    typealias Key = CompanyDetails.CodingKeys
+    typealias Key = CompanyDetails.CompanyDetailsKeys
     typealias Validator = CompanyDetailsValidator
     
     private(set) var fields: [Key: FieldState] = [:]

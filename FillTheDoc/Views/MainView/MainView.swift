@@ -46,7 +46,7 @@ struct MainView: View {
                         DocumentDataFormView(
                             companyDetails: details,
                             metadata: CompanyDetails.fieldMetadata,
-                            keys: CompanyDetails.CodingKeys.allCases
+                            keys: CompanyDetails.CompanyDetailsKeys.allCases
                         ) { updated in
                             viewModel.applyDocumentData(updated)
                         }

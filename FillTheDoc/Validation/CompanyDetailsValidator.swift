@@ -11,7 +11,7 @@ public struct FieldState: Sendable, Equatable {
 
 public actor CompanyDetailsValidator {
     
-    typealias Key = CompanyDetails.CodingKeys
+    typealias Key = CompanyDetails.CompanyDetailsKeys
     
     public struct Policy: Sendable {
         public var nameSimilarityThreshold: Double

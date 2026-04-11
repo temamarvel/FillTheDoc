@@ -11,14 +11,14 @@ import AppKit
 
 final class DocumentDataCopyStringBuilder {
     
-    func makeRow(from data: DocumentData) -> String {
+    func makeRow(from data: DocumentDetails) -> String {
         let values: [String] = [
             data.companyDetails?.fullCompanyName.sanitizedForTSV ?? "",   // Наименование
             data.companyDetails?.ceoFullName?.sanitizedForTSV ?? "",      // ФИО
             data.companyDetails?.inn?.sanitizedForTSV ?? "",              // ИНН
             data.companyDetails?.phone?.sanitizedForTSV ?? "",            // Телефон компании
             data.companyDetails?.email?.sanitizedForTSV ?? "",            // E-mail Компании
-            data.docNumber?.sanitizedForTSV ?? "",                        // Номер договора
+            data.documentNumber?.sanitizedForTSV ?? "",                        // Номер договора
             data.dateShort.sanitizedForTSV,                               // Дата договора
             "",                                                           // Расч.счет
             data.fee?.sanitizedForTSV ?? "",                              // %

@@ -39,7 +39,7 @@ struct CompanyDetails: Decodable, LLMExtractable, Sendable {
         self.phone = phone
     }
     
-    enum CodingKeys: String, CodingKey, CaseIterable {
+    enum CompanyDetailsKeys: String, CodingKey, CaseIterable {
         case companyName = "company_name"
         case legalForm = "legal_form"
         case ceoFullName = "ceo_full_name"
@@ -54,7 +54,7 @@ struct CompanyDetails: Decodable, LLMExtractable, Sendable {
     }
     
     init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let container = try decoder.container(keyedBy: CompanyDetailsKeys.self)
         
         self.companyName = try container.decodeIfPresent(String.self, forKey: .companyName)?.trimmedNilIfEmpty
         self.ceoFullName = try container.decodeIfPresent(String.self, forKey: .ceoFullName)?.trimmedNilIfEmpty
@@ -84,7 +84,7 @@ extension CompanyDetails {
         legalForm == .ip ? "\(legalForm?.fullName ?? "") \(companyName ?? "")" : "\(legalForm?.fullName ?? "") «\(companyName ?? "")»"
     }
     
-    subscript(key: CodingKeys) -> String? {
+    subscript(key: CompanyDetailsKeys) -> String? {
         switch key {
             case .companyName:
                 return companyName
@@ -111,7 +111,7 @@ extension CompanyDetails {
         }
     }
     
-    func value(for key: CodingKeys, expandedLegalForm: Bool) -> String? {
+    func value(for key: CompanyDetailsKeys, expandedLegalForm: Bool) -> String? {
         switch key {
             case .companyName:
                 return companyName
@@ -141,7 +141,7 @@ extension CompanyDetails {
     func asDictionary(expandedLegalForm: Bool = false) -> [String: String] {
         var result: [String: String] = [:]
         
-        for key in CodingKeys.allCases {
+        for key in CompanyDetailsKeys.allCases {
             result[key.rawValue] = value(for: key, expandedLegalForm: expandedLegalForm) ?? ""
         }
         

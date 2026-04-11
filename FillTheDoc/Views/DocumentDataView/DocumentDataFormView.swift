@@ -10,7 +10,7 @@ import DaDataAPIClient
 
 struct DocumentDataFormView: View {
     
-    typealias Key = CompanyDetails.CodingKeys
+    typealias Key = CompanyDetails.CompanyDetailsKeys
     
     @State private var model: CompanyDetailsModel
     
@@ -21,13 +21,13 @@ struct DocumentDataFormView: View {
     
     @FocusState private var focusedKey: Key?
     
-    let onApply: (DocumentData) -> Void
+    let onApply: (DocumentDetails) -> Void
     
     init(
         companyDetails: CompanyDetails,
         metadata: [Key: FieldMetadata],
         keys: [Key],
-        onApply: @escaping (DocumentData) -> Void
+        onApply: @escaping (DocumentDetails) -> Void
     ) {
         
         let validator = CompanyDetailsValidator()
@@ -90,7 +90,7 @@ struct DocumentDataFormView: View {
                 Button("Применить") {
                     do {
                         let validatedCompanyDatails = try model.buildResult()
-                        let result = DocumentData(docNumber: docNumber, fee: fee.trimmed, minFee: minFee.trimmed, companyDetails: validatedCompanyDatails)
+                        let result = DocumentDetails(documentNumber: docNumber, fee: fee.trimmed, minFee: minFee.trimmed, companyDetails: validatedCompanyDatails)
                         onApply(result)
                     } catch {
                         errorText = error.localizedDescription
@@ -150,7 +150,7 @@ struct DocumentDataFormView: View {
 }
 
 private struct PreviewWrapper: View {
-    @State private var result: DocumentData? = nil
+    @State private var result: DocumentDetails? = nil
     @State private var requisites = CompanyDetails(
         companyName: "ООО «Ромашка»",
         legalForm: LegalForm.parse("OOO"),
