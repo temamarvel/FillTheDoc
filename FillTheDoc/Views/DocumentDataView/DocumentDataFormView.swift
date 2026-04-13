@@ -10,7 +10,7 @@ import DaDataAPIClient
 
 struct DocumentDataFormView: View {
     
-    typealias Key = CompanyDetails.CompanyDetailsKeys
+    //typealias Key = CompanyDetails.CompanyDetailsKeys
     
     @State private var model: CompanyDetailsModel
     
@@ -19,14 +19,14 @@ struct DocumentDataFormView: View {
     @State private var minFee = ""
     @State private var docNumber = ""
     
-    @FocusState private var focusedKey: Key?
+    @FocusState private var focusedKey: FormFocusKey?
     
     let onApply: (DocumentDetails) -> Void
     
     init(
         companyDetails: CompanyDetails,
         metadata: [Key: FieldMetadata],
-        keys: [Key],
+        keys: [FormFocusKey],
         onApply: @escaping (DocumentDetails) -> Void
     ) {
         
@@ -59,13 +59,13 @@ struct DocumentDataFormView: View {
         VStack{
             Form {
                 Section("Документ"){
-                    DocumentDataFieldView(title: "Номер договора", placeholder: "yyyy-mm-#", text: $docNumber, errorColor: .red, errorText: docNumberError, focusedKey: $focusedKey, key: .address)
+                    DocumentDataFieldView(title: "Номер договора", placeholder: "yyyy-mm-#", text: $docNumber, errorColor: .red, errorText: docNumberError, focusedKey: $focusedKey, key: .document(.documentNumber))
                 }
                 
                 Section("Комиссия"){
-                    DocumentDataFieldView(title: "Комиссия, %", placeholder: "10", text: $fee, errorColor: .red, errorText: feeError, focusedKey: $focusedKey, key: .address)
+                    DocumentDataFieldView(title: "Комиссия, %", placeholder: "10", text: $fee, errorColor: .red, errorText: feeError, focusedKey: $focusedKey, key: .document(.fee))
                     
-                    DocumentDataFieldView(title: "Мин. комиссия, руб", placeholder: "10", text: $minFee, errorColor: .red, errorText: minFeeError, focusedKey: $focusedKey, key: .address)
+                    DocumentDataFieldView(title: "Мин. комиссия, руб", placeholder: "10", text: $minFee, errorColor: .red, errorText: minFeeError, focusedKey: $focusedKey, key: .document(.minFee))
                 }
                 
                 Section("Реквизиты компании") {
@@ -111,24 +111,27 @@ struct DocumentDataFormView: View {
     }
     
     @ViewBuilder
-    private func fieldRow(key: CompanyDetailsModel.Key, state: FieldState) -> some View {
+    private func fieldRow(key: FormFocusKey, state: FieldState) -> some View {
         let issue = state.issue
         let color = issueColor(for: issue)
         
-        DocumentDataFieldView(
-            title: model.title(for: key),
-            placeholder: model.placeholder(for: key),
-            text: binding(for: key),
-            errorColor: color,
-            errorText: issue?.text,
-            focusedKey: $focusedKey,
-            key: key
-        )
+        switch key{
+            case .company (let companyKey):
+                DocumentDataFieldView(
+                    title: model.title(for: companyKey),
+                    placeholder: model.placeholder(for: companyKey),
+                    text: binding(for: companyKey),
+                    errorColor: color,
+                    errorText: issue?.text,
+                    focusedKey: $focusedKey,
+                    key: key
+                )
+        }
     }
     
     // MARK: - Binding
     
-    private func binding(for key: Key) -> Binding<String> {
+    private func binding(for key: CompanyDetails.CompanyDetailsKeys) -> Binding<String> {
         Binding(
             get: { model.value(for: key) },
             set: { model.setValue($0, for: key) }
@@ -169,7 +172,7 @@ private struct PreviewWrapper: View {
         DocumentDataFormView(
             companyDetails: requisites,
             metadata: CompanyDetails.fieldMetadata,
-            keys: [.companyName, .legalForm, .ceoFullName, .ceoShortenName, .ogrn, .inn, .kpp, .email]
+            keys: [.company(.companyName), .company(.legalForm), .company(.ceoFullName), .company(.ceoShortenName), .company(.ogrn), .company(.inn), .company(.kpp), .company(.email)]
         ) { updated in
             result = updated
         }
