@@ -12,7 +12,7 @@ struct DocumentDataFormView: View {
     
     //typealias Key = CompanyDetails.CompanyDetailsKeys
     
-    @State private var model: CompanyDetailsModel
+    @State private var companyDetailsModel: CompanyDetailsModel
     
     @State private var errorText = ""
     @State private var fee = ""
@@ -32,7 +32,7 @@ struct DocumentDataFormView: View {
         
         let validator = CompanyDetailsValidator()
         
-        _model = State(
+        _companyDetailsModel = State(
             initialValue: CompanyDetailsModel(
                 companyDetails: companyDetails,
                 metadata: metadata,
@@ -118,8 +118,8 @@ struct DocumentDataFormView: View {
         switch key{
             case .company (let companyKey):
                 DocumentDataFieldView(
-                    title: model.title(for: companyKey),
-                    placeholder: model.placeholder(for: companyKey),
+                    title: companyDetailsModel.title(for: companyKey),
+                    placeholder: companyDetailsModel.placeholder(for: companyKey),
                     text: binding(for: companyKey),
                     errorColor: color,
                     errorText: issue?.text,
@@ -133,8 +133,8 @@ struct DocumentDataFormView: View {
     
     private func binding(for key: CompanyDetails.CompanyDetailsKeys) -> Binding<String> {
         Binding(
-            get: { model.value(for: key) },
-            set: { model.setValue($0, for: key) }
+            get: { companyDetailsModel.value(for: key) },
+            set: { companyDetailsModel.setValue($0, for: key) }
         )
     }
     
