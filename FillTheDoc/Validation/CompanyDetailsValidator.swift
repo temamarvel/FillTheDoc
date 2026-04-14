@@ -9,6 +9,25 @@ public struct FieldState: Sendable, Equatable {
     }
 }
 
+public actor DocumentDetailsValidator {
+    
+    typealias Key = DocumentDetails.DocumentDetailsKeys
+    
+    private let metadata: [Key: FieldMetadata]
+    private let localValidator: LocalFieldValidator<Key>
+    
+    // TODO: pass metadata
+    init(metadata: [Key: FieldMetadata]) {
+        self.metadata = metadata
+        
+        self.localValidator = LocalFieldValidator(metadata: self.metadata) { fieldMedata in .warning("\(fieldMedata?.title ?? "Поле") не введен") }
+    }
+    
+    nonisolated func validateField(for fieldKey: Key, state: FieldState) -> FieldIssue? {
+        localValidator.validateField(for: fieldKey, state: state)
+    }
+}
+
 public actor CompanyDetailsValidator {
     
     typealias Key = CompanyDetails.CompanyDetailsKeys
@@ -37,6 +56,7 @@ public actor CompanyDetailsValidator {
     private let dadataClient: DaDataClient
     private var cache: [String: DaDataCompanyInfo]
     private let metadata: [Key: FieldMetadata]
+    private let localValidator: LocalFieldValidator<Key>
     
     // TODO: pass metadata
     init(metadata: [Key: FieldMetadata], policy: Policy = .init()) {
@@ -47,22 +67,14 @@ public actor CompanyDetailsValidator {
         self.dadataClient = client
         self.cache = [:]
         self.metadata = metadata
+        
+        self.localValidator = LocalFieldValidator(metadata: self.metadata) { fieldMedata in .warning("\(fieldMedata?.title ?? "Поле") не введен") }
     }
     
     // MARK: - Local validation (no network)
     
     nonisolated func validateField(for fieldKey: Key, state: FieldState) -> FieldIssue? {
-        // TODO: not use metadata directly
-        guard let validator = metadata[fieldKey]?.validator else {
-            return nil
-        }
-        
-        guard let value = state.value else {
-            // TODO: not use metadata directly
-            return .warning("\(CompanyDetails.fieldMetadata[fieldKey]?.title ?? "Поле") не введен")
-        }
-        
-        return validator(value)
+        localValidator.validateField(for: fieldKey, state: state)
     }
     
     func validateFieldsWithReference(fields: [Key: FieldState]) async -> [Key: FieldState] {
