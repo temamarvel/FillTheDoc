@@ -9,10 +9,54 @@
 import Foundation
 
 struct FieldMetadata {
-    let title: String
-    let placeholder: String
+    let title: String // TODO: can be nil?
+    let placeholder: String // TODO: can be nil?
     let normalizer: (String) -> String
     let validator: (String) -> FieldIssue?
+}
+
+extension DocumentDetails {
+    static let fieldMetadata: [DocumentDetailsKeys: FieldMetadata] = [
+        .ceoRole: .init(
+            title: "",
+            placeholder: "",
+            normalizer: { $0.trimmed },
+            validator: { _ in nil }
+        ),
+        // TODO: fill it
+        .dateLong: .init(
+            title: "",
+            placeholder: "",
+            normalizer: { $0.trimmed },
+            validator: { _ in nil }
+        ),
+        // TODO: fill it
+        .dateShort: .init(
+            title: "",
+            placeholder: "",
+            normalizer: { $0.trimmed },
+            validator: { _ in nil }
+        ),
+        // TODO: fill it
+        .documentNumber: .init(
+            title: "Номер договора",
+            placeholder: "yyyy-mm-#",
+            normalizer: { $0.trimmed },
+            validator: { _ in nil }
+        ),
+        .fee: .init(
+            title: "Комиссия, %",
+            placeholder: "10",
+            normalizer: { $0.trimmed },
+            validator: Validators.percentage
+        ),
+        .minFee: .init(
+            title: "Мин. комиссия, руб",
+            placeholder: "10",
+            normalizer: { $0.trimmed },
+            validator: Validators.percentage
+        ),
+    ]
 }
 
 extension CompanyDetails {

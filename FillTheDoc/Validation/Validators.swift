@@ -263,11 +263,11 @@ enum Validators {
     }
     
     /// Валидация: число (включая дробное) в диапазоне 0–100
-    static func percentage(_ value: String) -> String? {
+    static func percentage(_ value: String) -> FieldIssue? {
         let trimmed = value.trimmed
         
         if trimmed.isEmpty {
-            return "Поле обязательно для заполнения"
+            return .error("Поле обязательно для заполнения")
         }
         
         // Нормализация: запятая → точка
@@ -276,20 +276,21 @@ enum Validators {
         // Проверка допустимых символов
         let allowedChars = CharacterSet(charactersIn: "0123456789.")
         if normalized.rangeOfCharacter(from: allowedChars.inverted) != nil {
-            return "Разрешены только цифры и разделитель (точка или запятая)"
+            return .error("Разрешены только цифры и разделитель (точка или запятая)")
         }
         
         // Не больше одной точки
         if normalized.filter({ $0 == "." }).count > 1 {
-            return "Некорректный формат числа"
+            return .error("Некорректный формат числа")
         }
         
         guard let number = Double(normalized) else {
-            return "Некорректное число"
+            return .error("Некорректное число")
         }
         
+        // TODO: range must be different
         if number < 0 || number > 100 {
-            return "Значение должно быть от 0 до 100"
+            return .error("Значение должно быть от 0 до 100")
         }
         
         return nil

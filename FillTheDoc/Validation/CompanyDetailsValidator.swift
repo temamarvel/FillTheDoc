@@ -16,7 +16,6 @@ public actor DocumentDetailsValidator {
     private let metadata: [Key: FieldMetadata]
     private let localValidator: LocalFieldValidator<Key>
     
-    // TODO: pass metadata
     init(metadata: [Key: FieldMetadata]) {
         self.metadata = metadata
         
@@ -58,7 +57,6 @@ public actor CompanyDetailsValidator {
     private let metadata: [Key: FieldMetadata]
     private let localValidator: LocalFieldValidator<Key>
     
-    // TODO: pass metadata
     init(metadata: [Key: FieldMetadata], policy: Policy = .init()) {
         let token = Bundle.main.infoDictionary?["DADATA_TOKEN"] as? String ?? "N_T"
         let client = DaDataClient(configuration: .init(token: token))

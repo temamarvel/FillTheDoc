@@ -30,7 +30,7 @@ struct DocumentDataFormView: View {
         onApply: @escaping (DocumentDetails) -> Void
     ) {
         
-        let validator = CompanyDetailsValidator()
+        let validator = CompanyDetailsValidator(metadata: metadata)
         
         _companyDetailsModel = State(
             initialValue: CompanyDetailsModel(
@@ -70,8 +70,8 @@ struct DocumentDataFormView: View {
                 
                 Section("Реквизиты компании") {
                     
-                    ForEach(model.keysInOrder(), id: \.self) { key in
-                        if let state = model.fields[key] {
+                    ForEach(companyDetailsModel.keysInOrder(), id: \.self) { key in
+                        if let state = companyDetailsModel.fields[key] {
                             fieldRow(key: key, state: state)
                         }
                     }
@@ -83,29 +83,29 @@ struct DocumentDataFormView: View {
             HStack {
                 Button("Валидация с ФНС") {
                     Task{
-                        await model.validateFieldsWithReference()
+                        await companyDetailsModel.validateFieldsWithReference()
                     }
                 }
                 Spacer()
                 Button("Применить") {
                     do {
-                        let validatedCompanyDatails = try model.buildResult()
+                        let validatedCompanyDatails = try companyDetailsModel.buildResult()
                         let result = DocumentDetails(documentNumber: docNumber, fee: fee.trimmed, minFee: minFee.trimmed, companyDetails: validatedCompanyDatails)
                         onApply(result)
                     } catch {
                         errorText = error.localizedDescription
                     }
                 }
-                .disabled(model.hasErrors || feeError != nil || minFeeError != nil || docNumberError != nil)
+                .disabled(companyDetailsModel.hasErrors || feeError != nil || minFeeError != nil || docNumberError != nil)
                 .keyboardShortcut(.defaultAction)
             }
         }
         .formStyle(.grouped)
         .onChange(of: focusedKey) { old, new in
             guard let lost = old, lost != new else { return }
-            model.scheduleReferenceValidation()
+            companyDetailsModel.scheduleReferenceValidation()
         }
-        .animation(.easeInOut(duration: 0.15), value: model.fields)
+        .animation(.easeInOut(duration: 0.15), value: companyDetailsModel.fields)
         .animation(.easeInOut(duration: 0.15), value: feeError)
         .animation(.easeInOut(duration: 0.15), value: minFeeError)
     }
