@@ -24,16 +24,35 @@ struct DocumentDetails: Codable {
         companyDetails?.legalForm == .ip ? "Индивидуальный предприниматель" : "Генеральный директор"
     }
     
+    var fullCompanyName: String {
+        companyDetails?.fullCompanyName ?? ""
+    }
+    
+    var fullCompanyNameExpanded: String {
+        companyDetails?.fullCompanyNameExpanded ?? ""
+    }
+    
+    var rules: String {
+        companyDetails?.legalForm == .ip ? "Листа  записи в Едином государственном реестре индивидуальных предпринимателей (ЕГРИП)" : "Устава"
+    }
+    
+    init(documentNumber: String?, fee: String?, minFee: String?, companyDetails: CompanyDetails?) {
+        self.documentNumber = documentNumber
+        self.fee = fee
+        self.minFee = minFee
+        self.companyDetails = companyDetails
+    }
+    
     enum DocumentDetailsKeys: String, CodingKey, CaseIterable {
         case documentNumber = "document_number"
         case fee = "fee"
         case minFee = "min_fee"
-        case dateShort = "date_short"
-        case dateLong = "date_long"
-        case ceoRole = "ceoRole"
-        case rules
-        case fullCompanyName = "full_company_name"
-        case fullCompanyNameExpanded = "full_company_name_expanded"
+//        case dateShort = "date_short"
+//        case dateLong = "date_long"
+//        case ceoRole = "ceoRole"
+//        case rules
+//        case fullCompanyName = "full_company_name"
+//        case fullCompanyNameExpanded = "full_company_name_expanded"
     }
     
     func asDictionary() -> [String: String] {
@@ -46,6 +65,29 @@ struct DocumentDetails: Codable {
         return dict
     }
     
+    subscript(key: DocumentDetailsKeys) -> String? {
+        switch key {
+            case .documentNumber:
+                return documentNumber
+//            case .ceoRole:
+//                return ceoRole
+//            case .dateLong:
+//                return dateLong
+//            case .dateShort:
+//                return dateShort
+            case .fee:
+                return fee
+            case .minFee:
+                return minFee
+//            case .fullCompanyName:
+//                return fullCompanyName
+//            case .fullCompanyNameExpanded:
+//                return fullCompanyNameExpanded
+//            case .rules:
+//                return rules
+        }
+    }
+    
     func value(for key: DocumentDetailsKeys) -> String? {
         switch key {
             case .documentNumber:
@@ -54,18 +96,18 @@ struct DocumentDetails: Codable {
                 fee
             case .minFee:
                 minFee
-            case .dateShort:
-                dateShort
-            case .dateLong:
-                dateLong
-            case .ceoRole:
-                ceoRole
-            case .rules:
-                companyDetails?.legalForm == .ip ? "Листа  записи в Едином государственном реестре индивидуальных предпринимателей (ЕГРИП)" : "Устава"
-            case .fullCompanyName:
-                companyDetails?.fullCompanyName
-            case .fullCompanyNameExpanded:
-                companyDetails?.fullCompanyNameExpanded
+//            case .dateShort:
+//                dateShort
+//            case .dateLong:
+//                dateLong
+//            case .ceoRole:
+//                ceoRole
+//            case .rules:
+//                rules
+//            case .fullCompanyName:
+//                fullCompanyName
+//            case .fullCompanyNameExpanded:
+//                fullCompanyNameExpanded
         }
     }
 }

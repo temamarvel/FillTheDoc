@@ -17,26 +17,26 @@ struct FieldMetadata {
 
 extension DocumentDetails {
     static let fieldMetadata: [DocumentDetailsKeys: FieldMetadata] = [
-        .ceoRole: .init(
-            title: "",
-            placeholder: "",
-            normalizer: { $0.trimmed },
-            validator: { _ in nil }
-        ),
+//        .ceoRole: .init(
+//            title: "",
+//            placeholder: "",
+//            normalizer: { $0.trimmed },
+//            validator: { _ in nil }
+//        ),
         // TODO: fill it
-        .dateLong: .init(
-            title: "",
-            placeholder: "",
-            normalizer: { $0.trimmed },
-            validator: { _ in nil }
-        ),
+//        .dateLong: .init(
+//            title: "",
+//            placeholder: "",
+//            normalizer: { $0.trimmed },
+//            validator: { _ in nil }
+//        ),
         // TODO: fill it
-        .dateShort: .init(
-            title: "",
-            placeholder: "",
-            normalizer: { $0.trimmed },
-            validator: { _ in nil }
-        ),
+//        .dateShort: .init(
+//            title: "",
+//            placeholder: "",
+//            normalizer: { $0.trimmed },
+//            validator: { _ in nil }
+//        ),
         // TODO: fill it
         .documentNumber: .init(
             title: "Номер договора",

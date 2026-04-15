@@ -15,7 +15,7 @@ struct DocumentDataFieldView<Key: Hashable>: View {
     let errorColor: Color
     let errorText: String?
     @FocusState.Binding var focusedKey: Key?
-    let key: Key
+    let key: Key?
     
     var body: some View {
         HStack(alignment: .center) {
