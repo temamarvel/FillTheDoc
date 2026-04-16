@@ -62,6 +62,13 @@ struct DocumentDetails: Codable {
             dict[key.rawValue] = value(for: key) ?? ""
         }
         
+        dict["date_short"] = dateShort
+        dict["date_long"] = dateLong
+        dict["ceo_role"] = ceoRole
+        dict["rules"] = rules
+        dict["full_company_name"] = fullCompanyName
+        dict["full_company_name_expanded"] = fullCompanyNameExpanded
+        
         return dict
     }
     
