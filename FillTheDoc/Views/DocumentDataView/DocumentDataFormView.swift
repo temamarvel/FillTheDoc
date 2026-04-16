@@ -40,36 +40,16 @@ struct DocumentDataFormView: View {
         self.onApply = onApply
     }
     
-//    private var docNumberError: String? {
-//        docNumber.isEmpty ? "Номер договора не может быть пустым" : nil
-//    }
-    
-//    private var feeError: String? {
-//        Validators.percentage(fee)
-//    }
-//    
-//    private var minFeeError: String? {
-//        Validators.percentage(minFee)
-//    }
-    
     var body: some View {
         VStack{
             Form {
                 Section("Документ"){
-//                    DocumentDataFieldView(title: "Номер договора", placeholder: "yyyy-mm-#", text: $docNumber, errorColor: .red, errorText: docNumberError, focusedKey: $focusedKey, key: .document(.documentNumber))
-                    
                     ForEach(documentDetailsModel.keysInOrder(), id: \.self) { key in
                         if let state = documentDetailsModel.fields[key] {
                             fieldRow(key: key, state: state)
                         }
                     }
                 }
-                
-//                Section("Комиссия"){
-//                    DocumentDataFieldView(title: "Комиссия, %", placeholder: "10", text: $fee, errorColor: .red, errorText: feeError, focusedKey: $focusedKey, key: .document(.fee))
-//                    
-//                    DocumentDataFieldView(title: "Мин. комиссия, руб", placeholder: "10", text: $minFee, errorColor: .red, errorText: minFeeError, focusedKey: $focusedKey, key: .document(.minFee))
-//                }
                 
                 Section("Реквизиты компании") {
                     
