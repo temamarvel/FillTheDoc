@@ -28,7 +28,6 @@ final class CompanyDetailsModel {
         companyDetails: CompanyDetails,
         metadata: [Key: FieldMetadata],
         keys: [Key]
-        //validator: Validator
     ) {
         self.metadata = metadata
         self.allFieldKeys = keys

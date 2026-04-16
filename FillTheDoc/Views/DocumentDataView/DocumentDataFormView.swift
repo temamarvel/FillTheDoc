@@ -9,16 +9,10 @@ import SwiftUI
 import DaDataAPIClient
 
 struct DocumentDataFormView: View {
-    
-    //typealias Key = CompanyDetails.CompanyDetailsKeys
-    
     @State private var companyDetailsModel: CompanyDetailsModel
     @State private var documentDetailsModel: DocumentDetailsModel
     
     @State private var errorText = ""
-//    @State private var fee = ""
-//    @State private var minFee = ""
-//    @State private var docNumber = ""
     
     @FocusState private var focusedKey: FormFocusKey?
     

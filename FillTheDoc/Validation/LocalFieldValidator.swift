@@ -31,16 +31,4 @@ struct LocalFieldValidator<Key: Hashable & Sendable>: Sendable {
 
         return validator(value)
     }
-
-//    public func validateFields(
-//        _ fields: [Key: FieldState]
-//    ) -> [Key: FieldState] {
-//        var result = fields
-//
-//        for (key, state) in fields {
-//            result[key]?.issue = validateField(for: key, state: state)
-//        }
-//
-//        return result
-//    }
 }

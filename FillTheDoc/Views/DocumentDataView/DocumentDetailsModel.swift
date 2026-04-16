@@ -82,7 +82,6 @@ final class DocumentDetailsModel {
     
     func buildResult(companyDetails: CompanyDetails) throws -> DocumentDetails {
         if hasErrors {
-            // если у тебя есть свой тип ошибки — подставь его
             throw ValidationError(message: "В форме есть ошибки")
         }
         

@@ -1,32 +1,6 @@
 import Foundation
 import DaDataAPIClient
 
-public struct FieldState: Sendable, Equatable {
-    var value : String?
-    var issue: FieldIssue?
-    var isValid: Bool {
-        issue == nil
-    }
-}
-
-public actor DocumentDetailsValidator {
-    
-    typealias Key = DocumentDetails.DocumentDetailsKeys
-    
-    private let metadata: [Key: FieldMetadata]
-    private let localValidator: LocalFieldValidator<Key>
-    
-    init(metadata: [Key: FieldMetadata]) {
-        self.metadata = metadata
-        
-        self.localValidator = LocalFieldValidator(metadata: self.metadata) { fieldMedata in .warning("\(fieldMedata?.title ?? "Поле") не введен") }
-    }
-    
-    nonisolated func validateField(for fieldKey: Key, state: FieldState) -> FieldIssue? {
-        localValidator.validateField(for: fieldKey, state: state)
-    }
-}
-
 public actor CompanyDetailsValidator {
     
     typealias Key = CompanyDetails.CompanyDetailsKeys
