@@ -36,7 +36,7 @@ struct DocumentDetails: Codable {
         companyDetails?.legalForm == .ip ? "Листа  записи в Едином государственном реестре индивидуальных предпринимателей (ЕГРИП)" : "Устава"
     }
     
-    init(documentNumber: String?, fee: String?, minFee: String?, companyDetails: CompanyDetails?) {
+    init(documentNumber: String? = "", fee: String? = "", minFee: String? = "", companyDetails: CompanyDetails? = nil) {
         self.documentNumber = documentNumber
         self.fee = fee
         self.minFee = minFee

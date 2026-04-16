@@ -27,12 +27,12 @@ final class CompanyDetailsModel {
     init(
         companyDetails: CompanyDetails,
         metadata: [Key: FieldMetadata],
-        keys: [Key],
-        validator: Validator
+        keys: [Key]
+        //validator: Validator
     ) {
         self.metadata = metadata
         self.allFieldKeys = keys
-        self.validator = validator
+        self.validator = CompanyDetailsValidator(metadata: metadata)
         self.fields = Self.createFields(companyDetails: companyDetails, allFieldKeys: allFieldKeys, metadata: metadata)
         validateAllFields()
     }

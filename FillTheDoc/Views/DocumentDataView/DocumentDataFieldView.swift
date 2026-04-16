@@ -8,14 +8,14 @@
 import SwiftUI
 
 
-struct DocumentDataFieldView<Key: Hashable>: View {
+struct DocumentDataFieldView<Key: CodingKey>: View {
     let title: String
     let placeholder: String
     @Binding var text: String
     let errorColor: Color
     let errorText: String?
-    @FocusState.Binding var focusedKey: Key?
-    let key: Key?
+    @FocusState.Binding var focusedKey: FormFocusKey?
+    let key: Key
     
     var body: some View {
         HStack(alignment: .center) {
@@ -23,7 +23,7 @@ struct DocumentDataFieldView<Key: Hashable>: View {
             
             VStack(alignment: .trailing) {
                 TextField("", text: $text, prompt: Text(placeholder), axis: .horizontal)
-                    .focused($focusedKey, equals: key)
+                    .focused($focusedKey, equals: FormFocusKey(stringValue: key.stringValue))
                 
                 if let errorText {
                     Text(errorText)

@@ -11,35 +11,30 @@ import Foundation
 @Observable
 final class DocumentDetailsModel {
     
-    
-    
     private(set) var fields: [DocumentDetails.DocumentDetailsKeys: FieldState] = [:]
     private let metadata: [DocumentDetails.DocumentDetailsKeys: FieldMetadata]
     private let allFieldKeys: [DocumentDetails.DocumentDetailsKeys]
-    private let companyDetails: CompanyDetails?
+    private let validator: DocumentDetailsValidator
     
     init(
-        documentDetails: DocumentDetails,
         metadata: [DocumentDetails.DocumentDetailsKeys: FieldMetadata],
-        keys: [DocumentDetails.DocumentDetailsKeys],
-        validator: Validator
+        keys: [DocumentDetails.DocumentDetailsKeys]
     ) {
         self.metadata = metadata
         self.allFieldKeys = keys
-        self.validator = validator
-        self.companyDetails = documentDetails.companyDetails
-        self.fields = Self.createFields(documentsDetails: documentDetails, allFieldKeys: allFieldKeys, metadata: metadata)
+        self.validator = DocumentDetailsValidator(metadata: metadata)
+        self.fields = Self.createFields(allFieldKeys: allFieldKeys, metadata: metadata)
         validateAllFields()
     }
     
     private static func createFields(
-        documentsDetails: DocumentDetails,
         allFieldKeys: [DocumentDetails.DocumentDetailsKeys],
         metadata: [DocumentDetails.DocumentDetailsKeys: FieldMetadata]
     ) -> [DocumentDetails.DocumentDetailsKeys: FieldState] {
         var fields: [DocumentDetails.DocumentDetailsKeys: FieldState] = [:]
+        let documentDetails = DocumentDetails()
         for key in allFieldKeys {
-            let raw = documentsDetails[key]
+            let raw = documentDetails[key]
             let normalized = raw.flatMap { value in
                 metadata[key].map { $0.normalizer(value) } ?? value.trimmedNilIfEmpty
             }
@@ -85,7 +80,7 @@ final class DocumentDetailsModel {
     
     // MARK: - Build DTO
     
-    func buildResult() throws -> DocumentDetails {
+    func buildResult(companyDetails: CompanyDetails) throws -> DocumentDetails {
         if hasErrors {
             // если у тебя есть свой тип ошибки — подставь его
             throw ValidationError(message: "В форме есть ошибки")

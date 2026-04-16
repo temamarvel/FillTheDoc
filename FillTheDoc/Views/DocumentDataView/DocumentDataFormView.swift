@@ -16,9 +16,9 @@ struct DocumentDataFormView: View {
     @State private var documentDetailsModel: DocumentDetailsModel
     
     @State private var errorText = ""
-    @State private var fee = ""
-    @State private var minFee = ""
-    @State private var docNumber = ""
+//    @State private var fee = ""
+//    @State private var minFee = ""
+//    @State private var docNumber = ""
     
     @FocusState private var focusedKey: FormFocusKey?
     
@@ -26,30 +26,21 @@ struct DocumentDataFormView: View {
     
     init(
         companyDetails: CompanyDetails,
-        metadata: [Key: FieldMetadata],
-        keys: [FormFocusKey],
+        metadata: DocumentMetadata,
         onApply: @escaping (DocumentDetails) -> Void
     ) {
-        
-        let validator = CompanyDetailsValidator(metadata: metadata)
-        
         _companyDetailsModel = State(
             initialValue: CompanyDetailsModel(
                 companyDetails: companyDetails,
-                metadata: metadata,
-                keys: keys,
-                validator: validator
+                metadata: metadata.companyDetails,
+                keys: CompanyDetails.CompanyDetailsKeys.allCases
             )
         )
-        
-        let documentDetails = DocumentDetails(documentNumber: "", fee: "", minFee: "", companyDetails: companyDetails)
-        
+    
         _documentDetailsModel = State(
             initialValue: DocumentDetailsModel(
-                documentDetails: documentDetails,
-                metadata: metadata,
-                keys: keys,
-                validator: validator
+                metadata: metadata.documentDetails,
+                keys: DocumentDetails.DocumentDetailsKeys.allCases
             )
         )
         self.onApply = onApply
@@ -75,8 +66,7 @@ struct DocumentDataFormView: View {
                     
                     ForEach(documentDetailsModel.keysInOrder(), id: \.self) { key in
                         if let state = documentDetailsModel.fields[key] {
-                            let formFocusedKey = FormFocusKey(stringValue: key.stringValue)
-                            fieldRow(key: key, state: state, formFocusedKey: formFocusedKey)
+                            fieldRow(key: key, state: state)
                         }
                     }
                 }
@@ -91,8 +81,7 @@ struct DocumentDataFormView: View {
                     
                     ForEach(companyDetailsModel.keysInOrder(), id: \.self) { key in
                         if let state = companyDetailsModel.fields[key] {
-                            let formFocusedKey = FormFocusKey(stringValue: key.stringValue)
-                            fieldRow(key: key, state: state, formFocusedKey: formFocusedKey)
+                            fieldRow(key: key, state: state)
                         }
                     }
                 }
@@ -110,8 +99,9 @@ struct DocumentDataFormView: View {
                 Button("Применить") {
                     do {
                         let validatedCompanyDatails = try companyDetailsModel.buildResult()
-                        let result = DocumentDetails(documentNumber: docNumber, fee: fee.trimmed, minFee: minFee.trimmed, companyDetails: validatedCompanyDatails)
-                        onApply(result)
+                        let validatedDocumentDatails = try documentDetailsModel.buildResult(companyDetails: validatedCompanyDatails)
+                        
+                        onApply(validatedDocumentDatails)
                     } catch {
                         errorText = error.localizedDescription
                     }
@@ -130,7 +120,7 @@ struct DocumentDataFormView: View {
     }
     
     @ViewBuilder
-    private func fieldRow(key: CompanyDetails.CompanyDetailsKeys, state: FieldState, formFocusedKey: FormFocusKey?) -> some View {
+    private func fieldRow(key: CompanyDetails.CompanyDetailsKeys, state: FieldState) -> some View {
         let issue = state.issue
         let color = issueColor(for: issue)
         
@@ -141,14 +131,14 @@ struct DocumentDataFormView: View {
                     errorColor: color,
                     errorText: issue?.text,
                     focusedKey: $focusedKey,
-                    key: formFocusedKey
+                    key: key
                 )
             
         
     }
     
     @ViewBuilder
-    private func fieldRow(key: DocumentDetails.DocumentDetailsKeys, state: FieldState, formFocusedKey: FormFocusKey?) -> some View {
+    private func fieldRow(key: DocumentDetails.DocumentDetailsKeys, state: FieldState) -> some View {
         let issue = state.issue
         let color = issueColor(for: issue)
         
@@ -160,7 +150,7 @@ struct DocumentDataFormView: View {
                     errorColor: color,
                     errorText: issue?.text,
                     focusedKey: $focusedKey,
-                    key: formFocusedKey
+                    key: key
                 )
         
     }

@@ -5,6 +5,11 @@
 //  Created by Артем Денисов on 13.04.2026.
 //
 
+struct DocumentMetadata {
+    let companyDetails: [CompanyDetails.CompanyDetailsKeys: FieldMetadata]
+    let documentDetails: [DocumentDetails.DocumentDetailsKeys: FieldMetadata]
+}
+
 
 enum FormFocusKey: Hashable, CodingKey, CaseIterable {
     case company(CompanyDetails.CompanyDetailsKeys)

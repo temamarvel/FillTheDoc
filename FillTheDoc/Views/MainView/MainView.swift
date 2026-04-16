@@ -43,10 +43,11 @@ struct MainView: View {
 //                            CompanyDetails.CodingKeys(rawValue: $0)
 //                        }
                         
+                        let documentMetadata = DocumentMetadata(companyDetails: CompanyDetails.fieldMetadata, documentDetails: DocumentDetails.fieldMetadata)
+                        
                         DocumentDataFormView(
                             companyDetails: details,
-                            metadata: CompanyDetails.fieldMetadata,
-                            keys: CompanyDetails.CompanyDetailsKeys.allCases
+                            metadata: documentMetadata
                         ) { updated in
                             viewModel.applyDocumentData(updated)
                         }
