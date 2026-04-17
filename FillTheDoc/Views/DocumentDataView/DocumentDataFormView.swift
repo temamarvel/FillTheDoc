@@ -13,6 +13,8 @@ struct DocumentDataFormView: View {
     
     @State private var errorText = ""
     
+    @FocusState private var focusedKey: PlaceholderKey?
+    
     let onApply: ([String: String], CompanyDetails) -> Void
     
     init(
@@ -71,6 +73,10 @@ struct DocumentDataFormView: View {
             }
         }
         .formStyle(.grouped)
+        .onChange(of: focusedKey) { old, new in
+            guard let _ = old, old != new else { return }
+            formModel.scheduleReferenceValidation(using: companyValidator)
+        }
         .animation(.easeInOut(duration: 0.15), value: formModel.fieldStates)
     }
     
@@ -87,7 +93,9 @@ struct DocumentDataFormView: View {
                     placeholder: definition.placeholder,
                     text: binding(for: definition.key),
                     errorColor: color,
-                    errorText: issue?.text
+                    errorText: issue?.text,
+                    focusedKey: $focusedKey,
+                    key: definition.key
                 )
             }
         }

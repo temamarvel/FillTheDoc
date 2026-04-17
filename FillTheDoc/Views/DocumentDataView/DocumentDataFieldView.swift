@@ -13,6 +13,8 @@ struct DocumentDataFieldView: View {
     @Binding var text: String
     let errorColor: Color
     let errorText: String?
+    @FocusState.Binding var focusedKey: PlaceholderKey?
+    let key: PlaceholderKey
     
     var body: some View {
         HStack(alignment: .center) {
@@ -20,6 +22,7 @@ struct DocumentDataFieldView: View {
             
             VStack(alignment: .trailing) {
                 TextField("", text: $text, prompt: Text(placeholder), axis: .horizontal)
+                    .focused($focusedKey, equals: key)
                 
                 if let errorText {
                     Text(errorText)
