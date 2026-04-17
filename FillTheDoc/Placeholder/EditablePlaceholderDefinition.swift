@@ -6,8 +6,8 @@ struct EditablePlaceholderDefinition: Identifiable, Sendable {
         case company
         case custom
     }
-
-    let id: PlaceholderKey
+    
+    var id: PlaceholderKey { key }
     let key: PlaceholderKey
     let title: String
     let placeholder: String
@@ -15,12 +15,12 @@ struct EditablePlaceholderDefinition: Identifiable, Sendable {
     let isRequired: Bool
     let normalizer: @Sendable (String) -> String
     let validator: @Sendable (String) -> FieldIssue?
-
+    
     // Identifiable + Hashable by key only (closures can't be Equatable)
     static func == (lhs: EditablePlaceholderDefinition, rhs: EditablePlaceholderDefinition) -> Bool {
         lhs.key == rhs.key
     }
-
+    
     func hash(into hasher: inout Hasher) {
         hasher.combine(key)
     }

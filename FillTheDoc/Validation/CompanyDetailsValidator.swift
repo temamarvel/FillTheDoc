@@ -3,180 +3,127 @@ import DaDataAPIClient
 
 public actor CompanyDetailsValidator {
     
-    typealias Key = CompanyDetails.CompanyDetailsKeys
-    
     public struct Policy: Sendable {
         public var nameSimilarityThreshold: Double
         public var addressSimilarityThreshold: Double
         
-        public var preferRemoteOnTie: Bool
-        public var combineTextsOnTie: Bool
-        
         public init(
             nameSimilarityThreshold: Double = 0.72,
-            addressSimilarityThreshold: Double = 0.55,
-            preferRemoteOnTie: Bool = false,
-            combineTextsOnTie: Bool = true
+            addressSimilarityThreshold: Double = 0.55
         ) {
             self.nameSimilarityThreshold = nameSimilarityThreshold
             self.addressSimilarityThreshold = addressSimilarityThreshold
-            self.preferRemoteOnTie = preferRemoteOnTie
-            self.combineTextsOnTie = combineTextsOnTie
         }
     }
     
     private let policy: Policy
     private let dadataClient: DaDataClient
     private var cache: [String: DaDataCompanyInfo]
-    private let metadata: [Key: FieldMetadata]
-    private let localValidator: LocalFieldValidator<Key>
     
-    init(metadata: [Key: FieldMetadata], policy: Policy = .init()) {
+    init(policy: Policy = .init()) {
         let token = Bundle.main.infoDictionary?["DADATA_TOKEN"] as? String ?? "N_T"
-        let client = DaDataClient(configuration: .init(token: token))
-        
         self.policy = policy
-        self.dadataClient = client
+        self.dadataClient = DaDataClient(configuration: .init(token: token))
         self.cache = [:]
-        self.metadata = metadata
-        
-        self.localValidator = LocalFieldValidator(metadata: self.metadata) { fieldMedata in .warning("\(fieldMedata?.title ?? "Поле") не введен") }
     }
     
-    // MARK: - Local validation (no network)
+    // MARK: - Reference validation
     
-    nonisolated func validateField(for fieldKey: Key, state: FieldState) -> FieldIssue? {
-        localValidator.validateField(for: fieldKey, state: state)
-    }
-    
-    func validateFieldsWithReference(fields: [Key: FieldState]) async -> [Key: FieldState] {
-        //fields have to be normalized and not null before validation
+    /// Принимает текущие значения полей, возвращает найденные issues от DaData.
+    func validateWithReference(values: [PlaceholderKey: String]) async -> [PlaceholderKey: FieldIssue] {
+        let ogrn = values[PlaceholderKey(rawValue: "ogrn")]?.trimmedNilIfEmpty
+        let inn = values[PlaceholderKey(rawValue: "inn")]?.trimmedNilIfEmpty
         
-        let ogrn = fields[.ogrn]?.value
-        let inn = fields[.inn]?.value
+        guard let identifier = ogrn ?? inn else { return [:] }
         
-        // MARK: get dadata company info
-        var dadataCompanyInfo: DaDataCompanyInfo? = nil
-        do{
-            let identifier = ogrn ?? inn
-            
-            guard let identifier else {
-                return fields
-            }
-            
+        // Fetch or use cache
+        var companyInfo: DaDataCompanyInfo?
+        do {
             if let cached = cache[identifier] {
-                dadataCompanyInfo = cached
+                companyInfo = cached
             } else {
-                dadataCompanyInfo = try await dadataClient.fetchCompanyInfoFirts(innOrOgrn: identifier)?.data
-                if let dadataCompanyInfo {
-                    if let fetchedOgrn = dadataCompanyInfo.ogrn {
-                        cache[fetchedOgrn] = dadataCompanyInfo
-                    }
-                    if let fetchedInn = dadataCompanyInfo.inn {
-                        cache[fetchedInn] = dadataCompanyInfo
-                    }
+                companyInfo = try await dadataClient.fetchCompanyInfoFirts(innOrOgrn: identifier)?.data
+                if let companyInfo {
+                    if let fetchedOgrn = companyInfo.ogrn { cache[fetchedOgrn] = companyInfo }
+                    if let fetchedInn = companyInfo.inn { cache[fetchedInn] = companyInfo }
                 }
             }
-        }
-        catch{
-            
-        }
-        
-        guard let dadataCompanyInfo else {
-            return fields //TODO
+        } catch {
+            // network error — skip
         }
         
-        // MARK: validate all fields using dadata info
+        guard let companyInfo else { return [:] }
         
-        var resultFields = fields
-        
-        for (key, state) in fields {
-            let crossIssue = crossValidateField(fieldKey: key, state: state, companyInfo: dadataCompanyInfo)
-            
-            guard let crossIssue else { continue }
-            
-            // Не перезаписываем error от локальной валидации warning-ом от DaData
-            if resultFields[key]?.issue == nil || resultFields[key]?.issue?.severity == .warning {
-                resultFields[key]?.issue = crossIssue
+        var issues: [PlaceholderKey: FieldIssue] = [:]
+        for (key, value) in values {
+            if let issue = crossValidate(key: key, value: value, companyInfo: companyInfo) {
+                issues[key] = issue
             }
         }
-        
-        return resultFields
+        return issues
     }
     
     // MARK: - Cross validation with DaData
     
-    private func crossValidateField(fieldKey: Key, state: FieldState, companyInfo: DaDataCompanyInfo) -> FieldIssue? {
-        switch fieldKey {
-            case .inn:
-                guard let llmINN = state.value else { return nil }
+    private func crossValidate(key: PlaceholderKey, value: String, companyInfo: DaDataCompanyInfo) -> FieldIssue? {
+        switch key.rawValue {
+            case "inn":
                 let apiINN = companyInfo.inn.map { $0.digitsOnly }
-                if let apiINN, apiINN != llmINN.digitsOnly {
+                if let apiINN, apiINN != value.digitsOnly {
                     return .warning("ИНН не совпадает с ФНС.")
                 }
                 return nil
                 
-            case .kpp:
-                guard let llmKPP = state.value else { return nil }
+            case "kpp":
                 if let apiKPP = companyInfo.kpp.map({ $0.digitsOnly }),
-                   apiKPP != llmKPP.digitsOnly {
+                   apiKPP != value.digitsOnly {
                     return .warning("КПП не совпадает с ФНС.")
                 }
                 return nil
                 
-            case .ogrn:
-                guard let llmOGRN = state.value else { return nil }
+            case "ogrn":
                 if let apiOGRN = companyInfo.ogrn.map({ $0.digitsOnly }),
-                   apiOGRN != llmOGRN.digitsOnly {
+                   apiOGRN != value.digitsOnly {
                     return .warning("ОГРН/ОГРНИП не совпадает с ФНС.")
                 }
                 return nil
                 
-            case .companyName:
-                guard let llmName = state.value else { return nil }
-                
+            case "company_name":
                 let apiName =
                 companyInfo.name?.fullWithOpf
                 ?? companyInfo.name?.shortWithOpf
                 ?? companyInfo.name?.full
                 ?? companyInfo.name?.short
-                
                 guard let apiName else { return nil }
                 
-                let sim = Validators.jaccardSimilarity(llmName, apiName)
-                let contains = Validators.containsNormalized(llmName, apiName)
-                
+                let sim = Validators.jaccardSimilarity(value, apiName)
+                let contains = Validators.containsNormalized(value, apiName)
                 if !(contains || sim >= policy.nameSimilarityThreshold) {
                     return .warning("Название не совпадает с ФНС (схожесть: \(String(format: "%.2f", sim))).")
                 }
                 return nil
                 
-            case .ceoFullName:
-                guard let llmCEO = state.value else { return nil }
+            case "ceo_full_name":
                 if let apiCEO = companyInfo.management?.name, !apiCEO.isEmpty {
-                    let sim = Validators.jaccardSimilarity(llmCEO, apiCEO)
-                    let contains = Validators.containsNormalized(llmCEO, apiCEO)
+                    let sim = Validators.jaccardSimilarity(value, apiCEO)
+                    let contains = Validators.containsNormalized(value, apiCEO)
                     if !(contains || sim >= policy.nameSimilarityThreshold) {
                         return .warning("ФИО руководителя не совпадает с ФНС (схожесть: \(String(format: "%.2f", sim))).")
                     }
                 }
                 return nil
                 
-                // сейчас не кросс-валидируем
-            case .legalForm, .ceoShortenName, .ceoFullGenitiveName, .email, .phone:
-                return nil
-                // TODO: address
-            case .address:
-                guard let llmAddress = state.value else { return nil }
-                
+            case "address":
                 if let apiAddress = companyInfo.address?.value, !apiAddress.isEmpty {
-                    let sim = Validators.jaccardSimilarity(llmAddress, apiAddress)
-                    let contains = Validators.containsNormalized(llmAddress, apiAddress)
+                    let sim = Validators.jaccardSimilarity(value, apiAddress)
+                    let contains = Validators.containsNormalized(value, apiAddress)
                     if !(contains || sim >= policy.addressSimilarityThreshold) {
                         return .warning("Адрес не совпадает с ФНС \(apiAddress) (схожесть: \(String(format: "%.2f", sim))).")
                     }
                 }
+                return nil
                 
+            default:
                 return nil
         }
     }

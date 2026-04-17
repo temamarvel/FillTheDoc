@@ -8,7 +8,7 @@ struct TemplateResolveContext: Sendable {
 }
 
 struct ComputedPlaceholderDefinition: Identifiable, Sendable {
-    let id: PlaceholderKey
+    var id: PlaceholderKey { key }
     let key: PlaceholderKey
     let resolver: @Sendable (TemplateResolveContext) -> String?
 }

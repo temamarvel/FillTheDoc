@@ -12,6 +12,8 @@ struct DocumentDataFormView: View {
     private let companyValidator: CompanyDetailsValidator
     
     @State private var errorText = ""
+    @State private var validationTask: Task<Void, Never>?
+    @State private var lastLookupKey: String?
     
     @FocusState private var focusedKey: PlaceholderKey?
     
@@ -33,8 +35,7 @@ struct DocumentDataFormView: View {
             )
         )
         
-        let metadata = CompanyDetails.fieldMetadata
-        self.companyValidator = CompanyDetailsValidator(metadata: metadata)
+        self.companyValidator = CompanyDetailsValidator()
         self.onApply = onApply
     }
     
@@ -54,9 +55,7 @@ struct DocumentDataFormView: View {
             
             HStack {
                 Button("Валидация с ФНС") {
-                    Task {
-                        await formModel.applyReferenceValidation(using: companyValidator)
-                    }
+                    runReferenceValidation()
                 }
                 Spacer()
                 Button("Применить") {
@@ -75,7 +74,7 @@ struct DocumentDataFormView: View {
         .formStyle(.grouped)
         .onChange(of: focusedKey) { old, new in
             guard let _ = old, old != new else { return }
-            formModel.scheduleReferenceValidation(using: companyValidator)
+            scheduleReferenceValidation()
         }
         .animation(.easeInOut(duration: 0.15), value: formModel.fieldStates)
     }
@@ -113,6 +112,38 @@ struct DocumentDataFormView: View {
         switch issue.severity {
             case .error: return .red
             case .warning: return .orange
+        }
+    }
+    
+    // MARK: - Reference validation scheduling
+    
+    private func scheduleReferenceValidation() {
+        let ogrn = formModel.value(for: "ogrn").trimmedNilIfEmpty
+        let inn = formModel.value(for: "inn").trimmedNilIfEmpty
+        let lookupKey = ogrn ?? inn
+        guard let lookupKey, !lookupKey.isEmpty else { return }
+        if lookupKey == lastLookupKey { return }
+        
+        validationTask?.cancel()
+        validationTask = Task {
+            do {
+                try await Task.sleep(for: .milliseconds(300))
+                try Task.checkCancellation()
+                let companyValues = formModel.editableValues(in: .company)
+                let issues = await companyValidator.validateWithReference(values: companyValues)
+                try Task.checkCancellation()
+                formModel.applyExternalIssues(issues)
+                lastLookupKey = lookupKey
+            } catch {}
+        }
+    }
+    
+    private func runReferenceValidation() {
+        validationTask?.cancel()
+        validationTask = Task {
+            let companyValues = formModel.editableValues(in: .company)
+            let issues = await companyValidator.validateWithReference(values: companyValues)
+            formModel.applyExternalIssues(issues)
         }
     }
 }
