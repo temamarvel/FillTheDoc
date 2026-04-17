@@ -23,7 +23,8 @@ final class MainViewModel {
     // MARK: - State (data)
     
     private(set) var details: CompanyDetails?
-    var documentData: DocumentDetails?
+    /// Resolved placeholder dictionary ready for template substitution
+    var resolvedValues: [String: String]?
     private(set) var templatePlaceholders: [String] = []
     private(set) var googleSheetsRow: String?
     
@@ -100,14 +101,15 @@ final class MainViewModel {
     func handleDetailsDrop(_ urls: [URL]) {
         isDataApproved = false
         details = nil
+        resolvedValues = nil
         googleSheetsRow = nil
         if let url = urls.first { detailsPath = url.path }
         extractDetails()
     }
     
-    func applyDocumentData(_ updated: DocumentDetails) {
-        details = updated.companyDetails
-        documentData = updated
+    func applyFormData(resolvedDict: [String: String], company: CompanyDetails) {
+        details = company
+        resolvedValues = resolvedDict
         isDataApproved = true
     }
     
@@ -134,7 +136,6 @@ final class MainViewModel {
                 try Task.checkCancellation()
                 self.templatePlaceholders = keys
             } catch is CancellationError {
-                // игнорируем отмену
             } catch {
                 print("Scan failed:", error)
             }
@@ -161,16 +162,13 @@ final class MainViewModel {
                 let extractedDetails = try await extractorService.extract(from: detailsURL)
                 try Task.checkCancellation()
                 
-                //let companyDetails = try await self.fakeOpenAICall(extractedDetails: extractedDetails)
                 let companyDetails = try await self.callOpenAI(extractedDetails: extractedDetails)
                 try Task.checkCancellation()
                 
-                // Защита от out-of-order: записываем только если нет более свежей задачи
                 guard generation == self.extractionGeneration else { return }
                 self.details = companyDetails
                 print("DTO:", companyDetails.toMultilineString())
             } catch is CancellationError {
-                // нормальная отмена — ничего не делаем
             } catch {
                 print("Extraction failed:", error)
             }
@@ -186,7 +184,7 @@ final class MainViewModel {
         defer { isLoading = false }
         
         do {
-            guard let values = documentData?.asDictionary() else { return }
+            guard let values = resolvedValues else { return }
             
             let tempOutURL = makeTempOutputURL(from: templateURL)
             
@@ -200,8 +198,14 @@ final class MainViewModel {
             exportDefaultFilename = "\(templateURL.deletingPathExtension().lastPathComponent)_filled"
             showExporter = true
             
-            if let documentData {
-                let row = googleSheetsRowBuilder.makeRow(from: documentData)
+            if let details, let resolvedValues {
+                let documentDetails = DocumentDetails(
+                    documentNumber: resolvedValues["document_number"],
+                    fee: resolvedValues["fee"],
+                    minFee: resolvedValues["min_fee"],
+                    companyDetails: details
+                )
+                let row = googleSheetsRowBuilder.makeRow(from: documentDetails)
                 googleSheetsRow = row
                 googleSheetsRowBuilder.copyToPasteboard(row)
             }
@@ -231,14 +235,8 @@ final class MainViewModel {
     }
     
     private func fakeOpenAICall(extractedDetails: ExtractionResult) async throws -> CompanyDetails {
-        // симуляция
         try await Task.sleep(nanoseconds: 1_000_000_000)
-        
-        // MARK: valid test data
         return CompanyDetails(companyName: "Тест компания", legalForm: LegalForm.parse("ЗАО"), ceoFullName: "Тест Тестович Тестов", ceoFullGenitiveName: "Теста Тестовича Тестова", ceoShortenName: "Тестов Т. Т.", ogrn: "1187746707280", inn: "9731007287", kpp: "773101001", email: "test_test@test.com", address: "город Москва, ул Горбунова, д. 2 стр. 3", phone: "+79991234567")
-        
-        //MARK: invalid test data
-        // return CompanyDetails(companyName: "Тест компания", legalForm: "ТЕСТ_ЗАО", ceoFullName: "Тест Тестович Тестов", ceoShortenName: "Тестов Т. Т.", ogrn: "11877467072801", inn: "97310107287", kpp: "7731010101", email: "test_test@test.com", address: "Город, ул. Улица, д. 8")
     }
     
     private func makeTempOutputURL(from templateURL: URL) -> URL {

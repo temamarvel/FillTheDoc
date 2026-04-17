@@ -6,58 +6,45 @@
 //
 
 import SwiftUI
-import DaDataAPIClient
 
 struct DocumentDataFormView: View {
-    @State private var companyDetailsModel: CompanyDetailsModel
-    @State private var documentDetailsModel: DocumentDetailsModel
+    @State private var formModel: PlaceholderFormModel
+    private let companyValidator: CompanyDetailsValidator
     
     @State private var errorText = ""
     
-    @FocusState private var focusedKey: FormFocusKey?
-    
-    let onApply: (DocumentDetails) -> Void
+    let onApply: ([String: String], CompanyDetails) -> Void
     
     init(
         companyDetails: CompanyDetails,
-        metadata: DocumentMetadata,
-        onApply: @escaping (DocumentDetails) -> Void
+        onApply: @escaping ([String: String], CompanyDetails) -> Void
     ) {
-        _companyDetailsModel = State(
-            initialValue: CompanyDetailsModel(
-                companyDetails: companyDetails,
-                metadata: metadata.companyDetails,
-                keys: CompanyDetails.CompanyDetailsKeys.allCases
+        let allDefinitions = DocumentPlaceholderCatalog.editableDefinitions
+        + CompanyPlaceholderCatalog.editableDefinitions
+        
+        let initialValues = CompanyPlaceholderCatalog.initialValues(from: companyDetails)
+        
+        _formModel = State(
+            initialValue: PlaceholderFormModel(
+                editableDefinitions: allDefinitions,
+                initialValues: initialValues
             )
         )
-    
-        _documentDetailsModel = State(
-            initialValue: DocumentDetailsModel(
-                metadata: metadata.documentDetails,
-                keys: DocumentDetails.DocumentDetailsKeys.allCases
-            )
-        )
+        
+        let metadata = CompanyDetails.fieldMetadata
+        self.companyValidator = CompanyDetailsValidator(metadata: metadata)
         self.onApply = onApply
     }
     
     var body: some View {
-        VStack{
+        VStack {
             Form {
-                Section("Документ"){
-                    ForEach(documentDetailsModel.keysInOrder(), id: \.self) { key in
-                        if let state = documentDetailsModel.fields[key] {
-                            fieldRow(key: key, state: state)
-                        }
-                    }
-                }
+                sectionView(title: "Документ", section: .document)
+                sectionView(title: "Реквизиты компании", section: .company)
                 
-                Section("Реквизиты компании") {
-                    
-                    ForEach(companyDetailsModel.keysInOrder(), id: \.self) { key in
-                        if let state = companyDetailsModel.fields[key] {
-                            fieldRow(key: key, state: state)
-                        }
-                    }
+                let customDefs = formModel.definitions(in: .custom)
+                if !customDefs.isEmpty {
+                    sectionView(title: "Пользовательские поля", section: .custom)
                 }
             }
             
@@ -65,89 +52,56 @@ struct DocumentDataFormView: View {
             
             HStack {
                 Button("Валидация с ФНС") {
-                    Task{
-                        await companyDetailsModel.validateFieldsWithReference()
+                    Task {
+                        await formModel.applyReferenceValidation(using: companyValidator)
                     }
                 }
                 Spacer()
                 Button("Применить") {
-                    do {
-                        let validatedCompanyDatails = try companyDetailsModel.buildResult()
-                        let validatedDocumentDatails = try documentDetailsModel.buildResult(companyDetails: validatedCompanyDatails)
-                        
-                        onApply(validatedDocumentDatails)
-                    } catch {
-                        errorText = error.localizedDescription
-                    }
+                    let companyValues = formModel.editableValues(in: .company)
+                    let company = CompanyDetailsAssembler.makeCompanyDetails(from: companyValues)
+                    let resolved = TemplatePlaceholderResolver.resolve(
+                        formModel: formModel,
+                        company: company
+                    )
+                    onApply(resolved, company)
                 }
-                .disabled(companyDetailsModel.hasErrors || documentDetailsModel.hasErrors)
+                .disabled(formModel.hasErrors)
                 .keyboardShortcut(.defaultAction)
             }
         }
         .formStyle(.grouped)
-        .onChange(of: focusedKey) { old, new in
-            guard let lost = old, lost != new else { return }
-            companyDetailsModel.scheduleReferenceValidation()
+        .animation(.easeInOut(duration: 0.15), value: formModel.fieldStates)
+    }
+    
+    @ViewBuilder
+    private func sectionView(title: String, section: EditablePlaceholderDefinition.Section) -> some View {
+        Section(title) {
+            ForEach(formModel.definitions(in: section)) { definition in
+                let state = formModel.fieldStates[definition.key]
+                let issue = state?.issue
+                let color = issueColor(for: issue)
+                
+                DocumentDataFieldView(
+                    title: definition.title,
+                    placeholder: definition.placeholder,
+                    text: binding(for: definition.key),
+                    errorColor: color,
+                    errorText: issue?.text
+                )
+            }
         }
-        .animation(.easeInOut(duration: 0.15), value: companyDetailsModel.fields)
-        .animation(.easeInOut(duration: 0.15), value: documentDetailsModel.fields)
     }
     
-    @ViewBuilder
-    private func fieldRow(key: CompanyDetails.CompanyDetailsKeys, state: FieldState) -> some View {
-        let issue = state.issue
-        let color = issueColor(for: issue)
-        
-                DocumentDataFieldView(
-                    title: companyDetailsModel.title(for: key),
-                    placeholder: companyDetailsModel.placeholder(for: key),
-                    text: companyDetailsBinding(for: key),
-                    errorColor: color,
-                    errorText: issue?.text,
-                    focusedKey: $focusedKey,
-                    key: key
-                )
-            
-        
-    }
-    
-    @ViewBuilder
-    private func fieldRow(key: DocumentDetails.DocumentDetailsKeys, state: FieldState) -> some View {
-        let issue = state.issue
-        let color = issueColor(for: issue)
-        
-        
-                DocumentDataFieldView(
-                    title: documentDetailsModel.title(for: key),
-                    placeholder: documentDetailsModel.placeholder(for: key),
-                    text: documentDetailsBinding(for: key),
-                    errorColor: color,
-                    errorText: issue?.text,
-                    focusedKey: $focusedKey,
-                    key: key
-                )
-        
-    }
-    
-    // MARK: - Binding
-    
-    private func companyDetailsBinding(for key: CompanyDetails.CompanyDetailsKeys) -> Binding<String> {
+    private func binding(for key: PlaceholderKey) -> Binding<String> {
         Binding(
-            get: { companyDetailsModel.value(for: key) },
-            set: { companyDetailsModel.setValue($0, for: key) }
-        )
-    }
-    
-    private func documentDetailsBinding(for key: DocumentDetails.DocumentDetailsKeys) -> Binding<String> {
-        Binding(
-            get: { documentDetailsModel.value(for: key) },
-            set: { documentDetailsModel.setValue($0, for: key) }
+            get: { formModel.value(for: key) },
+            set: { formModel.setValue($0, for: key) }
         )
     }
     
     private func issueColor(for issue: FieldIssue?) -> Color {
         guard let issue else { return .clear }
-        
         switch issue.severity {
             case .error: return .red
             case .warning: return .orange
@@ -174,7 +128,7 @@ struct DocumentDataFormView: View {
 //        address: "ТЕСТ Адрес",
 //        phone: "+79991234567"
 //    )
-//    
+//
 //    var body: some View {
 //        DocumentDataFormView(
 //            companyDetails: requisites,
@@ -187,5 +141,3 @@ struct DocumentDataFormView: View {
 //        .padding()
 //    }
 //}
-
-

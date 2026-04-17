@@ -3,7 +3,7 @@ import UniformTypeIdentifiers
 
 struct MainView: View {
     @State private var viewModel: MainViewModel
-//    @State private var apiKeyStore: APIKeyStore
+    //    @State private var apiKeyStore: APIKeyStore
     
     init() {
         //let apiKeyStore = APIKeyStore()
@@ -39,17 +39,14 @@ struct MainView: View {
                     DocumentDataCopyStringPresenterView(content: googleSheetsRow)
                 } else {
                     if let details = viewModel.details {
-//                        let keys = viewModel.templatePlaceholders.compactMap {
-//                            CompanyDetails.CodingKeys(rawValue: $0)
-//                        }
-                        
-                        let documentMetadata = DocumentMetadata(companyDetails: CompanyDetails.fieldMetadata, documentDetails: DocumentDetails.fieldMetadata)
+                        //                        let keys = viewModel.templatePlaceholders.compactMap {
+                        //                            CompanyDetails.CodingKeys(rawValue: $0)
+                        //                        }
                         
                         DocumentDataFormView(
-                            companyDetails: details,
-                            metadata: documentMetadata
-                        ) { updated in
-                            viewModel.applyDocumentData(updated)
+                            companyDetails: details
+                        ) { resolvedDict, company in
+                            viewModel.applyFormData(resolvedDict: resolvedDict, company: company)
                         }
                     } else {
                         EmptyCompanyDetailsView()
