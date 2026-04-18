@@ -175,12 +175,116 @@ private struct PartReport {
     var replacementsCount: Int = 0
 }
 
+// MARK: - Editable text node snapshot / restore
+
+private typealias EditableTextNodeSnapshot = [String: String]
+
+private func makeEditableTextNodeSnapshot(document: XMLDocument) -> EditableTextNodeSnapshot {
+    var snapshot: EditableTextNodeSnapshot = [:]
+    
+    guard let root = document.rootElement() else { return snapshot }
+    
+    func visit(_ element: XMLElement, path: String) {
+        let localName = element.localName ?? element.name ?? ""
+        
+        if localName == "t" || localName == "instrText" {
+            snapshot[path] = element.stringValue ?? ""
+        }
+        
+        let childElements = (element.children ?? []).compactMap { $0 as? XMLElement }
+        for (index, child) in childElements.enumerated() {
+            let childLocalName = child.localName ?? child.name ?? "?"
+            let childPath = path + "/\(childLocalName)[\(index)]"
+            visit(child, path: childPath)
+        }
+    }
+    
+    let rootName = root.localName ?? root.name ?? "root"
+    visit(root, path: "/\(rootName)[0]")
+    
+    return snapshot
+}
+
+private func restoreWhitespaceOnlyEditableTextNodes(
+    in document: XMLDocument,
+    from snapshot: EditableTextNodeSnapshot
+) {
+    guard let root = document.rootElement() else { return }
+    
+    func visit(_ element: XMLElement, path: String) {
+        let localName = element.localName ?? element.name ?? ""
+        
+        if localName == "t" || localName == "instrText" {
+            let current = element.stringValue ?? ""
+            if current.isEmpty, let original = snapshot[path], isWhitespaceOnly(original) {
+                setExactTextNodeValue(original, on: element)
+                
+                if localName == "t" {
+                    if needsXMLSpacePreserve(for: original) {
+                        ensureXMLSpacePreserve(on: element)
+                    } else {
+                        removeXMLSpacePreserve(on: element)
+                    }
+                }
+            }
+        }
+        
+        let childElements = (element.children ?? []).compactMap { $0 as? XMLElement }
+        for (index, child) in childElements.enumerated() {
+            let childLocalName = child.localName ?? child.name ?? "?"
+            let childPath = path + "/\(childLocalName)[\(index)]"
+            visit(child, path: childPath)
+        }
+    }
+    
+    let rootName = root.localName ?? root.name ?? "root"
+    visit(root, path: "/\(rootName)[0]")
+}
+
+private func isWhitespaceOnly(_ text: String) -> Bool {
+    guard !text.isEmpty else { return false }
+    return text.unicodeScalars.allSatisfy { CharacterSet.whitespacesAndNewlines.contains($0) }
+}
+
+private func needsXMLSpacePreserve(for text: String) -> Bool {
+    guard !text.isEmpty else { return false }
+    if text.first == " " || text.last == " " { return true }
+    if text.contains("  ") { return true }
+    if text.contains("\n") || text.contains("\t") { return true }
+    return false
+}
+
+private func setExactTextNodeValue(_ value: String, on element: XMLElement) {
+    for child in element.children ?? [] {
+        child.detach()
+    }
+    
+    let textNode = XMLNode.text(withStringValue: value) as! XMLNode
+    element.addChild(textNode)
+}
+
+private func ensureXMLSpacePreserve(on element: XMLElement) {
+    let attrName = "xml:space"
+    
+    if element.attribute(forName: attrName) == nil {
+        let attribute = XMLNode.attribute(withName: attrName, stringValue: "preserve") as! XMLNode
+        element.addAttribute(attribute)
+    } else {
+        element.attribute(forName: attrName)?.stringValue = "preserve"
+    }
+}
+
+private func removeXMLSpacePreserve(on element: XMLElement) {
+    element.attribute(forName: "xml:space")?.detach()
+}
+
 private func replaceInPartXML(
     partURL: URL,
     values: [String: String],
     options: DocxPlaceholderReplacer.Options,
     partPathForErrors: String
 ) throws -> (PartReport, Bool) {
+    
     let data: Data
     do {
         data = try Data(contentsOf: partURL)
@@ -190,10 +294,16 @@ private func replaceInPartXML(
     
     let doc = try parseXMLDocument(data: data, partPath: partPathForErrors)
     
+    // Снимок исходных текстов editable text nodes
+    let originalSnapshot = makeEditableTextNodeSnapshot(document: doc)
+    
     let rewriter = WordprocessingMLRewriter(options: options, values: values)
     let (report, didChange) = rewriter.rewrite(document: doc)
     
     if didChange {
+        // Восстанавливаем whitespace-only раны, которые были случайно занулены
+        restoreWhitespaceOnlyEditableTextNodes(in: doc, from: originalSnapshot)
+        
         let outData = doc.xmlData(options: [.nodePreserveAll, .nodePreserveWhitespace])
         do {
             try outData.write(to: partURL, options: [.atomic])
@@ -326,10 +436,10 @@ private struct WordprocessingMLRewriter {
             guard segments[index].isDirty else { continue }
             guard segments[index].isEditableTextNode else { continue }
             
-            setTextNodeValue(segments[index].text, on: segments[index].element)
+            setExactTextNodeValue(segments[index].text, on: segments[index].element)
             
             if segments[index].kind == .wT {
-                if options.preserveWhitespaceWhenNeeded && needsPreserveWhitespace(segments[index].text) {
+                if options.preserveWhitespaceWhenNeeded && needsXMLSpacePreserve(for: segments[index].text) {
                     ensureXMLSpacePreserve(on: segments[index].element)
                 } else {
                     removeXMLSpacePreserve(on: segments[index].element)
@@ -340,18 +450,18 @@ private struct WordprocessingMLRewriter {
         }
     }
     
-    private func setTextNodeValue(_ value: String, on element: XMLElement) {
-        for child in element.children ?? [] {
-            child.detach()
-        }
-        
-        // Важно: даже если value == "", просто оставляем element без child node.
-        // Но это делаем только для реально dirty editable segments.
-        if !value.isEmpty {
-            let textNode = XMLNode.text(withStringValue: value) as! XMLNode
-            element.addChild(textNode)
-        }
-    }
+//    private func setTextNodeValue(_ value: String, on element: XMLElement) {
+//        for child in element.children ?? [] {
+//            child.detach()
+//        }
+//        
+//        // Важно: даже если value == "", просто оставляем element без child node.
+//        // Но это делаем только для реально dirty editable segments.
+//        if !value.isEmpty {
+//            let textNode = XMLNode.text(withStringValue: value) as! XMLNode
+//            element.addChild(textNode)
+//        }
+//    }
     
     // MARK: Offset mapping
     
@@ -468,13 +578,13 @@ private struct WordprocessingMLRewriter {
     
     // MARK: Whitespace
     
-    private func needsPreserveWhitespace(_ text: String) -> Bool {
-        guard !text.isEmpty else { return false }
-        if text.first == " " || text.last == " " { return true }
-        if text.contains("  ") { return true }
-        if text.contains("\n") || text.contains("\t") { return true }
-        return false
-    }
+//    private func needsPreserveWhitespace(_ text: String) -> Bool {
+//        guard !text.isEmpty else { return false }
+//        if text.first == " " || text.last == " " { return true }
+//        if text.contains("  ") { return true }
+//        if text.contains("\n") || text.contains("\t") { return true }
+//        return false
+//    }
     
     private func ensureXMLSpacePreserve(on element: XMLElement) {
         let attrName = "xml:space"
