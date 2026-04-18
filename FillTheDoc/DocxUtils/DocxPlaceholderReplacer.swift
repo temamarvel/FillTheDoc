@@ -192,6 +192,10 @@ private func replaceInPartXML(
     let (report, didChange) = rewriter.rewrite(document: doc)
     
     if didChange {
+        // Apple's XMLDocument.xmlData() may silently drop whitespace-only text nodes
+        // (even untouched ones) during serialization. Rebuild all w:t/instrText text
+        // nodes explicitly so the serializer treats them as intentional content.
+        fixAllTextNodes(in: doc)
         let outData = doc.xmlData(options: [.nodePreserveAll])
         do { try outData.write(to: partURL, options: [.atomic]) }
         catch { throw DocxTemplateError.xmlWriteFailed(part: partPathForErrors) }
@@ -199,6 +203,44 @@ private func replaceInPartXML(
     
     return (report, didChange)
 }
+
+/// Apple's XML serializer can silently discard whitespace-only text nodes from w:t
+/// elements during `xmlData()`, even when they were faithfully parsed and not modified.
+/// This happens because libxml2 may treat them as "insignificant whitespace" unless
+/// the text node is an explicitly constructed node (rather than one retained from parsing).
+///
+/// Fix: for every w:t / w:instrText element, detach the existing text child and re-add
+/// a freshly created text node with the same value. The serializer will not drop it.
+private func fixAllTextNodes(in document: XMLDocument) {
+    guard let elements = try? document.nodes(
+        forXPath: "//*[local-name()='t' or local-name()='instrText']"
+    ) as? [XMLElement] else { return }
+    
+    for element in elements {
+        let text = element.stringValue ?? ""
+        
+        // Rebuild text node
+        for child in element.children ?? [] { child.detach() }
+        if !text.isEmpty {
+            element.addChild(XMLNode.text(withStringValue: text) as! XMLNode)
+        }
+        
+        // Ensure xml:space="preserve" when text starts/ends with space or has runs of spaces
+        let localName = element.localName ?? element.name ?? ""
+        if localName == "t" {
+            if text.hasPrefix(" ") || text.hasSuffix(" ") || text.contains("  ") {
+                let attrName = "xml:space"
+                if element.attribute(forName: attrName) == nil {
+                    element.addAttribute(
+                        XMLNode.attribute(withName: attrName, stringValue: "preserve") as! XMLNode
+                    )
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Rewriter
 
 private struct WordprocessingMLRewriter {
     let options: DocxPlaceholderReplacer.Options
@@ -221,10 +263,14 @@ private struct WordprocessingMLRewriter {
     }
     
     private func rewriteParagraph(_ paragraph: XMLElement) -> (PartReport, Bool) {
-        var segments = collectTextSegments(in: paragraph, includeFieldInstructionText: options.includeFieldInstructionText)
+        let projection = WordprocessingMLTextProjection.buildParagraphTextProjection(
+            from: paragraph,
+            includeFieldInstructionText: options.includeFieldInstructionText
+        )
+        var segments = projection.segments
+        let fullText = projection.fullText
         guard !segments.isEmpty else { return (PartReport(), false) }
         
-        let fullText = segments.map(\.text).joined()
         let matches = findPlaceholders(in: fullText)
         guard !matches.isEmpty else { return (PartReport(), false) }
         
@@ -256,6 +302,16 @@ private struct WordprocessingMLRewriter {
                   let end   = locateEnd(position: m.range.upperBound, in: fullText, prefix: prefix)
             else { continue }
             
+            // Пропускаем замену, если плейсхолдер пересекает нередактируемые сегменты (tab/br/cr).
+            if replacementRangeTouchesNonEditableSegment(
+                segments: segments,
+                from: start.segmentIndex,
+                to: end.segmentIndex
+            ) {
+                options.onWarning?("Skipped placeholder '\(m.key)' because it crosses non-editable Word XML segments.")
+                continue
+            }
+            
             applyReplacement(segments: &segments, start: start, end: end, replacement: repl)
             clearPlaceholderHighlight(in: segments, from: start.segmentIndex, to: end.segmentIndex)
             part.replacementsCount += 1
@@ -263,16 +319,47 @@ private struct WordprocessingMLRewriter {
         }
         
         if changed {
-            for seg in segments {
-                seg.element.stringValue = seg.text
-                
-                if options.preserveWhitespaceWhenNeeded, seg.kind == .wT, needsPreserveWhitespace(seg.text) {
-                    ensureXMLSpacePreserve(on: seg.element)
-                }
-            }
+            commitChanges(to: &segments)
         }
         
         return (part, changed)
+    }
+    
+    // MARK: - Commit
+    
+    private func commitChanges(to segments: inout [TextSegment]) {
+        for index in segments.indices {
+            guard segments[index].isDirty else { continue }
+            guard segments[index].isEditableTextNode else { continue }
+            
+            setTextNodeValue(segments[index].text, on: segments[index].element)
+            
+            if segments[index].kind == .wT {
+                if options.preserveWhitespaceWhenNeeded, needsPreserveWhitespace(segments[index].text) {
+                    ensureXMLSpacePreserve(on: segments[index].element)
+                } else {
+                    removeXMLSpacePreserve(on: segments[index].element)
+                }
+            }
+            
+            segments[index].isDirty = false
+        }
+    }
+    
+    /// Заменяет содержимое w:t (или instrText) через детач + новый text node.
+    /// Прямое присваивание element.stringValue небезопасно для DOCX whitespace.
+    private func setTextNodeValue(_ value: String, on element: XMLElement) {
+        for child in element.children ?? [] {
+            child.detach()
+        }
+        if !value.isEmpty {
+            let textNode = XMLNode.text(withStringValue: value) as! XMLNode
+            element.addChild(textNode)
+        }
+    }
+    
+    private func removeXMLSpacePreserve(on element: XMLElement) {
+        element.attribute(forName: "xml:space")?.detach()
     }
     
     private struct SegmentLocation {
@@ -335,6 +422,7 @@ private struct WordprocessingMLRewriter {
             let pre = t.prefix(start.offset)
             let suf = t.dropFirst(end.offset)
             segments[si].text = String(pre) + replacement + String(suf)
+            segments[si].isDirty = true
             return
         }
         
@@ -345,12 +433,31 @@ private struct WordprocessingMLRewriter {
         let suf = last.dropFirst(end.offset)
         
         segments[si].text = String(pre) + replacement + String(suf)
+        segments[si].isDirty = true
         
         if si + 1 <= ei {
             for k in (si + 1)...ei {
-                segments[k].text = ""
+                if !segments[k].text.isEmpty {
+                    segments[k].text = ""
+                    segments[k].isDirty = true
+                }
             }
         }
+    }
+    
+    private func replacementRangeTouchesNonEditableSegment(
+        segments: [TextSegment],
+        from startIndex: Int,
+        to endIndex: Int
+    ) -> Bool {
+        guard startIndex <= endIndex else { return false }
+        for index in startIndex...endIndex {
+            let segment = segments[index]
+            if !segment.isEditableTextNode && !segment.text.isEmpty {
+                return true
+            }
+        }
+        return false
     }
     
     // MARK: Whitespace preserve

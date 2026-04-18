@@ -26,18 +26,6 @@ struct PlaceholderMatch {
     let range: Range<String.Index>
 }
 
-struct TextSegment {
-    let element: XMLElement
-    let runElement: XMLElement?
-    let kind: Kind
-    var text: String
-    
-    enum Kind {
-        case wT
-        case instrText
-    }
-}
-
 // MARK: - Shared DOCX parts options
 
 struct DocxPartsOptions {
@@ -81,48 +69,6 @@ enum DocxTemplateError: Error, LocalizedError {
     }
 }
 
-// MARK: - XML text segment collection
-
-/// Collects `<w:t>` (and optionally `<w:instrText>`) segments from a paragraph element.
-func collectTextSegments(in paragraph: XMLElement, includeFieldInstructionText: Bool) -> [TextSegment] {
-    let path: String
-    if includeFieldInstructionText {
-        path = ".//*[local-name()='t' or local-name()='instrText']"
-    } else {
-        path = ".//*[local-name()='t']"
-    }
-    
-    let nodes: [XMLElement]
-    do {
-        nodes = try paragraph.nodes(forXPath: path) as? [XMLElement] ?? []
-    } catch {
-        return []
-    }
-    
-    return nodes.map { element in
-        let local = element.localName ?? element.name ?? ""
-        let kind: TextSegment.Kind = (local == "instrText") ? .instrText : .wT
-        return TextSegment(
-            element: element,
-            runElement: owningRunElement(for: element),
-            kind: kind,
-            text: element.stringValue ?? ""
-        )
-    }
-}
-
-private func owningRunElement(for element: XMLElement) -> XMLElement? {
-    var current = element.parent
-    while let node = current {
-        if let run = node as? XMLElement,
-           (run.localName ?? run.name ?? "") == "r" {
-            return run
-        }
-        current = node.parent
-    }
-    return nil
-}
-
 // MARK: - Placeholder search
 
 /// Finds all `<!key!>` placeholders in concatenated text.
@@ -143,6 +89,7 @@ func findPlaceholders(in text: String) -> [PlaceholderMatch] {
 // MARK: - XML parsing
 
 /// Parses XML data into an XMLDocument with whitespace-preserving options.
+@MainActor
 func parseXMLDocument(data: Data, partPath: String) throws -> XMLDocument {
     do {
         return try XMLDocument(data: data, options: [.nodePreserveAll, .nodePreserveWhitespace])
@@ -152,6 +99,7 @@ func parseXMLDocument(data: Data, partPath: String) throws -> XMLDocument {
 }
 
 /// Returns all `<w:p>` paragraph elements from an XML document.
+@MainActor
 func findParagraphs(in document: XMLDocument) -> [XMLElement] {
     (try? document.nodes(forXPath: "//*[local-name()='p']") as? [XMLElement]) ?? []
 }

@@ -124,11 +124,13 @@ public final class DocxTemplatePlaceholderScanner: Sendable {
         var result = PartScanResult()
         
         for paragraph in findParagraphs(in: document) {
-            let segments = collectTextSegments(in: paragraph, includeFieldInstructionText: options.includeFieldInstructionText)
-            guard !segments.isEmpty else { continue }
+            let projection = WordprocessingMLTextProjection.buildParagraphTextProjection(
+                from: paragraph,
+                includeFieldInstructionText: options.includeFieldInstructionText
+            )
+            guard !projection.fullText.isEmpty else { continue }
             
-            let fullText = segments.map(\.text).joined()
-            let matches = findPlaceholders(in: fullText)
+            let matches = findPlaceholders(in: projection.fullText)
             
             for match in matches {
                 result.foundKeys.append(match.key)
