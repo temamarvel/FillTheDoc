@@ -2,9 +2,6 @@
 //  DocxTemplateCore.swift
 //  FillTheDoc
 //
-//  Shared infrastructure for DocxTemplatePlaceholderScanner and DocxPlaceholderReplacer.
-//  Contains: placeholder regex, XML text segment parsing, part location, ZIP helpers.
-//
 
 import Foundation
 import ZIPFoundation
@@ -71,42 +68,40 @@ enum DocxTemplateError: Error, LocalizedError {
 
 // MARK: - Placeholder search
 
-/// Finds all `<!key!>` placeholders in concatenated text.
 func findPlaceholders(in text: String) -> [PlaceholderMatch] {
     let ns = text as NSString
     let matches = PlaceholderPattern.regex.matches(
         in: text,
         range: NSRange(location: 0, length: ns.length)
     )
-    return matches.compactMap { m in
-        guard m.numberOfRanges == 2 else { return nil }
-        let key = ns.substring(with: m.range(at: 1))
-        guard let range = Range(m.range(at: 0), in: text) else { return nil }
+    
+    return matches.compactMap { match in
+        guard match.numberOfRanges == 2 else { return nil }
+        let key = ns.substring(with: match.range(at: 1))
+        guard let range = Range(match.range(at: 0), in: text) else { return nil }
         return PlaceholderMatch(key: key, range: range)
     }
 }
 
 // MARK: - XML parsing
 
-/// Parses XML data into an XMLDocument with whitespace-preserving options.
-@MainActor
 func parseXMLDocument(data: Data, partPath: String) throws -> XMLDocument {
     do {
-        return try XMLDocument(data: data, options: [.nodePreserveAll, .nodePreserveWhitespace])
+        return try XMLDocument(
+            data: data,
+            options: [.nodePreserveAll, .nodePreserveWhitespace]
+        )
     } catch {
         throw DocxTemplateError.xmlReadFailed(part: partPath)
     }
 }
 
-/// Returns all `<w:p>` paragraph elements from an XML document.
-@MainActor
 func findParagraphs(in document: XMLDocument) -> [XMLElement] {
     (try? document.nodes(forXPath: "//*[local-name()='p']") as? [XMLElement]) ?? []
 }
 
 // MARK: - Part location (from archive paths)
 
-/// Locates DOCX XML part paths inside a ZIP archive based on options.
 func locatePartPaths(in archive: Archive, options: DocxPartsOptions) -> [String] {
     let allPaths = archive.map(\.path)
     
@@ -135,33 +130,35 @@ func locatePartPaths(in archive: Archive, options: DocxPartsOptions) -> [String]
             if options.includeFootnotes, allPaths.contains("word/footnotes.xml") {
                 result.append("word/footnotes.xml")
             }
+            
             if options.includeEndnotes, allPaths.contains("word/endnotes.xml") {
                 result.append("word/endnotes.xml")
             }
+            
             if options.includeComments, allPaths.contains("word/comments.xml") {
                 result.append("word/comments.xml")
             }
             
-            return Array(Set(result)).sorted()
+            return result
             
         case .allWordXML:
-            let paths = allPaths
-                .filter { $0.hasPrefix("word/") }
-                .filter { $0.hasSuffix(".xml") }
-                .filter { !$0.contains("/_rels/") }
-                .filter { !($0 as NSString).lastPathComponent.hasSuffix(".rels") }
+            return allPaths
+                .filter { path in
+                    path.hasPrefix("word/")
+                    && path.hasSuffix(".xml")
+                    && !path.hasSuffix(".rels")
+                }
                 .sorted()
-            
-            if paths.contains("word/document.xml") {
-                return paths
-            } else {
-                return ["word/document.xml"] + paths
-            }
     }
 }
 
-/// Locates DOCX XML part URLs on the filesystem (for extracted archives).
-func locatePartURLs(root: URL, mainDoc: URL, options: DocxPartsOptions) throws -> [URL] {
+// MARK: - Part location (from extracted folder URLs)
+
+func locatePartURLs(
+    root: URL,
+    mainDoc: URL,
+    options: DocxPartsOptions
+) throws -> [URL] {
     let fm = FileManager.default
     
     switch options.selection {
@@ -169,48 +166,80 @@ func locatePartURLs(root: URL, mainDoc: URL, options: DocxPartsOptions) throws -
             var urls: [URL] = [mainDoc]
             
             let wordDir = root.appendingPathComponent("word", isDirectory: true)
-            if fm.fileExists(atPath: wordDir.path) {
-                let items = try fm.contentsOfDirectory(at: wordDir, includingPropertiesForKeys: nil)
-                urls += items
-                    .filter { $0.lastPathComponent.hasPrefix("header") && $0.lastPathComponent.hasSuffix(".xml") }
-                    .sorted { $0.lastPathComponent < $1.lastPathComponent }
-                urls += items
-                    .filter { $0.lastPathComponent.hasPrefix("footer") && $0.lastPathComponent.hasSuffix(".xml") }
-                    .sorted { $0.lastPathComponent < $1.lastPathComponent }
-            }
+            let contents = try fm.contentsOfDirectory(
+                at: wordDir,
+                includingPropertiesForKeys: nil
+            )
+            
+            urls += contents
+                .filter {
+                    $0.lastPathComponent.hasPrefix("header")
+                    && $0.pathExtension.lowercased() == "xml"
+                }
+                .sorted { $0.lastPathComponent < $1.lastPathComponent }
+            
+            urls += contents
+                .filter {
+                    $0.lastPathComponent.hasPrefix("footer")
+                    && $0.pathExtension.lowercased() == "xml"
+                }
+                .sorted { $0.lastPathComponent < $1.lastPathComponent }
             
             if options.includeFootnotes {
-                let f = root.appendingPathComponent("word/footnotes.xml")
-                if fm.fileExists(atPath: f.path) { urls.append(f) }
-            }
-            if options.includeEndnotes {
-                let e = root.appendingPathComponent("word/endnotes.xml")
-                if fm.fileExists(atPath: e.path) { urls.append(e) }
-            }
-            if options.includeComments {
-                let c = root.appendingPathComponent("word/comments.xml")
-                if fm.fileExists(atPath: c.path) { urls.append(c) }
+                let footnotes = wordDir.appendingPathComponent("footnotes.xml")
+                if fm.fileExists(atPath: footnotes.path) {
+                    urls.append(footnotes)
+                }
             }
             
-            return Array(Set(urls)).sorted { $0.path < $1.path }
+            if options.includeEndnotes {
+                let endnotes = wordDir.appendingPathComponent("endnotes.xml")
+                if fm.fileExists(atPath: endnotes.path) {
+                    urls.append(endnotes)
+                }
+            }
+            
+            if options.includeComments {
+                let comments = wordDir.appendingPathComponent("comments.xml")
+                if fm.fileExists(atPath: comments.path) {
+                    urls.append(comments)
+                }
+            }
+            
+            return urls
             
         case .allWordXML:
             let wordDir = root.appendingPathComponent("word", isDirectory: true)
-            guard fm.fileExists(atPath: wordDir.path) else { return [mainDoc] }
+            let enumerator = fm.enumerator(
+                at: wordDir,
+                includingPropertiesForKeys: nil
+            )
             
-            let urls = try fm.contentsOfDirectory(at: wordDir, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])
-                .filter { $0.pathExtension.lowercased() == "xml" }
-                .filter { !$0.lastPathComponent.hasSuffix(".rels") }
-                .sorted { $0.lastPathComponent < $1.lastPathComponent }
+            var urls: [URL] = []
             
-            let set = Set(urls + [mainDoc])
-            return set.sorted { $0.path < $1.path }
+            while let fileURL = enumerator?.nextObject() as? URL {
+                guard fileURL.pathExtension.lowercased() == "xml" else { continue }
+                guard !fileURL.lastPathComponent.hasSuffix(".rels") else { continue }
+                urls.append(fileURL)
+            }
+            
+            return urls.sorted { relativeDocxPath(fromExtractedURL: $0, extractedRoot: root) < relativeDocxPath(fromExtractedURL: $1, extractedRoot: root) }
     }
 }
 
-// MARK: - ZIP helpers
+func relativeDocxPath(fromExtractedURL url: URL, extractedRoot: URL) -> String {
+    var path = url.path
+    let rootPath = extractedRoot.path
+    
+    if path.hasPrefix(rootPath + "/") {
+        path.removeFirst(rootPath.count + 1)
+    }
+    
+    return path
+}
 
-/// Extracts data from a single ZIP entry.
+// MARK: - ZIP extraction helpers
+
 func extractEntryData(from entry: Entry, in archive: Archive) throws -> Data {
     var data = Data()
     _ = try archive.extract(entry) { chunk in
@@ -220,66 +249,63 @@ func extractEntryData(from entry: Entry, in archive: Archive) throws -> Data {
 }
 
 extension Archive {
-    
-    /// Safe extraction that prevents Zip Slip (path traversal).
-    func extractAllSafely(to directory: URL) throws {
+    func extractAllSafely(to destinationURL: URL) throws {
         let fm = FileManager.default
-        let root = directory.standardizedFileURL.resolvingSymlinksInPath()
+        let basePath = destinationURL.standardizedFileURL.path
         
         for entry in self {
             let entryPath = entry.path
             
-            let comps = entryPath.split(separator: "/").map(String.init)
-            if comps.contains("..") || entryPath.hasPrefix("/") || entryPath.hasPrefix("\\") {
+            if entryPath.contains("..") || entryPath.hasPrefix("/") || entryPath.hasPrefix("\\") {
                 throw DocxTemplateError.zipSlipDetected(entryPath: entryPath)
             }
             
-            let outURL = root.appendingPathComponent(entryPath, isDirectory: false)
-                .standardizedFileURL
-                .resolvingSymlinksInPath()
+            let outputURL = destinationURL.appendingPathComponent(entryPath)
+            let standardizedOutputPath = outputURL.standardizedFileURL.path
             
-            let outPath = outURL.path
-            let rootPath = root.path.hasSuffix("/") ? root.path : (root.path + "/")
-            if !outPath.hasPrefix(rootPath) && outPath != root.path {
+            guard standardizedOutputPath == basePath || standardizedOutputPath.hasPrefix(basePath + "/") else {
                 throw DocxTemplateError.zipSlipDetected(entryPath: entryPath)
             }
             
-            try fm.createDirectory(
-                at: outURL.deletingLastPathComponent(),
-                withIntermediateDirectories: true
-            )
+            let parentDirectory = outputURL.deletingLastPathComponent()
+            try fm.createDirectory(at: parentDirectory, withIntermediateDirectories: true)
             
-            _ = try extract(entry, to: outURL)
+            switch entry.type {
+                case .directory:
+                    try fm.createDirectory(at: outputURL, withIntermediateDirectories: true)
+                    
+                default:
+                    _ = try self.extract(entry, to: outputURL)
+            }
         }
     }
     
-    /// Re-packs a directory into this archive.
-    func addDirectoryContents(of directory: URL) throws {
+    func addDirectoryContents(of directoryURL: URL) throws {
         let fm = FileManager.default
-        let basePath = directory.path
+        let basePath = directoryURL.standardizedFileURL.path
         
         guard let enumerator = fm.enumerator(
-            at: directory,
+            at: directoryURL,
             includingPropertiesForKeys: [.isDirectoryKey],
-            options: []
-        ) else { return }
+            options: [.skipsHiddenFiles]
+        ) else {
+            return
+        }
         
         for case let fileURL as URL in enumerator {
             let values = try fileURL.resourceValues(forKeys: [.isDirectoryKey])
             if values.isDirectory == true { continue }
             
-            let relPath = fileURL.path.replacingOccurrences(of: basePath + "/", with: "")
-            try addEntry(with: relPath, fileURL: fileURL, compressionMethod: .deflate)
+            var relPath = fileURL.standardizedFileURL.path
+            if relPath.hasPrefix(basePath + "/") {
+                relPath.removeFirst(basePath.count + 1)
+            }
+            
+            try self.addEntry(
+                with: relPath,
+                fileURL: fileURL,
+                compressionMethod: .deflate
+            )
         }
     }
-}
-
-/// Returns relative path of an extracted file within the extraction root.
-func relativeDocxPath(fromExtractedURL url: URL, extractedRoot: URL) -> String {
-    let base = extractedRoot.standardizedFileURL.path
-    let p = url.standardizedFileURL.path
-    if p.hasPrefix(base + "/") {
-        return String(p.dropFirst((base + "/").count))
-    }
-    return url.lastPathComponent
 }

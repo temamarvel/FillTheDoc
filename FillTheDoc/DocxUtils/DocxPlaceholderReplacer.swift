@@ -2,13 +2,9 @@
 //  DocxPlaceholderReplacer.swift
 //  FillTheDoc
 //
-//  Created by Артем Денисов on 17.02.2026.
-//
 
 import Foundation
 import ZIPFoundation
-
-// MARK: - Public
 
 public final class DocxPlaceholderReplacer: Sendable {
     
@@ -76,7 +72,6 @@ public final class DocxPlaceholderReplacer: Sendable {
     
     public init() {}
     
-    /// Replaces placeholders like `<!company_name!>` in a DOCX template.
     public func fill(
         template: URL,
         output: URL,
@@ -93,7 +88,9 @@ public final class DocxPlaceholderReplacer: Sendable {
         
         let processedValues = options.sanitizeValues ? sanitizeValuesDictionary(values) : values
         
-        let tempDir = fm.temporaryDirectory.appendingPathComponent("fillthedoc-\(UUID().uuidString)", isDirectory: true)
+        let tempDir = fm.temporaryDirectory
+            .appendingPathComponent("fillthedoc-\(UUID().uuidString)", isDirectory: true)
+        
         try fm.createDirectory(at: tempDir, withIntermediateDirectories: true)
         
         defer {
@@ -101,18 +98,22 @@ public final class DocxPlaceholderReplacer: Sendable {
             catch { options.onWarning?("Failed to clean temp directory: \(error.localizedDescription)") }
         }
         
-        // 1) Unzip (safe)
         let src = try Archive(url: template, accessMode: .read)
         try src.extractAllSafely(to: tempDir)
         
-        // 2) Locate parts
         let mainDoc = tempDir.appendingPathComponent("word/document.xml")
-        guard fm.fileExists(atPath: mainDoc.path) else { throw DocxTemplateError.missingMainDocumentXML }
+        guard fm.fileExists(atPath: mainDoc.path) else {
+            throw DocxTemplateError.missingMainDocumentXML
+        }
         
-        let partURLs = try locatePartURLs(root: tempDir, mainDoc: mainDoc, options: options.coreOptions)
+        let partURLs = try locatePartURLs(
+            root: tempDir,
+            mainDoc: mainDoc,
+            options: options.coreOptions
+        )
         
-        // 3) Replace
         var report = Report()
+        
         for url in partURLs {
             let rel = relativeDocxPath(fromExtractedURL: url, extractedRoot: tempDir)
             
@@ -137,13 +138,14 @@ public final class DocxPlaceholderReplacer: Sendable {
             }
         }
         
-        // 4) Missing policy error
         if options.missingKeyPolicy == .error, !report.missingKeys.isEmpty {
             throw Error.missingKeys(report.missingKeys.sorted())
         }
         
-        // 5) Zip back
-        if fm.fileExists(atPath: output.path) { try fm.removeItem(at: output) }
+        if fm.fileExists(atPath: output.path) {
+            try fm.removeItem(at: output)
+        }
+        
         let out = try Archive(url: output, accessMode: .create)
         try out.addDirectoryContents(of: tempDir)
         
@@ -171,8 +173,6 @@ private struct PartReport {
     var replacedKeys: Set<String> = []
     var missingKeys: Set<String> = []
     var replacementsCount: Int = 0
-    
-    init() {}
 }
 
 private func replaceInPartXML(
@@ -181,10 +181,12 @@ private func replaceInPartXML(
     options: DocxPlaceholderReplacer.Options,
     partPathForErrors: String
 ) throws -> (PartReport, Bool) {
-    
     let data: Data
-    do { data = try Data(contentsOf: partURL) }
-    catch { throw DocxTemplateError.xmlReadFailed(part: partPathForErrors) }
+    do {
+        data = try Data(contentsOf: partURL)
+    } catch {
+        throw DocxTemplateError.xmlReadFailed(part: partPathForErrors)
+    }
     
     let doc = try parseXMLDocument(data: data, partPath: partPathForErrors)
     
@@ -192,52 +194,15 @@ private func replaceInPartXML(
     let (report, didChange) = rewriter.rewrite(document: doc)
     
     if didChange {
-        // Apple's XMLDocument.xmlData() may silently drop whitespace-only text nodes
-        // (even untouched ones) during serialization. Rebuild all w:t/instrText text
-        // nodes explicitly so the serializer treats them as intentional content.
-        fixAllTextNodes(in: doc)
-        let outData = doc.xmlData(options: [.nodePreserveAll])
-        do { try outData.write(to: partURL, options: [.atomic]) }
-        catch { throw DocxTemplateError.xmlWriteFailed(part: partPathForErrors) }
+        let outData = doc.xmlData(options: [.nodePreserveAll, .nodePreserveWhitespace])
+        do {
+            try outData.write(to: partURL, options: [.atomic])
+        } catch {
+            throw DocxTemplateError.xmlWriteFailed(part: partPathForErrors)
+        }
     }
     
     return (report, didChange)
-}
-
-/// Apple's XML serializer can silently discard whitespace-only text nodes from w:t
-/// elements during `xmlData()`, even when they were faithfully parsed and not modified.
-/// This happens because libxml2 may treat them as "insignificant whitespace" unless
-/// the text node is an explicitly constructed node (rather than one retained from parsing).
-///
-/// Fix: for every w:t / w:instrText element, detach the existing text child and re-add
-/// a freshly created text node with the same value. The serializer will not drop it.
-private func fixAllTextNodes(in document: XMLDocument) {
-    guard let elements = try? document.nodes(
-        forXPath: "//*[local-name()='t' or local-name()='instrText']"
-    ) as? [XMLElement] else { return }
-    
-    for element in elements {
-        let text = element.stringValue ?? ""
-        
-        // Rebuild text node
-        for child in element.children ?? [] { child.detach() }
-        if !text.isEmpty {
-            element.addChild(XMLNode.text(withStringValue: text) as! XMLNode)
-        }
-        
-        // Ensure xml:space="preserve" when text starts/ends with space or has runs of spaces
-        let localName = element.localName ?? element.name ?? ""
-        if localName == "t" {
-            if text.hasPrefix(" ") || text.hasSuffix(" ") || text.contains("  ") {
-                let attrName = "xml:space"
-                if element.attribute(forName: attrName) == nil {
-                    element.addAttribute(
-                        XMLNode.attribute(withName: attrName, stringValue: "preserve") as! XMLNode
-                    )
-                }
-            }
-        }
-    }
 }
 
 // MARK: - Rewriter
@@ -250,13 +215,17 @@ private struct WordprocessingMLRewriter {
         var report = PartReport()
         var didChange = false
         
-        for p in findParagraphs(in: document) {
-            let (r, changed) = rewriteParagraph(p)
-            report.foundKeys.formUnion(r.foundKeys)
-            report.replacedKeys.formUnion(r.replacedKeys)
-            report.missingKeys.formUnion(r.missingKeys)
-            report.replacementsCount += r.replacementsCount
-            if changed { didChange = true }
+        for paragraph in findParagraphs(in: document) {
+            let (paragraphReport, changed) = rewriteParagraph(paragraph)
+            
+            report.foundKeys.formUnion(paragraphReport.foundKeys)
+            report.replacedKeys.formUnion(paragraphReport.replacedKeys)
+            report.missingKeys.formUnion(paragraphReport.missingKeys)
+            report.replacementsCount += paragraphReport.replacementsCount
+            
+            if changed {
+                didChange = true
+            }
         }
         
         return (report, didChange)
@@ -267,54 +236,79 @@ private struct WordprocessingMLRewriter {
             from: paragraph,
             includeFieldInstructionText: options.includeFieldInstructionText
         )
+        
         var segments = projection.segments
         let fullText = projection.fullText
-        guard !segments.isEmpty else { return (PartReport(), false) }
+        
+        guard !segments.isEmpty else {
+            return (PartReport(), false)
+        }
         
         let matches = findPlaceholders(in: fullText)
-        guard !matches.isEmpty else { return (PartReport(), false) }
+        guard !matches.isEmpty else {
+            return (PartReport(), false)
+        }
         
-        let lengths = segments.map { $0.text.count }
+        let lengths = segments.map(\.text.count)
         let prefix = prefixSums(lengths)
         
-        var part = PartReport()
+        var report = PartReport()
         var changed = false
         
-        for m in matches.reversed() {
-            part.foundKeys.insert(m.key)
+        for match in matches.reversed() {
+            report.foundKeys.insert(match.key)
             
             let replacement: String?
-            if let v = values[m.key] {
-                replacement = v
-                part.replacedKeys.insert(m.key)
+            if let value = values[match.key] {
+                replacement = value
+                report.replacedKeys.insert(match.key)
             } else {
-                part.missingKeys.insert(m.key)
+                report.missingKeys.insert(match.key)
+                
                 switch options.missingKeyPolicy {
-                    case .error: replacement = nil
-                    case .keep:  replacement = nil
-                    case .blank: replacement = ""
+                    case .error:
+                        replacement = nil
+                    case .keep:
+                        replacement = nil
+                    case .blank:
+                        replacement = ""
                 }
             }
             
-            guard let repl = replacement else { continue }
+            guard let replacement else { continue }
             
-            guard let start = locateStart(position: m.range.lowerBound, in: fullText, prefix: prefix),
-                  let end   = locateEnd(position: m.range.upperBound, in: fullText, prefix: prefix)
-            else { continue }
+            guard
+                let start = locateStart(position: match.range.lowerBound, in: fullText, prefix: prefix),
+                let end = locateEnd(position: match.range.upperBound, in: fullText, prefix: prefix)
+            else {
+                continue
+            }
             
-            // Пропускаем замену, если плейсхолдер пересекает нередактируемые сегменты (tab/br/cr).
             if replacementRangeTouchesNonEditableSegment(
                 segments: segments,
                 from: start.segmentIndex,
                 to: end.segmentIndex
             ) {
-                options.onWarning?("Skipped placeholder '\(m.key)' because it crosses non-editable Word XML segments.")
+                options.onWarning?(
+                    "Skipped placeholder '\(match.key)' because it crosses non-editable Word XML segments."
+                )
                 continue
             }
             
-            applyReplacement(segments: &segments, start: start, end: end, replacement: repl)
-            clearPlaceholderHighlight(in: segments, from: start.segmentIndex, to: end.segmentIndex)
-            part.replacementsCount += 1
+            applyReplacement(
+                segments: &segments,
+                start: start,
+                end: end,
+                replacement: replacement
+            )
+            
+            clearPlaceholderHighlight(
+                in: segments,
+                from: start.segmentIndex,
+                to: end.segmentIndex
+            )
+            
+            report.replacementsCount += 1
             changed = true
         }
         
@@ -322,10 +316,10 @@ private struct WordprocessingMLRewriter {
             commitChanges(to: &segments)
         }
         
-        return (part, changed)
+        return (report, changed)
     }
     
-    // MARK: - Commit
+    // MARK: Commit
     
     private func commitChanges(to segments: inout [TextSegment]) {
         for index in segments.indices {
@@ -335,7 +329,7 @@ private struct WordprocessingMLRewriter {
             setTextNodeValue(segments[index].text, on: segments[index].element)
             
             if segments[index].kind == .wT {
-                if options.preserveWhitespaceWhenNeeded, needsPreserveWhitespace(segments[index].text) {
+                if options.preserveWhitespaceWhenNeeded && needsPreserveWhitespace(segments[index].text) {
                     ensureXMLSpacePreserve(on: segments[index].element)
                 } else {
                     removeXMLSpacePreserve(on: segments[index].element)
@@ -346,46 +340,46 @@ private struct WordprocessingMLRewriter {
         }
     }
     
-    /// Заменяет содержимое w:t (или instrText) через детач + новый text node.
-    /// Прямое присваивание element.stringValue небезопасно для DOCX whitespace.
     private func setTextNodeValue(_ value: String, on element: XMLElement) {
         for child in element.children ?? [] {
             child.detach()
         }
+        
+        // Важно: даже если value == "", просто оставляем element без child node.
+        // Но это делаем только для реально dirty editable segments.
         if !value.isEmpty {
             let textNode = XMLNode.text(withStringValue: value) as! XMLNode
             element.addChild(textNode)
         }
     }
     
-    private func removeXMLSpacePreserve(on element: XMLElement) {
-        element.attribute(forName: "xml:space")?.detach()
-    }
+    // MARK: Offset mapping
     
     private struct SegmentLocation {
         let segmentIndex: Int
         let offset: Int
     }
     
-    // MARK: Offset mapping
-    
     private func prefixSums(_ lengths: [Int]) -> [Int] {
-        var out: [Int] = Array(repeating: 0, count: lengths.count + 1)
+        var result = Array(repeating: 0, count: lengths.count + 1)
         for i in 0..<lengths.count {
-            out[i + 1] = out[i] + lengths[i]
+            result[i + 1] = result[i] + lengths[i]
         }
-        return out
+        return result
     }
     
     private func locateStart(position: String.Index, in fullText: String, prefix: [Int]) -> SegmentLocation? {
         let target = fullText.distance(from: fullText.startIndex, to: position)
+        
         for i in 0..<(prefix.count - 1) {
             let start = prefix[i]
             let end = prefix[i + 1]
+            
             if target >= start && target < end {
                 return SegmentLocation(segmentIndex: i, offset: target - start)
             }
         }
+        
         return nil
     }
     
@@ -406,22 +400,32 @@ private struct WordprocessingMLRewriter {
             let start = prefix[i]
             let end = prefix[i + 1]
             guard end > start else { continue }
+            
             if target > start && target <= end {
                 return SegmentLocation(segmentIndex: i, offset: target - start)
             }
         }
+        
         return nil
     }
     
-    private func applyReplacement(segments: inout [TextSegment], start: SegmentLocation, end: SegmentLocation, replacement: String) {
+    // MARK: Replacement application
+    
+    private func applyReplacement(
+        segments: inout [TextSegment],
+        start: SegmentLocation,
+        end: SegmentLocation,
+        replacement: String
+    ) {
         let si = start.segmentIndex
         let ei = end.segmentIndex
         
         if si == ei {
-            let t = segments[si].text
-            let pre = t.prefix(start.offset)
-            let suf = t.dropFirst(end.offset)
-            segments[si].text = String(pre) + replacement + String(suf)
+            let original = segments[si].text
+            let prefix = original.prefix(start.offset)
+            let suffix = original.dropFirst(end.offset)
+            
+            segments[si].text = String(prefix) + replacement + String(suffix)
             segments[si].isDirty = true
             return
         }
@@ -429,17 +433,17 @@ private struct WordprocessingMLRewriter {
         let first = segments[si].text
         let last = segments[ei].text
         
-        let pre = first.prefix(start.offset)
-        let suf = last.dropFirst(end.offset)
+        let prefix = first.prefix(start.offset)
+        let suffix = last.dropFirst(end.offset)
         
-        segments[si].text = String(pre) + replacement + String(suf)
+        segments[si].text = String(prefix) + replacement + String(suffix)
         segments[si].isDirty = true
         
         if si + 1 <= ei {
-            for k in (si + 1)...ei {
-                if !segments[k].text.isEmpty {
-                    segments[k].text = ""
-                    segments[k].isDirty = true
+            for index in (si + 1)...ei {
+                if !segments[index].text.isEmpty {
+                    segments[index].text = ""
+                    segments[index].isDirty = true
                 }
             }
         }
@@ -451,51 +455,68 @@ private struct WordprocessingMLRewriter {
         to endIndex: Int
     ) -> Bool {
         guard startIndex <= endIndex else { return false }
+        
         for index in startIndex...endIndex {
             let segment = segments[index]
             if !segment.isEditableTextNode && !segment.text.isEmpty {
                 return true
             }
         }
+        
         return false
     }
     
-    // MARK: Whitespace preserve
+    // MARK: Whitespace
     
-    private func needsPreserveWhitespace(_ s: String) -> Bool {
-        guard !s.isEmpty else { return false }
-        if s.first == " " || s.last == " " { return true }
-        if s.contains("  ") { return true }
-        if s.contains("\n") || s.contains("\t") { return true }
+    private func needsPreserveWhitespace(_ text: String) -> Bool {
+        guard !text.isEmpty else { return false }
+        if text.first == " " || text.last == " " { return true }
+        if text.contains("  ") { return true }
+        if text.contains("\n") || text.contains("\t") { return true }
         return false
     }
     
-    private func ensureXMLSpacePreserve(on wTElement: XMLElement) {
+    private func ensureXMLSpacePreserve(on element: XMLElement) {
         let attrName = "xml:space"
-        if wTElement.attribute(forName: attrName) == nil {
-            let a = XMLNode.attribute(withName: attrName, stringValue: "preserve") as! XMLNode
-            wTElement.addAttribute(a)
+        
+        if element.attribute(forName: attrName) == nil {
+            let attribute = XMLNode.attribute(withName: attrName, stringValue: "preserve") as! XMLNode
+            element.addAttribute(attribute)
         } else {
-            wTElement.attribute(forName: attrName)?.stringValue = "preserve"
+            element.attribute(forName: attrName)?.stringValue = "preserve"
         }
     }
     
-    private func clearPlaceholderHighlight(in segments: [TextSegment], from startIndex: Int, to endIndex: Int) {
+    private func removeXMLSpacePreserve(on element: XMLElement) {
+        element.attribute(forName: "xml:space")?.detach()
+    }
+    
+    // MARK: Highlight cleanup
+    
+    private func clearPlaceholderHighlight(
+        in segments: [TextSegment],
+        from startIndex: Int,
+        to endIndex: Int
+    ) {
         guard startIndex <= endIndex else { return }
+        
         var handledRuns = Set<ObjectIdentifier>()
         
         for index in startIndex...endIndex {
             guard let run = segments[index].runElement else { continue }
+            
             let runID = ObjectIdentifier(run)
             guard handledRuns.insert(runID).inserted else { continue }
+            
             clearHighlightAttributes(from: run)
         }
     }
     
     private func clearHighlightAttributes(from run: XMLElement) {
         let path = "./*[local-name()='rPr']"
+        
         let rPr: XMLElement
-        if let existing = (try? run.nodes(forXPath: path) as? [XMLElement])??.first {
+        if let existing = ((try? run.nodes(forXPath: path)) as? [XMLElement])?.first {
             rPr = existing
         } else {
             let created = XMLElement(name: "w:rPr")
@@ -509,9 +530,11 @@ private struct WordprocessingMLRewriter {
     
     private func removeChildren(named localName: String, from element: XMLElement) {
         let children = element.children ?? []
+        
         for child in children.reversed() {
             guard let childElement = child as? XMLElement else { continue }
             let childLocalName = childElement.localName ?? childElement.name ?? ""
+            
             if childLocalName == localName {
                 child.detach()
             }

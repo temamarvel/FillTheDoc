@@ -2,8 +2,6 @@
 //  DocxTemplatePlaceholderScanner.swift
 //  FillTheDoc
 //
-//  Created by Artem Denisov on 16.03.2026.
-//
 
 import Foundation
 import ZIPFoundation
@@ -116,8 +114,6 @@ public final class DocxTemplatePlaceholderScanner: Sendable {
     private struct PartScanResult {
         var foundKeys: [String] = []
         var occurrences: [String: Int] = [:]
-        
-        init() {}
     }
     
     private func scanDocument(_ document: XMLDocument, options: Options) -> PartScanResult {
@@ -128,6 +124,7 @@ public final class DocxTemplatePlaceholderScanner: Sendable {
                 from: paragraph,
                 includeFieldInstructionText: options.includeFieldInstructionText
             )
+            
             guard !projection.fullText.isEmpty else { continue }
             
             let matches = findPlaceholders(in: projection.fullText)
