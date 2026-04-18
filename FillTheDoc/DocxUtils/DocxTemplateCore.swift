@@ -287,7 +287,7 @@ extension Archive {
         guard let enumerator = fm.enumerator(
             at: directoryURL,
             includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
+            options: []
         ) else {
             return
         }
