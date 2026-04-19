@@ -103,11 +103,11 @@ enum DocxXML {
             throw DocxProcessingError.failedToParseXML(part: partPath)
         }
     }
-
+    
     static func findParagraphs(in document: XMLDocument) -> [XMLElement] {
         ((try? document.nodes(forXPath: "//*[local-name()='p']")) as? [XMLElement]) ?? []
     }
-
+    
     static func collectEditableTextNodes(
         in paragraph: XMLElement,
         includeFieldInstructionText: Bool
@@ -117,14 +117,14 @@ enum DocxXML {
         ) as? [XMLElement] else {
             return []
         }
-
+        
         return nodes.compactMap { element in
             let localName = element.localName ?? element.name ?? ""
-
+            
             if localName == "instrText", includeFieldInstructionText == false {
                 return nil
             }
-
+            
             return EditableTextNode(
                 element: element,
                 kind: localName == "instrText" ? .instrText : .text,
@@ -132,18 +132,19 @@ enum DocxXML {
             )
         }
     }
-
+    
     static func setExactText(_ value: String, on element: XMLElement) {
         for child in element.children ?? [] {
             child.detach()
         }
-
+        
         if !value.isEmpty {
-            let textNode = XMLNode.text(withStringValue: value) as! XMLNode
-            element.addChild(textNode)
+            element.stringValue = value
+        } else {
+            element.stringValue = nil
         }
     }
-
+    
     static func ensureXMLSpacePreserve(on element: XMLElement) {
         if let attribute = element.attribute(forName: "xml:space") {
             attribute.stringValue = "preserve"
@@ -152,17 +153,97 @@ enum DocxXML {
             element.addAttribute(attribute)
         }
     }
-
+    
     static func removeXMLSpacePreserve(on element: XMLElement) {
         element.attribute(forName: "xml:space")?.detach()
     }
-
+    
     static func needsXMLSpacePreserve(for text: String) -> Bool {
         guard !text.isEmpty else { return false }
         if text.first == " " || text.last == " " { return true }
         if text.contains("  ") { return true }
         if text.contains("\t") || text.contains("\n") { return true }
         return false
+    }
+    
+    static func parentRun(of textElement: XMLElement) -> XMLElement? {
+        var current: XMLNode? = textElement.parent
+        while let node = current {
+            if let element = node as? XMLElement,
+               (element.localName ?? element.name ?? "") == "r" {
+                return element
+            }
+            current = node.parent
+        }
+        return nil
+    }
+    
+    static func replaceRunProperties(of run: XMLElement, from donorRun: XMLElement?) {
+        guard let donorRun else { return }
+        
+        let existingRPr = ((try? run.nodes(forXPath: "./*[local-name()='rPr']")) as? [XMLNode]) ?? []
+        for node in existingRPr {
+            node.detach()
+        }
+        
+        if let donorRPr = ((try? donorRun.nodes(forXPath: "./*[local-name()='rPr']")) as? [XMLNode])?.first,
+           let copy = donorRPr.copy() as? XMLNode {
+            run.insertChild(copy, at: 0)
+        }
+    }
+    
+    static func removeEmptyRuns(in paragraph: XMLElement) {
+        guard let runs = try? paragraph.nodes(forXPath: "./*[local-name()='r']") as? [XMLElement] else {
+            return
+        }
+        
+        for run in runs.reversed() {
+            let hasNonTextContent =
+            ((try? run.nodes(forXPath: "./*[not(local-name()='rPr' or local-name()='t' or local-name()='instrText')]")) as? [XMLNode])?.isEmpty == false
+            
+            if hasNonTextContent {
+                continue
+            }
+            
+            let textNodes = ((try? run.nodes(forXPath: "./*[local-name()='t' or local-name()='instrText']")) as? [XMLElement]) ?? []
+            let combinedText = textNodes.compactMap(\.stringValue).joined()
+            
+            if combinedText.isEmpty {
+                run.detach()
+            }
+        }
+    }
+    
+    static func restoreSelfClosingPreserveTextNodes(_ data: Data) -> Data {
+        guard var xml = String(data: data, encoding: .utf8) else {
+            return data
+        }
+        
+        let pattern = #"<(w:t|w:instrText)\b([^>]*?)xml:space="preserve"([^>]*?)/>"#
+        let regex = try! NSRegularExpression(pattern: pattern, options: [])
+        
+        let range = NSRange(xml.startIndex..<xml.endIndex, in: xml)
+        let matches = regex.matches(in: xml, options: [], range: range).reversed()
+        
+        for match in matches {
+            guard
+                let fullRange = Range(match.range(at: 0), in: xml),
+                let tagRange = Range(match.range(at: 1), in: xml),
+                let beforeRange = Range(match.range(at: 2), in: xml),
+                let afterRange = Range(match.range(at: 3), in: xml)
+            else {
+                continue
+            }
+            
+            let tag = xml[tagRange]
+            let before = xml[beforeRange]
+            let after = xml[afterRange]
+            
+            let replacement = "<\(tag)\(before)xml:space=\"preserve\"\(after)> </\(tag)>"
+            xml.replaceSubrange(fullRange, with: replacement)
+        }
+        
+        return Data(xml.utf8)
     }
 }
 

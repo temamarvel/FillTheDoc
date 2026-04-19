@@ -133,6 +133,13 @@ private extension DocxPlaceholderReplacer {
         var replacementsCount: Int = 0
     }
     
+    struct ResolvedReplacement {
+        let text: String
+        let styleDonorRun: XMLElement?
+        let start: TextLocation
+        let end: TextLocation
+    }
+    
     func sanitize(_ values: [String: String]) -> [String: String] {
         values.mapValues { value in
             value
@@ -158,7 +165,12 @@ private extension DocxPlaceholderReplacer {
         let result = rewriteDocument(document, values: values, options: options)
         
         if result.didChange {
-            let outData = document.xmlData(options: [.nodePreserveAll])
+            var outData = document.xmlData(options: [.nodePreserveAll])
+            
+            // Критично: FoundationXML при сериализации теряет whitespace-only
+            // <w:t xml:space="preserve"> </w:t> и делает self-closing узлы.
+            outData = DocxXML.restoreSelfClosingPreserveTextNodes(outData)
+            
             do {
                 try outData.write(to: url, options: [.atomic])
             } catch {
@@ -217,7 +229,7 @@ private extension DocxPlaceholderReplacer {
         }
         
         var nodes = projection.nodes
-        let lengths = nodes.map { $0.text.count }
+        let lengths = nodes.map(\.text.count)
         let prefixSums = TextOffsetMapper.prefixSums(for: lengths)
         
         var report = PartReport()
@@ -226,22 +238,22 @@ private extension DocxPlaceholderReplacer {
         for match in matches.reversed() {
             report.foundKeys.insert(match.key)
             
-            let replacement: String?
+            let replacementText: String?
             if let value = values[match.key] {
-                replacement = value
+                replacementText = value
                 report.replacedKeys.insert(match.key)
             } else {
                 report.missingKeys.insert(match.key)
                 
                 switch options.missingKeyPolicy {
                     case .error, .keep:
-                        replacement = nil
+                        replacementText = nil
                     case .blank:
-                        replacement = ""
+                        replacementText = ""
                 }
             }
             
-            guard let replacement else { continue }
+            guard let replacementText else { continue }
             
             guard
                 let start = TextOffsetMapper.locateStart(
@@ -258,30 +270,74 @@ private extension DocxPlaceholderReplacer {
                 continue
             }
             
-            applyReplacement(
-                to: &nodes,
-                start: start,
-                end: end,
-                replacement: replacement
+            let donorRun = chooseStyleDonorRun(
+                in: nodes,
+                startNodeIndex: start.nodeIndex,
+                endNodeIndex: end.nodeIndex
             )
+            
+            let resolved = ResolvedReplacement(
+                text: replacementText,
+                styleDonorRun: donorRun,
+                start: start,
+                end: end
+            )
+            
+            applyReplacement(to: &nodes, resolved: resolved)
             
             report.replacementsCount += 1
             didChange = true
         }
         
         if didChange {
-            commit(nodes: nodes)
+            commit(nodes: nodes, in: paragraph)
         }
         
         return .init(report: report, didChange: didChange)
     }
     
+    func chooseStyleDonorRun(
+        in nodes: [EditableTextNode],
+        startNodeIndex: Int,
+        endNodeIndex: Int
+    ) -> XMLElement? {
+        // Сначала смотрим влево на ближайший "живой" текст
+        if startNodeIndex > 0 {
+            for index in stride(from: startNodeIndex - 1, through: 0, by: -1) {
+                let text = nodes[index].text
+                if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    continue
+                }
+                if let run = DocxXML.parentRun(of: nodes[index].element) {
+                    return run
+                }
+            }
+        }
+        
+        // Потом вправо
+        if endNodeIndex + 1 < nodes.count {
+            for index in (endNodeIndex + 1)..<nodes.count {
+                let text = nodes[index].text
+                if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    continue
+                }
+                if let run = DocxXML.parentRun(of: nodes[index].element) {
+                    return run
+                }
+            }
+        }
+        
+        return nil
+    }
+    
     func applyReplacement(
         to nodes: inout [EditableTextNode],
-        start: TextLocation,
-        end: TextLocation,
-        replacement: String
+        resolved: ResolvedReplacement
     ) {
+        let start = resolved.start
+        let end = resolved.end
+        let replacement = resolved.text
+        
         if start.nodeIndex == end.nodeIndex {
             let original = nodes[start.nodeIndex].text
             let prefix = original.prefixCharacters(start.offset)
@@ -289,6 +345,13 @@ private extension DocxPlaceholderReplacer {
             
             nodes[start.nodeIndex].text = prefix + replacement + suffix
             nodes[start.nodeIndex].isDirty = true
+            
+            // Если placeholder полностью заменил text node,
+            // перетягиваем стиль с соседнего обычного run.
+            if prefix.isEmpty, suffix.isEmpty,
+               let targetRun = DocxXML.parentRun(of: nodes[start.nodeIndex].element) {
+                DocxXML.replaceRunProperties(of: targetRun, from: resolved.styleDonorRun)
+            }
             return
         }
         
@@ -298,19 +361,32 @@ private extension DocxPlaceholderReplacer {
         let startPrefix = startOriginal.prefixCharacters(start.offset)
         let endSuffix = endOriginal.suffixCharacters(from: end.offset)
         
-        nodes[start.nodeIndex].text = startPrefix + replacement
+        let endSuffixIsWhitespaceOnly = endSuffix.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        
+        // Важный момент:
+        // если suffix состоит только из пробела/табов/переводов строки,
+        // не оставляем его отдельным text run-ом, потому что FoundationXML
+        // потом легко сериализует его в пустой self-closing узел.
+        nodes[start.nodeIndex].text = startPrefix + replacement + (endSuffixIsWhitespaceOnly ? endSuffix : "")
         nodes[start.nodeIndex].isDirty = true
+        
+        // Стилизация replacement run-а:
+        // применяем донорский rPr только если start node не содержит живого текста слева.
+        if startPrefix.isEmpty,
+           let targetRun = DocxXML.parentRun(of: nodes[start.nodeIndex].element) {
+            DocxXML.replaceRunProperties(of: targetRun, from: resolved.styleDonorRun)
+        }
         
         for index in (start.nodeIndex + 1)..<end.nodeIndex {
             nodes[index].text = ""
             nodes[index].isDirty = true
         }
         
-        nodes[end.nodeIndex].text = endSuffix
+        nodes[end.nodeIndex].text = endSuffixIsWhitespaceOnly ? "" : endSuffix
         nodes[end.nodeIndex].isDirty = true
     }
     
-    func commit(nodes: [EditableTextNode]) {
+    func commit(nodes: [EditableTextNode], in paragraph: XMLElement) {
         for node in nodes where node.isDirty {
             DocxXML.setExactText(node.text, on: node.element)
             
@@ -322,5 +398,7 @@ private extension DocxPlaceholderReplacer {
                 }
             }
         }
+        
+        DocxXML.removeEmptyRuns(in: paragraph)
     }
 }
