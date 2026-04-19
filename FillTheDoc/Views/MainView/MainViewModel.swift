@@ -132,7 +132,7 @@ final class MainViewModel {
         scanTask?.cancel()
         scanTask = Task {
             do {
-                let keys = try await scanner.scanKeys(template: templateURL)
+                let keys = try await scanner.scanKeys(templateURL: templateURL)
                 try Task.checkCancellation()
                 self.templatePlaceholders = keys
             } catch is CancellationError {
@@ -189,8 +189,8 @@ final class MainViewModel {
             let tempOutURL = makeTempOutputURL(from: templateURL)
             
             let report = try await replacer.fill(
-                template: templateURL,
-                output: tempOutURL,
+                templateURL: templateURL,
+                outputURL: tempOutURL,
                 values: values
             )
             

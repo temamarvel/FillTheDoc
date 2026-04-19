@@ -1,33 +1,26 @@
-//
-//  DocxTemplatePlaceholderScanner.swift
-//  FillTheDoc
-//
-
 import Foundation
 import ZIPFoundation
 
 public final class DocxTemplatePlaceholderScanner: Sendable {
     
-    // MARK: - Public types
-    
     public struct Options: Sendable {
-        public var includeFootnotes: Bool = true
-        public var includeEndnotes: Bool = true
-        public var includeComments: Bool = true
-        public var selection: PartsSelection = .standard
-        public var includeFieldInstructionText: Bool = false
-        public var validateTemplate: Bool = true
-        public var onWarning: (@Sendable (String) -> Void)? = nil
-        
         public enum PartsSelection: Sendable {
             case standard
             case allWordXML
         }
         
+        public var includeFootnotes: Bool = true
+        public var includeEndnotes: Bool = true
+        public var includeComments: Bool = true
+        public var includeFieldInstructionText: Bool = false
+        public var selection: PartsSelection = .standard
+        public var validateTemplateFileExists: Bool = true
+        public var onWarning: (@Sendable (String) -> Void)?
+        
         public init() {}
         
-        var coreOptions: DocxPartsOptions {
-            DocxPartsOptions(
+        fileprivate var core: DocxPartOptions {
+            DocxPartOptions(
                 includeFootnotes: includeFootnotes,
                 includeEndnotes: includeEndnotes,
                 includeComments: includeComments,
@@ -46,36 +39,30 @@ public final class DocxTemplatePlaceholderScanner: Sendable {
         
         public init() {}
         
-        public var sortedKeys: [String] { foundKeys.sorted() }
+        public var sortedKeys: [String] {
+            foundKeys.sorted()
+        }
     }
     
     public init() {}
     
-    // MARK: - Public API
-    
     public func scan(
-        template: URL,
+        templateURL: URL,
         options: Options = .init()
-    ) async throws -> Report {
-        let fm = FileManager.default
+    ) throws -> Report {
+        let fileManager = FileManager.default
         
-        if options.validateTemplate {
-            guard fm.fileExists(atPath: template.path) else {
-                throw DocxTemplateError.templateNotFound(template)
+        if options.validateTemplateFileExists {
+            guard fileManager.fileExists(atPath: templateURL.path) else {
+                throw DocxProcessingError.fileNotFound(templateURL)
             }
         }
         
-        let archive: Archive
-        do {
-            archive = try Archive(url: template, accessMode: .read)
-        } catch {
-            throw DocxTemplateError.invalidDocx
-        }
-        
-        let partPaths = locatePartPaths(in: archive, options: options.coreOptions)
+        let archive = try DocxArchive.openForRead(templateURL)
+        let partPaths = DocxArchive.locatePartPaths(in: archive, options: options.core)
         
         guard partPaths.contains("word/document.xml") else {
-            throw DocxTemplateError.missingMainDocumentXML
+            throw DocxProcessingError.missingMainDocumentXML
         }
         
         var report = Report()
@@ -84,15 +71,15 @@ public final class DocxTemplatePlaceholderScanner: Sendable {
             guard let entry = archive[partPath] else { continue }
             
             do {
-                let data = try extractEntryData(from: entry, in: archive)
-                let document = try parseXMLDocument(data: data, partPath: partPath)
-                let partResult = scanDocument(document, options: options)
+                let data = try DocxArchive.extractEntryData(from: entry, in: archive)
+                let document = try DocxXML.parseDocument(data: data, partPath: partPath)
+                let partReport = scanPart(document, options: options)
                 
-                if !partResult.foundKeys.isEmpty {
+                if !partReport.keysInOrder.isEmpty {
                     report.processedParts.append(partPath)
                 }
                 
-                merge(partResult, from: partPath, into: &report)
+                merge(partReport, from: partPath, into: &report)
             } catch {
                 options.onWarning?("Failed to scan \(partPath): \(error.localizedDescription)")
             }
@@ -102,51 +89,60 @@ public final class DocxTemplatePlaceholderScanner: Sendable {
     }
     
     public func scanKeys(
-        template: URL,
+        templateURL: URL,
         options: Options = .init()
-    ) async throws -> [String] {
-        let report = try await scan(template: template, options: options)
-        return report.orderedKeys
+    ) throws -> [String] {
+        try scan(templateURL: templateURL, options: options).orderedKeys
     }
-    
-    // MARK: - Private
-    
-    private struct PartScanResult {
-        var foundKeys: [String] = []
+}
+
+private extension DocxTemplatePlaceholderScanner {
+    struct PartReport {
+        var keysInOrder: [String] = []
+        var uniqueKeys: Set<String> = []
         var occurrences: [String: Int] = [:]
     }
     
-    private func scanDocument(_ document: XMLDocument, options: Options) -> PartScanResult {
-        var result = PartScanResult()
+    func scanPart(
+        _ document: XMLDocument,
+        options: Options
+    ) -> PartReport {
+        var report = PartReport()
         
-        for paragraph in findParagraphs(in: document) {
-            let projection = WordprocessingMLTextProjection.buildParagraphTextProjection(
+        for paragraph in DocxXML.findParagraphs(in: document) {
+            let projection = ParagraphProjection.build(
                 from: paragraph,
                 includeFieldInstructionText: options.includeFieldInstructionText
             )
             
             guard !projection.fullText.isEmpty else { continue }
             
-            let matches = findPlaceholders(in: projection.fullText)
+            let matches = DocxPlaceholderParser.findMatches(in: projection.fullText)
             
             for match in matches {
-                result.foundKeys.append(match.key)
-                result.occurrences[match.key, default: 0] += 1
+                if report.uniqueKeys.insert(match.key).inserted {
+                    report.keysInOrder.append(match.key)
+                }
+                report.occurrences[match.key, default: 0] += 1
             }
         }
         
-        return result
+        return report
     }
     
-    private func merge(_ partResult: PartScanResult, from partPath: String, into report: inout Report) {
-        for key in partResult.foundKeys {
+    func merge(
+        _ partReport: PartReport,
+        from partPath: String,
+        into report: inout Report
+    ) {
+        for key in partReport.keysInOrder {
             if report.foundKeys.insert(key).inserted {
                 report.orderedKeys.append(key)
             }
             report.partsByKey[key, default: []].insert(partPath)
         }
         
-        for (key, count) in partResult.occurrences {
+        for (key, count) in partReport.occurrences {
             report.occurrences[key, default: 0] += count
         }
     }
