@@ -151,12 +151,12 @@ enum DocxXML {
     }
     
     static func isBoundaryWhitespaceCandidate(_ text: String) -> Bool {
-        switch text {
-            case " ", "\t", "\u{00A0}":
-                return true
-            default:
-                return false
+        guard !text.isEmpty else { return false }
+        
+        return text.allSatisfy {
+            $0 == " " || $0 == "\t" || $0 == "\u{00A0}"
         }
+        
     }
     
     static func parentRun(of textElement: XMLElement) -> XMLElement? {

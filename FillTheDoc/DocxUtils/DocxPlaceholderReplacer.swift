@@ -272,10 +272,70 @@ private extension DocxPlaceholderReplacer {
         }
         
         if didChange {
+            normalizeStandaloneWhitespaceNodes(in: &nodes)
             commit(nodes: nodes, in: paragraph)
         }
         
         return .init(report: report, didChange: didChange)
+    }
+    
+    func nearestNonEmptyTextNodeIndex(
+        in nodes: [EditableTextNode],
+        startingAt startIndex: Int,
+        step: Int
+    ) -> Int? {
+        guard step == -1 || step == 1 else { return nil }
+        guard !nodes.isEmpty else { return nil }
+        
+        var index = startIndex
+        
+        while index >= 0 && index < nodes.count {
+            let node = nodes[index]
+            if node.kind == .text, !node.text.isEmpty {
+                return index
+            }
+            index += step
+        }
+        
+        return nil
+    }
+    
+    func normalizeStandaloneWhitespaceNodes(in nodes: inout [EditableTextNode]) {
+        guard !nodes.isEmpty else { return }
+        
+        for index in nodes.indices {
+            guard nodes[index].kind == .text else { continue }
+            let text = nodes[index].text
+            guard DocxXML.isBoundaryWhitespaceCandidate(text) else { continue }
+            
+            let leftIndex = nearestNonEmptyTextNodeIndex(
+                in: nodes,
+                startingAt: index - 1,
+                step: -1
+            )
+            
+            let rightIndex = nearestNonEmptyTextNodeIndex(
+                in: nodes,
+                startingAt: index + 1,
+                step: 1
+            )
+            
+            if let rightIndex {
+                // Самый надежный вариант — приклеивать пробел к следующему тексту как leading space.
+                nodes[rightIndex].text = text + nodes[rightIndex].text
+                nodes[rightIndex].isDirty = true
+                nodes[index].text = ""
+                nodes[index].isDirty = true
+                continue
+            }
+            
+            if let leftIndex {
+                nodes[leftIndex].text += text
+                nodes[leftIndex].isDirty = true
+                nodes[index].text = ""
+                nodes[index].isDirty = true
+            }
+        }
     }
     
     func applyReplacement(
@@ -284,24 +344,12 @@ private extension DocxPlaceholderReplacer {
         end: TextLocation,
         replacement: String
     ) {
-        let leadingBoundaryWhitespace = consumeWhitespaceNodeBeforeIfNeeded(
-            in: &nodes,
-            index: start.nodeIndex
-        )
-        
-        let trailingBoundaryWhitespace = consumeWhitespaceNodeAfterIfNeeded(
-            in: &nodes,
-            index: end.nodeIndex
-        )
-        
-        let finalReplacement = leadingBoundaryWhitespace + replacement + trailingBoundaryWhitespace
-        
         if start.nodeIndex == end.nodeIndex {
             let original = nodes[start.nodeIndex].text
             let prefix = original.prefixCharacters(start.offset)
             let suffix = original.suffixCharacters(from: end.offset)
             
-            nodes[start.nodeIndex].text = prefix + finalReplacement + suffix
+            nodes[start.nodeIndex].text = prefix + replacement + suffix
             nodes[start.nodeIndex].isDirty = true
             nodes[start.nodeIndex].shouldNormalizeRunBackground = true
             return
@@ -313,7 +361,7 @@ private extension DocxPlaceholderReplacer {
         let startPrefix = startOriginal.prefixCharacters(start.offset)
         let endSuffix = endOriginal.suffixCharacters(from: end.offset)
         
-        nodes[start.nodeIndex].text = startPrefix + finalReplacement
+        nodes[start.nodeIndex].text = startPrefix + replacement
         nodes[start.nodeIndex].isDirty = true
         nodes[start.nodeIndex].shouldNormalizeRunBackground = true
         
@@ -326,38 +374,6 @@ private extension DocxPlaceholderReplacer {
         nodes[end.nodeIndex].isDirty = true
     }
     
-    func consumeWhitespaceNodeBeforeIfNeeded(
-        in nodes: inout [EditableTextNode],
-        index: Int
-    ) -> String {
-        guard index > 0 else { return "" }
-        
-        let previousIndex = index - 1
-        guard nodes[previousIndex].kind == .text else { return "" }
-        
-        let text = nodes[previousIndex].text
-        guard DocxXML.isBoundaryWhitespaceCandidate(text) else { return "" }
-        
-        nodes[previousIndex].text = ""
-        nodes[previousIndex].isDirty = true
-        return text
-    }
-    
-    func consumeWhitespaceNodeAfterIfNeeded(
-        in nodes: inout [EditableTextNode],
-        index: Int
-    ) -> String {
-        let nextIndex = index + 1
-        guard nextIndex < nodes.count else { return "" }
-        guard nodes[nextIndex].kind == .text else { return "" }
-        
-        let text = nodes[nextIndex].text
-        guard DocxXML.isBoundaryWhitespaceCandidate(text) else { return "" }
-        
-        nodes[nextIndex].text = ""
-        nodes[nextIndex].isDirty = true
-        return text
-    }
     
     func commit(nodes: [EditableTextNode], in paragraph: XMLElement) {
         for node in nodes where node.isDirty {
