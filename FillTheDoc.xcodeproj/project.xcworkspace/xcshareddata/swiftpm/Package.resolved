@@ -1,5 +1,5 @@
 {
-  "originHash" : "c3814d5983ad067c3615a2cde17f16c17b9568ae0b303f6ddf46820043f00447",
+  "originHash" : "1f948a5af22061f60744e6c232bd9ca11dbbbf6736a91e1711e60096c02d2dc7",
   "pins" : [
     {
       "identity" : "dadataapiclient",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "0d0e1d3b82155ce39238a2e388134f11cba1bded",
         "version" : "0.0.1"
+      }
+    },
+    {
+      "identity" : "docxutils",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/temamarvel/DocxUtils/",
+      "state" : {
+        "revision" : "8f910685059c6151f6ea2dfc04eab9af4e55fa72",
+        "version" : "0.0.5"
       }
     },
     {

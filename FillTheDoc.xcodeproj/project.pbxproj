@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		3B2D291B2F96C476009A8AD8 /* DocxUtils in Frameworks */ = {isa = PBXBuildFile; productRef = 3B2D291A2F96C476009A8AD8 /* DocxUtils */; };
 		3B7223902F3FA87600E17F90 /* Shimmer in Frameworks */ = {isa = PBXBuildFile; productRef = 3B72238F2F3FA87600E17F90 /* Shimmer */; };
-		3B72239C2F43B1AD00E17F90 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 3B72239B2F43B1AD00E17F90 /* ZIPFoundation */; };
 		3B7223A32F4795CF00E17F90 /* Secrets.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 3B7223A22F4795CF00E17F90 /* Secrets.xcconfig */; };
 		3B961A1B2F68856A002AE1B1 /* app_icon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 3B961A1A2F68856A002AE1B1 /* app_icon.icon */; };
 		3B961A202F689DAD002AE1B1 /* DaDataAPIClient in Frameworks */ = {isa = PBXBuildFile; productRef = 3B961A1F2F689DAD002AE1B1 /* DaDataAPIClient */; };
@@ -47,8 +47,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3B2D291B2F96C476009A8AD8 /* DocxUtils in Frameworks */,
 				3B7223902F3FA87600E17F90 /* Shimmer in Frameworks */,
-				3B72239C2F43B1AD00E17F90 /* ZIPFoundation in Frameworks */,
 				3B961A202F689DAD002AE1B1 /* DaDataAPIClient in Frameworks */,
 				3B961A232F689DEF002AE1B1 /* OpenAIClient in Frameworks */,
 			);
@@ -96,9 +96,9 @@
 			name = FillTheDoc;
 			packageProductDependencies = (
 				3B72238F2F3FA87600E17F90 /* Shimmer */,
-				3B72239B2F43B1AD00E17F90 /* ZIPFoundation */,
 				3B961A1F2F689DAD002AE1B1 /* DaDataAPIClient */,
 				3B961A222F689DEF002AE1B1 /* OpenAIClient */,
+				3B2D291A2F96C476009A8AD8 /* DocxUtils */,
 			);
 			productName = FillTheDoc;
 			productReference = 3B12811B2F39C4BE003B76B1 /* FillTheDoc.app */;
@@ -130,9 +130,9 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				3B72238E2F3FA87600E17F90 /* XCRemoteSwiftPackageReference "SwiftUI-Shimmer" */,
-				3B72239A2F43B1AD00E17F90 /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
 				3B961A1E2F689DAD002AE1B1 /* XCRemoteSwiftPackageReference "DaDataAPIClient" */,
 				3B961A212F689DEF002AE1B1 /* XCRemoteSwiftPackageReference "OpenAIClient" */,
+				3B2D29192F96C476009A8AD8 /* XCRemoteSwiftPackageReference "DocxUtils" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 3B12811C2F39C4BE003B76B1 /* Products */;
@@ -407,20 +407,20 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		3B2D29192F96C476009A8AD8 /* XCRemoteSwiftPackageReference "DocxUtils" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/temamarvel/DocxUtils/";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.0.2;
+			};
+		};
 		3B72238E2F3FA87600E17F90 /* XCRemoteSwiftPackageReference "SwiftUI-Shimmer" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/markiv/SwiftUI-Shimmer";
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 1.5.1;
-			};
-		};
-		3B72239A2F43B1AD00E17F90 /* XCRemoteSwiftPackageReference "ZIPFoundation" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/weichsel/ZIPFoundation.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.9.20;
 			};
 		};
 		3B961A1E2F689DAD002AE1B1 /* XCRemoteSwiftPackageReference "DaDataAPIClient" */ = {
@@ -442,15 +442,15 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		3B2D291A2F96C476009A8AD8 /* DocxUtils */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3B2D29192F96C476009A8AD8 /* XCRemoteSwiftPackageReference "DocxUtils" */;
+			productName = DocxUtils;
+		};
 		3B72238F2F3FA87600E17F90 /* Shimmer */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 3B72238E2F3FA87600E17F90 /* XCRemoteSwiftPackageReference "SwiftUI-Shimmer" */;
 			productName = Shimmer;
-		};
-		3B72239B2F43B1AD00E17F90 /* ZIPFoundation */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 3B72239A2F43B1AD00E17F90 /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
-			productName = ZIPFoundation;
 		};
 		3B961A1F2F689DAD002AE1B1 /* DaDataAPIClient */ = {
 			isa = XCSwiftPackageProductDependency;

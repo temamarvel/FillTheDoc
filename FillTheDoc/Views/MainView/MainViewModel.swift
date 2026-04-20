@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import OpenAIClient
+import DocxUtils
 
 @MainActor
 @Observable
