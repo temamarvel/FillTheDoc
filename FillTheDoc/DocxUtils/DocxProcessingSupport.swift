@@ -186,6 +186,48 @@ struct ParagraphModel {
 
 enum DocxXML {
     
+    static func restoreSelfClosingPreserveTextNodes(_ data: Data) -> Data {
+        guard var xml = String(data: data, encoding: .utf8) else {
+            return data
+        }
+        
+        let pattern = #"<(w:t|w:instrText)\b([^>]*?)xml:space=(["'])preserve\3([^>]*?)/>"#
+        let regex = try! NSRegularExpression(pattern: pattern, options: [])
+        
+        let range = NSRange(xml.startIndex..<xml.endIndex, in: xml)
+        let matches = regex.matches(in: xml, options: [], range: range).reversed()
+        
+        for match in matches {
+            guard
+                let fullRange = Range(match.range(at: 0), in: xml),
+                let tagRange = Range(match.range(at: 1), in: xml),
+                let beforeRange = Range(match.range(at: 2), in: xml),
+                let quoteRange = Range(match.range(at: 3), in: xml),
+                let afterRange = Range(match.range(at: 4), in: xml)
+            else {
+                continue
+            }
+            
+            let tag = xml[tagRange]
+            let before = xml[beforeRange]
+            let quote = xml[quoteRange]
+            let after = xml[afterRange]
+            
+            let replacement = "<\(tag)\(before)xml:space=\(quote)preserve\(quote)\(after)> </\(tag)>"
+            xml.replaceSubrange(fullRange, with: replacement)
+        }
+        
+        return Data(xml.utf8)
+    }
+    
+    static func isWhitespaceOnly(_ text: String) -> Bool {
+        guard !text.isEmpty else { return false }
+        
+        return text.allSatisfy {
+            $0 == " " || $0 == "\t" || $0 == "\u{00A0}" || $0 == "\n" || $0 == "\r"
+        }
+    }
+    
     static func collectEditableTextNodes(
         in paragraph: XMLElement,
         includeFieldInstructionText: Bool

@@ -190,7 +190,9 @@ private extension DocxPlaceholderReplacer {
         let result = rewriteDocument(document, values: values, options: options)
         
         if result.didChange {
-            let outData = document.xmlData(options: [.nodePreserveAll])
+            var outData = document.xmlData(options: [.nodePreserveAll])
+            outData = DocxXML.restoreSelfClosingPreserveTextNodes(outData)
+            
             do {
                 try outData.write(to: url, options: [.atomic])
             } catch {
@@ -374,8 +376,21 @@ private extension DocxPlaceholderReplacer {
             }
         }
         
-        guard let minRunIndex, let maxRunIndex else { return nil }
-        return minRunIndex..<(maxRunIndex + 1)
+        guard var lower = minRunIndex, var upper = maxRunIndex else {
+            return nil
+        }
+        
+        // Расширяем влево на standalone whitespace-runs
+        while lower > 0, isWhitespaceOnlyRun(model.runElements[lower - 1]) {
+            lower -= 1
+        }
+        
+        // Расширяем вправо на standalone whitespace-runs
+        while upper + 1 < model.runElements.count, isWhitespaceOnlyRun(model.runElements[upper + 1]) {
+            upper += 1
+        }
+        
+        return lower..<(upper + 1)
     }
     
     func buildSegments(
@@ -585,5 +600,26 @@ private extension DocxPlaceholderReplacer {
         for (offset, run) in newRuns.enumerated() {
             paragraph.insertChild(run, at: insertionIndex + offset)
         }
+    }
+    
+    func isWhitespaceOnlyRun(_ run: XMLElement) -> Bool {
+        let textNodes = (((try? run.nodes(forXPath: "./*[local-name()='t' or local-name()='instrText']")) as? [XMLElement]) ?? [])
+        
+        guard !textNodes.isEmpty else { return false }
+        
+        let texts = textNodes.compactMap(\.stringValue)
+        let combined = texts.joined()
+        
+        guard !combined.isEmpty else { return false }
+        
+        // run считается whitespace-only только если кроме текста там нет специальных inline-элементов
+        let nonTextChildren = ((run.children ?? []).compactMap { $0 as? XMLElement }).filter {
+            let name = $0.localName ?? $0.name ?? ""
+            return name != "rPr" && name != "t" && name != "instrText"
+        }
+        
+        guard nonTextChildren.isEmpty else { return false }
+        
+        return DocxXML.isWhitespaceOnly(combined)
     }
 }
