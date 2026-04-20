@@ -1,6 +1,32 @@
 import Foundation
 import ZIPFoundation
 
+struct EditableTextNode {
+    let element: XMLElement
+    let kind: EditableTextKind
+    let text: String
+}
+
+struct ParagraphProjection {
+    let nodes: [EditableTextNode]
+    let fullText: String
+    
+    static func build(
+        from paragraph: XMLElement,
+        includeFieldInstructionText: Bool
+    ) -> ParagraphProjection {
+        let nodes = DocxXML.collectEditableTextNodes(
+            in: paragraph,
+            includeFieldInstructionText: includeFieldInstructionText
+        )
+        
+        return ParagraphProjection(
+            nodes: nodes,
+            fullText: nodes.map(\.text).joined()
+        )
+    }
+}
+
 public enum DocxProcessingError: LocalizedError {
     case fileNotFound(URL)
     case invalidDocx(URL)
@@ -79,18 +105,86 @@ enum DocxPlaceholderParser {
     }
 }
 
-enum DocxXML {
-    static func parseDocument(data: Data, partPath: String) throws -> XMLDocument {
-        do {
-            return try XMLDocument(data: data, options: [.nodePreserveAll])
-        } catch {
-            throw DocxProcessingError.failedToParseXML(part: partPath)
-        }
-    }
+enum EditableTextKind {
+    case text
+    case instrText
+}
+
+struct ParagraphRunToken {
+    let runElement: XMLElement
+    let textElement: XMLElement
+    let kind: EditableTextKind
+    let text: String
+    let globalStart: Int
+    let globalEnd: Int
     
-    static func findParagraphs(in document: XMLDocument) -> [XMLElement] {
-        ((try? document.nodes(forXPath: "//*[local-name()='p']")) as? [XMLElement]) ?? []
+    var runIdentifier: ObjectIdentifier {
+        ObjectIdentifier(runElement)
     }
+}
+
+struct ParagraphModel {
+    let paragraphElement: XMLElement
+    let tokens: [ParagraphRunToken]
+    let fullText: String
+    let runElements: [XMLElement]
+    let runIndexByID: [ObjectIdentifier: Int]
+    
+    static func build(
+        from paragraph: XMLElement,
+        includeFieldInstructionText: Bool
+    ) -> ParagraphModel {
+        let runElements = (((try? paragraph.nodes(forXPath: "./*[local-name()='r']")) as? [XMLElement]) ?? [])
+        
+        var runIndexByID: [ObjectIdentifier: Int] = [:]
+        for (index, run) in runElements.enumerated() {
+            runIndexByID[ObjectIdentifier(run)] = index
+        }
+        
+        var tokens: [ParagraphRunToken] = []
+        var fullText = ""
+        
+        for run in runElements {
+            let textChildren = (((try? run.nodes(forXPath: "./*[local-name()='t' or local-name()='instrText']")) as? [XMLElement]) ?? [])
+            
+            for textElement in textChildren {
+                let localName = textElement.localName ?? textElement.name ?? ""
+                
+                if localName == "instrText", includeFieldInstructionText == false {
+                    continue
+                }
+                
+                let text = textElement.stringValue ?? ""
+                let start = fullText.count
+                fullText += text
+                let end = fullText.count
+                
+                let kind: EditableTextKind = (localName == "instrText") ? .instrText : .text
+                
+                tokens.append(
+                    ParagraphRunToken(
+                        runElement: run,
+                        textElement: textElement,
+                        kind: kind,
+                        text: text,
+                        globalStart: start,
+                        globalEnd: end
+                    )
+                )
+            }
+        }
+        
+        return ParagraphModel(
+            paragraphElement: paragraph,
+            tokens: tokens,
+            fullText: fullText,
+            runElements: runElements,
+            runIndexByID: runIndexByID
+        )
+    }
+}
+
+enum DocxXML {
     
     static func collectEditableTextNodes(
         in paragraph: XMLElement,
@@ -117,16 +211,71 @@ enum DocxXML {
         }
     }
     
-    static func setExactText(_ value: String, on element: XMLElement) {
-        for child in element.children ?? [] {
-            child.detach()
+    static func parseDocument(data: Data, partPath: String) throws -> XMLDocument {
+        do {
+            return try XMLDocument(data: data, options: [.nodePreserveAll])
+        } catch {
+            throw DocxProcessingError.failedToParseXML(part: partPath)
+        }
+    }
+    
+    static func findParagraphs(in document: XMLDocument) -> [XMLElement] {
+        ((try? document.nodes(forXPath: "//*[local-name()='p']")) as? [XMLElement]) ?? []
+    }
+    
+    static func cloneRunSkeleton(from run: XMLElement) -> XMLElement? {
+        guard let copy = run.copy() as? XMLElement else { return nil }
+        
+        let children = copy.children ?? []
+        for child in children {
+            if let element = child as? XMLElement {
+                let localName = element.localName ?? element.name ?? ""
+                if localName == "t" || localName == "instrText" {
+                    element.detach()
+                }
+            }
         }
         
-        if !value.isEmpty {
-            element.stringValue = value
-        } else {
-            element.stringValue = nil
+        let remainingChildren = copy.children ?? []
+        for child in remainingChildren {
+            if let element = child as? XMLElement {
+                let localName = element.localName ?? element.name ?? ""
+                if localName == "rPr" {
+                    continue
+                }
+                
+                // Если в run остались не-text children вроде fldChar/tab/br и т.д.,
+                // вычищаем их, потому что для rebuilt text run они не нужны.
+                element.detach()
+            }
         }
+        
+        return copy
+    }
+    
+    static func preferredTextElementName(from run: XMLElement) -> String {
+        let children = (((try? run.nodes(forXPath: "./*[local-name()='t' or local-name()='instrText']")) as? [XMLElement]) ?? [])
+        
+        if let first = children.first {
+            return first.localName ?? first.name ?? "t"
+        }
+        
+        return "t"
+    }
+    
+    static func makeTextElement(localName: String, text: String) -> XMLElement {
+        let element = XMLElement(name: "w:\(localName)")
+        
+        if needsXMLSpacePreserve(for: text) {
+            ensureXMLSpacePreserve(on: element)
+        }
+        
+        if !text.isEmpty {
+            let textNode = XMLNode.text(withStringValue: text) as! XMLNode
+            element.addChild(textNode)
+        }
+        
+        return element
     }
     
     static func ensureXMLSpacePreserve(on element: XMLElement) {
@@ -146,31 +295,8 @@ enum DocxXML {
         guard !text.isEmpty else { return false }
         if text.first == " " || text.last == " " { return true }
         if text.contains("  ") { return true }
-        if text.contains("\t") || text.contains("\n") { return true }
+        if text.contains("\t") || text.contains("\n") || text.contains("\r") { return true }
         return false
-    }
-    
-    static func isBoundaryWhitespaceCandidate(_ text: String) -> Bool {
-        guard !text.isEmpty else { return false }
-        
-        return text.allSatisfy {
-            $0 == " " || $0 == "\t" || $0 == "\u{00A0}"
-        }
-        
-    }
-    
-    static func parentRun(of textElement: XMLElement) -> XMLElement? {
-        var current: XMLNode? = textElement.parent
-        
-        while let node = current {
-            if let element = node as? XMLElement,
-               (element.localName ?? element.name ?? "") == "r" {
-                return element
-            }
-            current = node.parent
-        }
-        
-        return nil
     }
     
     static func removeHighlightAndBackground(from run: XMLElement) {
@@ -190,172 +316,14 @@ enum DocxXML {
             rPr.detach()
         }
     }
-    
-    static func removeEmptyRuns(in paragraph: XMLElement) {
-        guard let runs = try? paragraph.nodes(forXPath: ".//*[local-name()='r']") as? [XMLElement] else {
-            return
-        }
-        
-        for run in runs.reversed() {
-            let nonTextualChildren = ((run.children ?? []).compactMap { $0 as? XMLElement }).filter {
-                let name = $0.localName ?? $0.name ?? ""
-                return name != "rPr" && name != "t" && name != "instrText"
-            }
-            
-            if !nonTextualChildren.isEmpty {
-                continue
-            }
-            
-            let textNodes = ((try? run.nodes(forXPath: "./*[local-name()='t' or local-name()='instrText']")) as? [XMLElement]) ?? []
-            let combinedText = textNodes.compactMap(\.stringValue).joined()
-            
-            if combinedText.isEmpty {
-                run.detach()
-            }
-        }
-    }
-    
-    static func restoreSelfClosingPreserveTextNodes(_ data: Data) -> Data {
-        guard var xml = String(data: data, encoding: .utf8) else {
-            return data
-        }
-        
-        let pattern = #"<(w:t|w:instrText)\b([^>]*?)xml:space="preserve"([^>]*?)/>"#
-        let regex = try! NSRegularExpression(pattern: pattern, options: [])
-        
-        let range = NSRange(xml.startIndex..<xml.endIndex, in: xml)
-        let matches = regex.matches(in: xml, options: [], range: range).reversed()
-        
-        for match in matches {
-            guard
-                let fullRange = Range(match.range(at: 0), in: xml),
-                let tagRange = Range(match.range(at: 1), in: xml),
-                let beforeRange = Range(match.range(at: 2), in: xml),
-                let afterRange = Range(match.range(at: 3), in: xml)
-            else {
-                continue
-            }
-            
-            let tag = xml[tagRange]
-            let before = xml[beforeRange]
-            let after = xml[afterRange]
-            
-            let replacement = "<\(tag)\(before)xml:space=\"preserve\"\(after)> </\(tag)>"
-            xml.replaceSubrange(fullRange, with: replacement)
-        }
-        
-        return Data(xml.utf8)
-    }
-}
-
-enum EditableTextKind {
-    case text
-    case instrText
-}
-
-struct EditableTextNode {
-    let element: XMLElement
-    let kind: EditableTextKind
-    var text: String
-    var isDirty: Bool = false
-    var shouldNormalizeRunBackground: Bool = false
-}
-
-struct ParagraphProjection {
-    var nodes: [EditableTextNode]
-    let fullText: String
-    
-    static func build(
-        from paragraph: XMLElement,
-        includeFieldInstructionText: Bool
-    ) -> ParagraphProjection {
-        let nodes = DocxXML.collectEditableTextNodes(
-            in: paragraph,
-            includeFieldInstructionText: includeFieldInstructionText
-        )
-        
-        return ParagraphProjection(
-            nodes: nodes,
-            fullText: nodes.map(\.text).joined()
-        )
-    }
-}
-
-struct TextLocation {
-    let nodeIndex: Int
-    let offset: Int
-}
-
-enum TextOffsetMapper {
-    static func prefixSums(for lengths: [Int]) -> [Int] {
-        var result = Array(repeating: 0, count: lengths.count + 1)
-        for index in lengths.indices {
-            result[index + 1] = result[index] + lengths[index]
-        }
-        return result
-    }
-    
-    static func locateStart(
-        position: String.Index,
-        in fullText: String,
-        prefixSums: [Int]
-    ) -> TextLocation? {
-        let target = fullText.distance(from: fullText.startIndex, to: position)
-        
-        for i in 0..<(prefixSums.count - 1) {
-            let start = prefixSums[i]
-            let end = prefixSums[i + 1]
-            
-            if target >= start && target < end {
-                return TextLocation(nodeIndex: i, offset: target - start)
-            }
-        }
-        
-        return nil
-    }
-    
-    static func locateEnd(
-        position: String.Index,
-        in fullText: String,
-        prefixSums: [Int]
-    ) -> TextLocation? {
-        let target = fullText.distance(from: fullText.startIndex, to: position)
-        
-        if target == fullText.count {
-            for i in stride(from: prefixSums.count - 2, through: 0, by: -1) {
-                let start = prefixSums[i]
-                let end = prefixSums[i + 1]
-                if end > start {
-                    return TextLocation(nodeIndex: i, offset: end - start)
-                }
-            }
-        }
-        
-        for i in 0..<(prefixSums.count - 1) {
-            let start = prefixSums[i]
-            let end = prefixSums[i + 1]
-            
-            guard end > start else { continue }
-            
-            if target > start && target <= end {
-                return TextLocation(nodeIndex: i, offset: target - start)
-            }
-        }
-        
-        return nil
-    }
 }
 
 extension String {
-    func prefixCharacters(_ count: Int) -> String {
-        String(prefix(max(0, count)))
-    }
-    
-    func suffixCharacters(from offset: Int) -> String {
-        guard offset > 0 else { return self }
-        guard offset < count else { return "" }
-        let index = self.index(startIndex, offsetBy: offset)
-        return String(self[index...])
+    func substring(from lower: Int, to upper: Int) -> String {
+        guard lower >= 0, upper >= lower, upper <= count else { return "" }
+        let start = index(startIndex, offsetBy: lower)
+        let end = index(startIndex, offsetBy: upper)
+        return String(self[start..<end])
     }
 }
 
