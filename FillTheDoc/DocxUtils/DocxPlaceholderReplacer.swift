@@ -607,7 +607,7 @@ private extension DocxPlaceholderReplacer {
         
         guard !textNodes.isEmpty else { return false }
         
-        let texts = textNodes.compactMap(\.stringValue)
+        let texts = textNodes.map { DocxXML.exactText(of: $0) }
         let combined = texts.joined()
         
         guard !combined.isEmpty else { return false }

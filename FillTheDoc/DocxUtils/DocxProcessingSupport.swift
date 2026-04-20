@@ -154,7 +154,7 @@ struct ParagraphModel {
                     continue
                 }
                 
-                let text = textElement.stringValue ?? ""
+                let text = DocxXML.exactText(of: textElement)
                 let start = fullText.count
                 fullText += text
                 let end = fullText.count
@@ -185,6 +185,18 @@ struct ParagraphModel {
 }
 
 enum DocxXML {
+    static func exactText(of element: XMLElement) -> String {
+        let children = element.children ?? []
+        
+        var result = ""
+        for child in children {
+            if child.kind == .text, let value = child.stringValue {
+                result += value
+            }
+        }
+        
+        return result
+    }
     
     static func restoreSelfClosingPreserveTextNodes(_ data: Data) -> Data {
         guard var xml = String(data: data, encoding: .utf8) else {
@@ -248,7 +260,7 @@ enum DocxXML {
             return EditableTextNode(
                 element: element,
                 kind: localName == "instrText" ? .instrText : .text,
-                text: element.stringValue ?? ""
+                text: DocxXML.exactText(of: element)
             )
         }
     }
