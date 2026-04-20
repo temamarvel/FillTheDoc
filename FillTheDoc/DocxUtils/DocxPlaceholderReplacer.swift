@@ -1,14 +1,16 @@
+//
+//  DocxPlaceholderReplacer.swift
+//  FillTheDoc
+//
+
 import Foundation
 import ZIPFoundation
 
 public final class DocxPlaceholderReplacer: Sendable {
     
+    // MARK: - Options
+    
     public struct Options: Sendable {
-        public enum PartsSelection: Sendable {
-            case standard
-            case allWordXML
-        }
-        
         public enum MissingKeyPolicy: Sendable {
             case error
             case keep
@@ -18,12 +20,18 @@ public final class DocxPlaceholderReplacer: Sendable {
         public var includeFootnotes: Bool = true
         public var includeEndnotes: Bool = true
         public var includeComments: Bool = true
-        public var includeFieldInstructionText: Bool = false
         public var selection: PartsSelection = .standard
         public var missingKeyPolicy: MissingKeyPolicy = .keep
-        public var validateTemplateFileExists: Bool = true
+        public var preserveWhitespaceWhenNeeded: Bool = true
+        public var includeFieldInstructionText: Bool = false
+        public var validateTemplate: Bool = true
         public var sanitizeValues: Bool = true
-        public var onWarning: (@Sendable (String) -> Void)?
+        public var onWarning: (@Sendable (String) -> Void)? = nil
+        
+        public enum PartsSelection: Sendable {
+            case standard
+            case allWordXML
+        }
         
         public init() {}
         
@@ -38,6 +46,8 @@ public final class DocxPlaceholderReplacer: Sendable {
         }
     }
     
+    // MARK: - Report
+    
     public struct Report: Sendable {
         public var processedParts: [String] = []
         public var foundKeys: Set<String> = []
@@ -48,578 +58,352 @@ public final class DocxPlaceholderReplacer: Sendable {
         public init() {}
     }
     
+    // MARK: - Error
+    
+    public enum Error: Swift.Error, LocalizedError {
+        case cannotCreateOutputArchive
+        case missingKeys([String])
+        
+        public var errorDescription: String? {
+            switch self {
+                case .cannotCreateOutputArchive:
+                    return "Cannot create output DOCX archive."
+                case .missingKeys(let keys):
+                    return "Template contains placeholders without values: \(keys.joined(separator: ", "))."
+            }
+        }
+    }
+    
     public init() {}
     
+    // MARK: - Public API
+    
     public func fill(
-        templateURL: URL,
-        outputURL: URL,
+        templateURL template: URL,
+        outputURL output: URL,
         values: [String: String],
         options: Options = .init()
-    ) throws -> Report {
-        let fileManager = FileManager.default
+    ) async throws -> Report {
+        let fm = FileManager.default
         
-        if options.validateTemplateFileExists {
-            guard fileManager.fileExists(atPath: templateURL.path) else {
-                throw DocxProcessingError.fileNotFound(templateURL)
+        if options.validateTemplate {
+            guard fm.fileExists(atPath: template.path) else {
+                throw DocxProcessingError.fileNotFound(template)
             }
         }
         
-        let preparedValues = options.sanitizeValues ? sanitize(values) : values
-        let sourceArchive = try DocxArchive.openForRead(templateURL)
+        let processedValues = options.sanitizeValues ? sanitizeValuesDictionary(values) : values
         
-        let tempDirectory = fileManager.temporaryDirectory
+        let tempDir = fm.temporaryDirectory
             .appendingPathComponent("fillthedoc-\(UUID().uuidString)", isDirectory: true)
-        
-        try fileManager.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
+        try fm.createDirectory(at: tempDir, withIntermediateDirectories: true)
         
         defer {
-            try? fileManager.removeItem(at: tempDirectory)
+            do { try fm.removeItem(at: tempDir) }
+            catch { options.onWarning?("Failed to clean temp directory: \(error.localizedDescription)") }
         }
         
-        try DocxArchive.extractAllSafely(from: sourceArchive, to: tempDirectory)
+        // 1) Unzip
+        let src = try DocxArchive.openForRead(template)
+        try DocxArchive.extractAllSafely(from: src, to: tempDir)
         
-        let partURLs = try DocxArchive.locatePartURLs(root: tempDirectory, options: options.core)
+        // 2) Locate parts
+        let partURLs = try DocxArchive.locatePartURLs(root: tempDir, options: options.core)
+        
+        // 3) Replace
         var report = Report()
         
-        for partURL in partURLs {
-            let partPath = DocxArchive.relativePath(of: partURL, under: tempDirectory)
+        for url in partURLs {
+            let rel = DocxArchive.relativePath(of: url, under: tempDir)
             
             do {
-                let result = try processPart(
-                    at: partURL,
-                    partPath: partPath,
-                    values: preparedValues,
-                    options: options
+                let (partReport, didChange) = try replaceInPart(
+                    partURL: url,
+                    values: processedValues,
+                    options: options,
+                    partPath: rel
                 )
                 
-                if result.didChange {
-                    report.processedParts.append(partPath)
+                if didChange {
+                    report.processedParts.append(rel)
                 }
                 
-                report.foundKeys.formUnion(result.report.foundKeys)
-                report.replacedKeys.formUnion(result.report.replacedKeys)
-                report.missingKeys.formUnion(result.report.missingKeys)
-                report.replacementsCount += result.report.replacementsCount
+                report.foundKeys.formUnion(partReport.foundKeys)
+                report.replacedKeys.formUnion(partReport.replacedKeys)
+                report.missingKeys.formUnion(partReport.missingKeys)
+                report.replacementsCount += partReport.replacementsCount
             } catch {
-                options.onWarning?("Failed to process \(partPath): \(error.localizedDescription)")
+                options.onWarning?("Failed to process \(rel): \(error.localizedDescription)")
             }
         }
         
+        // 4) Missing policy
         if options.missingKeyPolicy == .error, !report.missingKeys.isEmpty {
-            throw DocxProcessingError.missingReplacementValues(report.missingKeys.sorted())
+            throw Error.missingKeys(report.missingKeys.sorted())
         }
         
-        if fileManager.fileExists(atPath: outputURL.path) {
-            try fileManager.removeItem(at: outputURL)
+        // 5) Zip back
+        if fm.fileExists(atPath: output.path) {
+            try fm.removeItem(at: output)
         }
         
-        let outputArchive = try DocxArchive.openForCreate(outputURL)
-        try DocxArchive.addDirectoryContents(from: tempDirectory, to: outputArchive)
+        let out = try DocxArchive.openForCreate(output)
+        try DocxArchive.addDirectoryContents(from: tempDir, to: out)
         
         return report
     }
+    
+    // MARK: - Sanitization
+    
+    private func sanitizeValuesDictionary(_ values: [String: String]) -> [String: String] {
+        values.mapValues { sanitizeValue($0) }
+    }
+    
+    private func sanitizeValue(_ value: String) -> String {
+        var sanitized = value
+        sanitized = sanitized.replacingOccurrences(of: "<!", with: "&lt;!")
+        sanitized = sanitized.replacingOccurrences(of: "!>", with: "!&gt;")
+        return sanitized
+    }
 }
 
-private extension DocxPlaceholderReplacer {
-    struct PartProcessingResult {
-        let report: PartReport
-        let didChange: Bool
+// MARK: - Part-level replacement
+
+private struct PartReport {
+    var foundKeys: Set<String> = []
+    var replacedKeys: Set<String> = []
+    var missingKeys: Set<String> = []
+    var replacementsCount: Int = 0
+}
+
+private func replaceInPart(
+    partURL: URL,
+    values: [String: String],
+    options: DocxPlaceholderReplacer.Options,
+    partPath: String
+) throws -> (PartReport, Bool) {
+    let data: Data
+    do {
+        data = try Data(contentsOf: partURL)
+    } catch {
+        throw DocxProcessingError.failedToReadXML(part: partPath)
     }
     
-    struct PartReport {
-        var foundKeys: Set<String> = []
-        var replacedKeys: Set<String> = []
-        var missingKeys: Set<String> = []
-        var replacementsCount: Int = 0
-    }
+    let doc = try DocxXML.parseDocument(data: data, partPath: partPath)
     
-    struct PlaceholderOccurrence {
-        let key: String
-        let range: Range<Int>
-        let replacement: String
-        let placeholderRun: XMLElement?
-    }
+    let rewriter = ParagraphRewriter(options: options, values: values)
+    let (report, didChange) = rewriter.rewrite(document: doc)
     
-    struct SegmentSourceSpan {
-        let tokenIndex: Int
-        let localStart: Int
-        let localEnd: Int
-    }
-    
-    struct ParagraphSegment {
-        enum Kind {
-            case preserved
-            case replacement
-        }
-        
-        let kind: Kind
-        let text: String
-        let sourceSpans: [SegmentSourceSpan]
-        let styleRun: XMLElement?
-        let normalizeBackground: Bool
-    }
-    
-    struct RunBuildPlan {
-        let text: String
-        let baseRun: XMLElement
-        let normalizeBackground: Bool
-    }
-    
-    func sanitize(_ values: [String: String]) -> [String: String] {
-        values.mapValues { value in
-            value
-                .replacingOccurrences(of: "<!", with: "&lt;!")
-                .replacingOccurrences(of: "!>", with: "!&gt;")
-        }
-    }
-    
-    func processPart(
-        at url: URL,
-        partPath: String,
-        values: [String: String],
-        options: Options
-    ) throws -> PartProcessingResult {
-        let data: Data
+    if didChange {
+        let outData = doc.xmlData(options: [.nodePreserveAll])
         do {
-            data = try Data(contentsOf: url)
+            try outData.write(to: partURL, options: [.atomic])
         } catch {
-            throw DocxProcessingError.failedToReadXML(part: partPath)
+            throw DocxProcessingError.failedToWriteXML(part: partPath)
         }
-        
-        let document = try DocxXML.parseDocument(data: data, partPath: partPath)
-        let result = rewriteDocument(document, values: values, options: options)
-        
-        if result.didChange {
-            var outData = document.xmlData(options: [.nodePreserveAll])
-            outData = DocxXML.restoreSelfClosingPreserveTextNodes(outData)
-            
-            do {
-                try outData.write(to: url, options: [.atomic])
-            } catch {
-                throw DocxProcessingError.failedToWriteXML(part: partPath)
-            }
-        }
-        
-        return result
     }
     
-    func rewriteDocument(
-        _ document: XMLDocument,
-        values: [String: String],
-        options: Options
-    ) -> PartProcessingResult {
+    return (report, didChange)
+}
+
+// MARK: - ParagraphRewriter
+
+private struct ParagraphRewriter {
+    let options: DocxPlaceholderReplacer.Options
+    let values: [String: String]
+    
+    func rewrite(document: XMLDocument) -> (PartReport, Bool) {
         var report = PartReport()
         var didChange = false
         
         for paragraph in DocxXML.findParagraphs(in: document) {
-            let result = rewriteParagraph(paragraph, values: values, options: options)
+            let (paragraphReport, changed) = rewriteParagraph(paragraph)
             
-            report.foundKeys.formUnion(result.report.foundKeys)
-            report.replacedKeys.formUnion(result.report.replacedKeys)
-            report.missingKeys.formUnion(result.report.missingKeys)
-            report.replacementsCount += result.report.replacementsCount
+            report.foundKeys.formUnion(paragraphReport.foundKeys)
+            report.replacedKeys.formUnion(paragraphReport.replacedKeys)
+            report.missingKeys.formUnion(paragraphReport.missingKeys)
+            report.replacementsCount += paragraphReport.replacementsCount
             
-            if result.didChange {
-                didChange = true
-            }
+            if changed { didChange = true }
         }
         
-        return PartProcessingResult(report: report, didChange: didChange)
+        return (report, didChange)
     }
     
-    func rewriteParagraph(
-        _ paragraph: XMLElement,
-        values: [String: String],
-        options: Options
-    ) -> PartProcessingResult {
-        let model = ParagraphModel.build(
+    // MARK: Paragraph rewrite
+    
+    private func rewriteParagraph(_ paragraph: XMLElement) -> (PartReport, Bool) {
+        var model = ParagraphProjection.build(
             from: paragraph,
             includeFieldInstructionText: options.includeFieldInstructionText
         )
         
-        guard !model.tokens.isEmpty else {
-            return .init(report: PartReport(), didChange: false)
-        }
+        guard !model.nodes.isEmpty else { return (PartReport(), false) }
         
         let matches = DocxPlaceholderParser.findMatches(in: model.fullText)
-        guard !matches.isEmpty else {
-            return .init(report: PartReport(), didChange: false)
-        }
+        guard !matches.isEmpty else { return (PartReport(), false) }
+        
+        let lengths = model.nodes.map(\.text.count)
+        let prefixes = TextOffsetMapper.prefixSums(for: lengths)
         
         var report = PartReport()
-        var occurrences: [PlaceholderOccurrence] = []
+        var changed = false
         
-        for match in matches {
+        // Process in reverse to preserve indices
+        for match in matches.reversed() {
             report.foundKeys.insert(match.key)
             
+            let replacement: String?
             if let value = values[match.key] {
+                replacement = value
                 report.replacedKeys.insert(match.key)
-                report.replacementsCount += 1
-                
-                let lower = model.fullText.distance(from: model.fullText.startIndex, to: match.range.lowerBound)
-                let upper = model.fullText.distance(from: model.fullText.startIndex, to: match.range.upperBound)
-                
-                let placeholderRun = placeholderStyleRun(
-                    for: lower..<upper,
-                    in: model
-                )
-                
-                occurrences.append(
-                    PlaceholderOccurrence(
-                        key: match.key,
-                        range: lower..<upper,
-                        replacement: value,
-                        placeholderRun: placeholderRun
-                    )
-                )
             } else {
                 report.missingKeys.insert(match.key)
-                
                 switch options.missingKeyPolicy {
-                    case .error, .keep:
-                        continue
-                        
-                    case .blank:
-                        let lower = model.fullText.distance(from: model.fullText.startIndex, to: match.range.lowerBound)
-                        let upper = model.fullText.distance(from: model.fullText.startIndex, to: match.range.upperBound)
-                        let placeholderRun = placeholderStyleRun(
-                            for: lower..<upper,
-                            in: model
-                        )
-                        
-                        occurrences.append(
-                            PlaceholderOccurrence(
-                                key: match.key,
-                                range: lower..<upper,
-                                replacement: "",
-                                placeholderRun: placeholderRun
-                            )
-                        )
-                        
-                        report.replacementsCount += 1
+                    case .error: replacement = nil
+                    case .keep:  replacement = nil
+                    case .blank: replacement = ""
                 }
-            }
-        }
-        
-        guard !occurrences.isEmpty else {
-            return .init(report: report, didChange: false)
-        }
-        
-        let affectedRange = affectedRunRange(for: occurrences, in: model)
-        guard let affectedRange else {
-            return .init(report: report, didChange: false)
-        }
-        
-        let segments = buildSegments(
-            in: model,
-            occurrences: occurrences,
-            affectedRunRange: affectedRange
-        )
-        
-        let buildPlans = buildRunPlans(from: segments, in: model)
-        guard !buildPlans.isEmpty else {
-            return .init(report: report, didChange: false)
-        }
-        
-        let newRuns = buildRuns(from: buildPlans)
-        replaceRuns(
-            in: paragraph,
-            model: model,
-            affectedRunRange: affectedRange,
-            with: newRuns
-        )
-        
-        return .init(report: report, didChange: true)
-    }
-    
-    func placeholderStyleRun(
-        for range: Range<Int>,
-        in model: ParagraphModel
-    ) -> XMLElement? {
-        for token in model.tokens {
-            guard token.globalEnd > range.lowerBound, token.globalStart < range.upperBound else {
-                continue
             }
             
-            if let run = token.runElement as XMLElement? {
-                return run
-            }
-        }
-        
-        return nil
-    }
-    
-    func affectedRunRange(
-        for occurrences: [PlaceholderOccurrence],
-        in model: ParagraphModel
-    ) -> Range<Int>? {
-        guard !occurrences.isEmpty else { return nil }
-        
-        var minRunIndex: Int?
-        var maxRunIndex: Int?
-        
-        for occurrence in occurrences {
-            for token in model.tokens {
-                guard token.globalEnd > occurrence.range.lowerBound,
-                      token.globalStart < occurrence.range.upperBound else {
-                    continue
-                }
-                
-                if let runIndex = model.runIndexByID[token.runIdentifier] {
-                    if minRunIndex == nil || runIndex < minRunIndex! {
-                        minRunIndex = runIndex
-                    }
-                    if maxRunIndex == nil || runIndex > maxRunIndex! {
-                        maxRunIndex = runIndex
-                    }
-                }
-            }
-        }
-        
-        guard var lower = minRunIndex, var upper = maxRunIndex else {
-            return nil
-        }
-        
-        // Расширяем влево на standalone whitespace-runs
-        while lower > 0, isWhitespaceOnlyRun(model.runElements[lower - 1]) {
-            lower -= 1
-        }
-        
-        // Расширяем вправо на standalone whitespace-runs
-        while upper + 1 < model.runElements.count, isWhitespaceOnlyRun(model.runElements[upper + 1]) {
-            upper += 1
-        }
-        
-        return lower..<(upper + 1)
-    }
-    
-    func buildSegments(
-        in model: ParagraphModel,
-        occurrences: [PlaceholderOccurrence],
-        affectedRunRange: Range<Int>
-    ) -> [ParagraphSegment] {
-        let affectedTokens = model.tokens.filter { token in
-            guard let runIndex = model.runIndexByID[token.runIdentifier] else { return false }
-            return affectedRunRange.contains(runIndex)
-        }
-        
-        guard !affectedTokens.isEmpty else { return [] }
-        
-        let affectedStart = affectedTokens.first!.globalStart
-        let affectedEnd = affectedTokens.last!.globalEnd
-        
-        let relevantOccurrences = occurrences
-            .filter { $0.range.lowerBound >= affectedStart && $0.range.upperBound <= affectedEnd }
-            .sorted { $0.range.lowerBound < $1.range.lowerBound }
-        
-        var segments: [ParagraphSegment] = []
-        var cursor = affectedStart
-        
-        for occurrence in relevantOccurrences {
-            if cursor < occurrence.range.lowerBound {
-                let preservedSegment = makePreservedSegment(
-                    in: model,
-                    range: cursor..<occurrence.range.lowerBound
+            guard let replacement else { continue }
+            
+            guard
+                let start = TextOffsetMapper.locateStart(
+                    position: match.range.lowerBound,
+                    in: model.fullText,
+                    prefixSums: prefixes
+                ),
+                let end = TextOffsetMapper.locateEnd(
+                    position: match.range.upperBound,
+                    in: model.fullText,
+                    prefixSums: prefixes
                 )
-                if !preservedSegment.text.isEmpty {
-                    segments.append(preservedSegment)
-                }
-            }
+            else { continue }
             
-            segments.append(
-                ParagraphSegment(
-                    kind: .replacement,
-                    text: occurrence.replacement,
-                    sourceSpans: [],
-                    styleRun: occurrence.placeholderRun,
-                    normalizeBackground: true
-                )
-            )
-            
-            cursor = occurrence.range.upperBound
+            applyReplacement(nodes: &model.nodes, start: start, end: end, replacement: replacement)
+            clearPlaceholderHighlight(in: model.nodes, from: start.nodeIndex, to: end.nodeIndex)
+            report.replacementsCount += 1
+            changed = true
         }
         
-        if cursor < affectedEnd {
-            let tailSegment = makePreservedSegment(
-                in: model,
-                range: cursor..<affectedEnd
-            )
-            if !tailSegment.text.isEmpty {
-                segments.append(tailSegment)
-            }
+        if changed {
+            commitChanges(to: &model.nodes)
         }
         
-        return mergeAdjacentPreservedSegments(segments)
+        return (report, changed)
     }
     
-    func makePreservedSegment(
-        in model: ParagraphModel,
-        range: Range<Int>
-    ) -> ParagraphSegment {
-        var text = ""
-        var spans: [SegmentSourceSpan] = []
-        var styleRun: XMLElement?
-        
-        for (tokenIndex, token) in model.tokens.enumerated() {
-            guard token.globalEnd > range.lowerBound, token.globalStart < range.upperBound else {
-                continue
-            }
-            
-            let localStart = max(range.lowerBound, token.globalStart) - token.globalStart
-            let localEnd = min(range.upperBound, token.globalEnd) - token.globalStart
-            guard localEnd > localStart else { continue }
-            
-            let piece = token.text.substring(from: localStart, to: localEnd)
-            text += piece
-            spans.append(
-                SegmentSourceSpan(
-                    tokenIndex: tokenIndex,
-                    localStart: localStart,
-                    localEnd: localEnd
-                )
-            )
-            
-            if styleRun == nil {
-                styleRun = token.runElement
-            }
-        }
-        
-        return ParagraphSegment(
-            kind: .preserved,
-            text: text,
-            sourceSpans: spans,
-            styleRun: styleRun,
-            normalizeBackground: false
-        )
-    }
+    // MARK: Replacement
     
-    func mergeAdjacentPreservedSegments(_ segments: [ParagraphSegment]) -> [ParagraphSegment] {
-        guard !segments.isEmpty else { return [] }
-        
-        var result: [ParagraphSegment] = []
-        
-        for segment in segments {
-            if let last = result.last,
-               last.kind == .preserved,
-               segment.kind == .preserved,
-               last.styleRun === segment.styleRun {
-                let merged = ParagraphSegment(
-                    kind: .preserved,
-                    text: last.text + segment.text,
-                    sourceSpans: last.sourceSpans + segment.sourceSpans,
-                    styleRun: last.styleRun,
-                    normalizeBackground: false
-                )
-                result[result.count - 1] = merged
-            } else {
-                result.append(segment)
-            }
-        }
-        
-        return result
-    }
-    
-    func buildRunPlans(
-        from segments: [ParagraphSegment],
-        in model: ParagraphModel
-    ) -> [RunBuildPlan] {
-        segments.compactMap { segment in
-            guard !segment.text.isEmpty else { return nil }
-            
-            guard let baseRun = resolveBaseRun(for: segment, in: model) else {
-                return nil
-            }
-            
-            return RunBuildPlan(
-                text: segment.text,
-                baseRun: baseRun,
-                normalizeBackground: segment.normalizeBackground
-            )
-        }
-    }
-    
-    func resolveBaseRun(
-        for segment: ParagraphSegment,
-        in model: ParagraphModel
-    ) -> XMLElement? {
-        if let styleRun = segment.styleRun {
-            return styleRun
-        }
-        
-        switch segment.kind {
-            case .replacement:
-                return model.runElements.first
-                
-            case .preserved:
-                if let firstSpan = segment.sourceSpans.first {
-                    return model.tokens[firstSpan.tokenIndex].runElement
-                }
-                return model.runElements.first
-        }
-    }
-    
-    func buildRuns(from plans: [RunBuildPlan]) -> [XMLElement] {
-        plans.compactMap { plan in
-            guard let newRun = DocxXML.cloneRunSkeleton(from: plan.baseRun) else {
-                return nil
-            }
-            
-            if plan.normalizeBackground {
-                DocxXML.removeHighlightAndBackground(from: newRun)
-            }
-            
-            let textElementName = DocxXML.preferredTextElementName(from: plan.baseRun)
-            let textElement = DocxXML.makeTextElement(
-                localName: textElementName,
-                text: plan.text
-            )
-            
-            newRun.addChild(textElement)
-            return newRun
-        }
-    }
-    
-    func replaceRuns(
-        in paragraph: XMLElement,
-        model: ParagraphModel,
-        affectedRunRange: Range<Int>,
-        with newRuns: [XMLElement]
+    private func applyReplacement(
+        nodes: inout [EditableTextNode],
+        start: TextLocation,
+        end: TextLocation,
+        replacement: String
     ) {
-        let paragraphChildren = paragraph.children ?? []
-        let runSlice = model.runElements[affectedRunRange]
+        let si = start.nodeIndex
+        let ei = end.nodeIndex
         
-        guard let firstRun = runSlice.first,
-              let insertionIndex = paragraphChildren.firstIndex(where: { $0 === firstRun }) else {
+        if si == ei {
+            let original = nodes[si].text
+            let pre = original.prefixCharacters(start.offset)
+            let suf = original.suffixCharacters(from: end.offset)
+            nodes[si].text = pre + replacement + suf
+            nodes[si].isDirty = true
             return
         }
         
-        for run in runSlice.reversed() {
-            run.detach()
-        }
+        let first = nodes[si].text
+        let last = nodes[ei].text
+        let pre = first.prefixCharacters(start.offset)
+        let suf = last.suffixCharacters(from: end.offset)
         
-        for (offset, run) in newRuns.enumerated() {
-            paragraph.insertChild(run, at: insertionIndex + offset)
+        nodes[si].text = pre + replacement + suf
+        nodes[si].isDirty = true
+        
+        for index in (si + 1)...ei {
+            if !nodes[index].text.isEmpty {
+                nodes[index].text = ""
+                nodes[index].isDirty = true
+            }
         }
     }
     
-    func isWhitespaceOnlyRun(_ run: XMLElement) -> Bool {
-        let textNodes = (((try? run.nodes(forXPath: "./*[local-name()='t' or local-name()='instrText']")) as? [XMLElement]) ?? [])
+    // MARK: Commit
+    
+    private func commitChanges(to nodes: inout [EditableTextNode]) {
+        for index in nodes.indices {
+            guard nodes[index].isDirty else { continue }
+            
+            DocxXML.setExactText(nodes[index].text, on: nodes[index].element)
+            
+            if nodes[index].kind == .text {
+                if options.preserveWhitespaceWhenNeeded,
+                   DocxXML.needsXMLSpacePreserve(for: nodes[index].text) {
+                    DocxXML.ensureXMLSpacePreserve(on: nodes[index].element)
+                }
+            }
+            
+            nodes[index].isDirty = false
+        }
+    }
+    
+    // MARK: Highlight cleanup
+    
+    private func clearPlaceholderHighlight(
+        in nodes: [EditableTextNode],
+        from startIndex: Int,
+        to endIndex: Int
+    ) {
+        guard startIndex <= endIndex else { return }
+        var handledRuns = Set<ObjectIdentifier>()
         
-        guard !textNodes.isEmpty else { return false }
+        for index in startIndex...endIndex {
+            guard let run = owningRun(for: nodes[index].element) else { continue }
+            
+            let runID = ObjectIdentifier(run)
+            guard handledRuns.insert(runID).inserted else { continue }
+            
+            clearHighlightAttributes(from: run)
+        }
+    }
+    
+    private func owningRun(for element: XMLElement) -> XMLElement? {
+        var current = element.parent
+        while let node = current {
+            if let el = node as? XMLElement,
+               (el.localName ?? el.name ?? "") == "r" {
+                return el
+            }
+            current = node.parent
+        }
+        return nil
+    }
+    
+    private func clearHighlightAttributes(from run: XMLElement) {
+        let path = "./*[local-name()='rPr']"
         
-        let texts = textNodes.map { DocxXML.exactText(of: $0) }
-        let combined = texts.joined()
-        
-        guard !combined.isEmpty else { return false }
-        
-        // run считается whitespace-only только если кроме текста там нет специальных inline-элементов
-        let nonTextChildren = ((run.children ?? []).compactMap { $0 as? XMLElement }).filter {
-            let name = $0.localName ?? $0.name ?? ""
-            return name != "rPr" && name != "t" && name != "instrText"
+        let rPr: XMLElement
+        if let existing = ((try? run.nodes(forXPath: path)) as? [XMLElement])?.first {
+            rPr = existing
+        } else {
+            let created = XMLElement(name: "w:rPr")
+            run.insertChild(created, at: 0)
+            rPr = created
         }
         
-        guard nonTextChildren.isEmpty else { return false }
-        
-        return DocxXML.isWhitespaceOnly(combined)
+        removeChildren(named: "shd", from: rPr)
+        removeChildren(named: "highlight", from: rPr)
+    }
+    
+    private func removeChildren(named localName: String, from element: XMLElement) {
+        for child in (element.children ?? []).reversed() {
+            guard let childElement = child as? XMLElement else { continue }
+            let childLocalName = childElement.localName ?? childElement.name ?? ""
+            if childLocalName == localName {
+                child.detach()
+            }
+        }
     }
 }
