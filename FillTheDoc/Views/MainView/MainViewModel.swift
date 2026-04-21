@@ -11,8 +11,8 @@ final class MainViewModel {
     
     let apiKeyStore: APIKeyStore
     let updateStore: AppUpdateStore
-    private let scanner: DocxTemplatePlaceholderScanner
-    private let replacer: DocxPlaceholderReplacer
+    private let scanner: DocxTemplateScanner
+    private let replacer: DocxTemplateFiller
     private let googleSheetsRowBuilder: DocumentDataCopyStringBuilder
     private let extractorService: DocumentTextExtractorService
     
@@ -63,8 +63,8 @@ final class MainViewModel {
     init(
         apiKeyStore: APIKeyStore,
         updateStore: AppUpdateStore,
-        scanner: DocxTemplatePlaceholderScanner,
-        replacer: DocxPlaceholderReplacer,
+        scanner: DocxTemplateScanner,
+        replacer: DocxTemplateFiller,
         googleSheetsRowBuilder: DocumentDataCopyStringBuilder,
         extractorService: DocumentTextExtractorService
     ) {
@@ -84,8 +84,8 @@ final class MainViewModel {
         self.init(
             apiKeyStore: apiKeyStore,
             updateStore: updateStore,
-            scanner: DocxTemplatePlaceholderScanner(),
-            replacer: DocxPlaceholderReplacer(),
+            scanner: DocxTemplateScanner(),
+            replacer: DocxTemplateFiller(),
             googleSheetsRowBuilder: DocumentDataCopyStringBuilder(),
             extractorService: DocumentTextExtractorService()
         )
@@ -133,7 +133,7 @@ final class MainViewModel {
         scanTask?.cancel()
         scanTask = Task {
             do {
-                let keys = try await scanner.scanKeys(templateURL: templateURL)
+                let keys = try scanner.scanKeys(templateURL: templateURL)
                 try Task.checkCancellation()
                 self.templatePlaceholders = keys
             } catch is CancellationError {
@@ -189,7 +189,7 @@ final class MainViewModel {
             
             let tempOutURL = makeTempOutputURL(from: templateURL)
             
-            let report = try await replacer.fill(
+            let report = try replacer.fill(
                 templateURL: templateURL,
                 outputURL: tempOutURL,
                 values: values
