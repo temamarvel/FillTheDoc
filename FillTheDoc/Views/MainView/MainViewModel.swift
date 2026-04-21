@@ -189,8 +189,15 @@ final class MainViewModel {
             
             let tempOutURL = makeTempOutputURL(from: templateURL)
             
-            let report = try replacer.fill(
+            let assembler = DocxTemplateConditionalAssembler()
+            try assembler.assemble(
                 templateURL: templateURL,
+                outputURL: tempOutURL,
+                values: ["test": "val1"]
+            )
+            
+            let report = try replacer.fill(
+                templateURL: tempOutURL,
                 outputURL: tempOutURL,
                 values: values
             )
