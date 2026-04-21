@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/temamarvel/DocxUtils/",
       "state" : {
-        "revision" : "32600c743dc2af0262d1a3e648dbee380ab050e3",
-        "version" : "0.0.6"
+        "revision" : "9e4bcd88cfedb98c221085aff6f71ea1a34473f7",
+        "version" : "0.0.7"
       }
     },
     {
