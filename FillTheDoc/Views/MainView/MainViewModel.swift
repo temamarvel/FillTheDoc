@@ -12,6 +12,7 @@ final class MainViewModel {
     let apiKeyStore: APIKeyStore
     let updateStore: AppUpdateStore
     private let scanner: DocxTemplateScanner
+    private let conditionalAssembler: DocxTemplateConditionalAssembler
     private let replacer: DocxTemplateFiller
     private let googleSheetsRowBuilder: DocumentDataCopyStringBuilder
     private let extractorService: DocumentTextExtractorService
@@ -64,6 +65,7 @@ final class MainViewModel {
         apiKeyStore: APIKeyStore,
         updateStore: AppUpdateStore,
         scanner: DocxTemplateScanner,
+        conditionalAssembler: DocxTemplateConditionalAssembler,
         replacer: DocxTemplateFiller,
         googleSheetsRowBuilder: DocumentDataCopyStringBuilder,
         extractorService: DocumentTextExtractorService
@@ -71,6 +73,7 @@ final class MainViewModel {
         self.apiKeyStore = apiKeyStore
         self.updateStore = updateStore
         self.scanner = scanner
+        self.conditionalAssembler = conditionalAssembler
         self.replacer = replacer
         self.googleSheetsRowBuilder = googleSheetsRowBuilder
         self.extractorService = extractorService
@@ -85,6 +88,7 @@ final class MainViewModel {
             apiKeyStore: apiKeyStore,
             updateStore: updateStore,
             scanner: DocxTemplateScanner(),
+            conditionalAssembler: DocxTemplateConditionalAssembler(),
             replacer: DocxTemplateFiller(),
             googleSheetsRowBuilder: DocumentDataCopyStringBuilder(),
             extractorService: DocumentTextExtractorService()
@@ -189,11 +193,10 @@ final class MainViewModel {
             
             let tempOutURL = makeTempOutputURL(from: templateURL)
             
-            let assembler = DocxTemplateConditionalAssembler()
-            try assembler.assemble(
+            try conditionalAssembler.assemble(
                 templateURL: templateURL,
                 outputURL: tempOutURL,
-                values: ["test": "val1"]
+                values: ["test": "val1"] //TODO: make it with real key: value
             )
             
             let report = try replacer.fill(
