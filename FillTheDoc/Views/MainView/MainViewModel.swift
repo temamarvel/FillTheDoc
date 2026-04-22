@@ -11,6 +11,7 @@ final class MainViewModel {
     
     let apiKeyStore: APIKeyStore
     let updateStore: AppUpdateStore
+    let placeholderRegistry: PlaceholderRegistryProtocol
     private let scanner: DocxTemplateScanner
     private let conditionalAssembler: DocxTemplateConditionalAssembler
     private let replacer: DocxTemplateFiller
@@ -59,11 +60,28 @@ final class MainViewModel {
         isTemplateValid && isDetailsValid && apiKeyStore.hasKey && isDataApproved
     }
     
+    // MARK: - Placeholder Library computed
+    
+    var availablePlaceholders: [PlaceholderDescriptor] {
+        placeholderRegistry.allPlaceholders
+    }
+    
+    var templatePlaceholderKeys: Set<PlaceholderKey> {
+        Set(templatePlaceholders.map { PlaceholderKey(rawValue: $0) }.filter { !$0.isControlToken })
+    }
+    
+    var unknownTemplatePlaceholderKeys: Set<PlaceholderKey> {
+        templatePlaceholderKeys.filter {
+            !placeholderRegistry.contains($0) && !$0.isControlToken
+        }
+    }
+    
     // MARK: - Init
     
     init(
         apiKeyStore: APIKeyStore,
         updateStore: AppUpdateStore,
+        placeholderRegistry: PlaceholderRegistryProtocol = DefaultPlaceholderRegistry(),
         scanner: DocxTemplateScanner,
         conditionalAssembler: DocxTemplateConditionalAssembler,
         replacer: DocxTemplateFiller,
@@ -72,6 +90,7 @@ final class MainViewModel {
     ) {
         self.apiKeyStore = apiKeyStore
         self.updateStore = updateStore
+        self.placeholderRegistry = placeholderRegistry
         self.scanner = scanner
         self.conditionalAssembler = conditionalAssembler
         self.replacer = replacer

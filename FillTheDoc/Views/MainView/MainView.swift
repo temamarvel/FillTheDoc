@@ -3,7 +3,7 @@ import UniformTypeIdentifiers
 
 struct MainView: View {
     @State private var viewModel: MainViewModel
-    //    @State private var apiKeyStore: APIKeyStore
+    @State private var showLibrary: Bool = false
     
     init() {
         //let apiKeyStore = APIKeyStore()
@@ -76,6 +76,14 @@ struct MainView: View {
             HStack{
                 Spacer()
                 
+                Button {
+                    showLibrary = true
+                } label: {
+                    Image(systemName: "list.bullet.rectangle")
+                }
+                .buttonStyle(.borderless)
+                .help("Справочник плейсхолдеров")
+                
                 if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,
                    let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String {
                     Text("v\(version) (\(build))")
@@ -113,6 +121,13 @@ struct MainView: View {
                 }
             }
             .interactiveDismissDisabled(true)
+        }
+        .sheet(isPresented: $showLibrary) {
+            PlaceholderLibraryView(
+                placeholders: viewModel.availablePlaceholders,
+                usedKeys: viewModel.templatePlaceholderKeys,
+                unknownKeys: viewModel.unknownTemplatePlaceholderKeys
+            )
         }
         .overlay {
             if viewModel.isLoading {
