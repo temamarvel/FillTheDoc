@@ -196,7 +196,7 @@ final class MainViewModel {
             try conditionalAssembler.assemble(
                 templateURL: templateURL,
                 outputURL: tempOutURL,
-                values: ["test": "val1"] //TODO: make it with real key: value
+                values: values
             )
             
             let report = try replacer.fill(
