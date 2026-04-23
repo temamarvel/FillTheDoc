@@ -9,6 +9,7 @@ import SwiftUI
 
 struct DocumentDataFormView: View {
     @State private var formModel: PlaceholderFormModel
+    private let registry: PlaceholderRegistryProtocol
     private let companyValidator: CompanyDetailsValidator
     
     @State private var errorText = ""
@@ -21,16 +22,15 @@ struct DocumentDataFormView: View {
     
     init(
         companyDetails: CompanyDetails,
+        registry: PlaceholderRegistryProtocol,
         onApply: @escaping ([String: String], CompanyDetails) -> Void
     ) {
-        let allDefinitions = DocumentPlaceholderCatalog.editableDefinitions
-        + CompanyPlaceholderCatalog.editableDefinitions
-        
-        let initialValues = CompanyPlaceholderCatalog.initialValues(from: companyDetails)
+        self.registry = registry
+        let initialValues = CompanyDetailsAssembler.initialValues(from: companyDetails)
         
         _formModel = State(
             initialValue: PlaceholderFormModel(
-                editableDefinitions: allDefinitions,
+                registry: registry,
                 initialValues: initialValues
             )
         )
@@ -45,7 +45,7 @@ struct DocumentDataFormView: View {
                 sectionView(title: "Документ", section: .document)
                 sectionView(title: "Реквизиты компании", section: .company)
                 
-                let customDefs = formModel.definitions(in: .custom)
+                let customDefs = formModel.descriptors(in: .custom)
                 if !customDefs.isEmpty {
                     sectionView(title: "Пользовательские поля", section: .custom)
                 }
@@ -63,7 +63,7 @@ struct DocumentDataFormView: View {
                     let company = CompanyDetailsAssembler.makeCompanyDetails(from: companyValues)
                     let resolved = TemplatePlaceholderResolver.resolve(
                         formModel: formModel,
-                        company: company
+                        registry: registry
                     )
                     onApply(resolved, company)
                 }
@@ -80,21 +80,21 @@ struct DocumentDataFormView: View {
     }
     
     @ViewBuilder
-    private func sectionView(title: String, section: EditablePlaceholderDefinition.Section) -> some View {
+    private func sectionView(title: String, section: PlaceholderSection) -> some View {
         Section(title) {
-            ForEach(formModel.definitions(in: section)) { definition in
-                let state = formModel.fieldStates[definition.key]
+            ForEach(formModel.descriptors(in: section)) { descriptor in
+                let state = formModel.fieldStates[descriptor.key]
                 let issue = state?.issue
                 let color = issueColor(for: issue)
                 
                 DocumentDataFieldView(
-                    title: definition.title,
-                    placeholder: definition.placeholder,
-                    text: binding(for: definition.key),
+                    title: descriptor.title,
+                    placeholder: descriptor.placeholder,
+                    text: binding(for: descriptor.key),
                     errorColor: color,
                     errorText: issue?.text,
                     focusedKey: $focusedKey,
-                    key: definition.key
+                    key: descriptor.key
                 )
             }
         }

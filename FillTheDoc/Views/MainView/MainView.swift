@@ -44,7 +44,8 @@ struct MainView: View {
                         //                        }
                         
                         DocumentDataFormView(
-                            companyDetails: details
+                            companyDetails: details,
+                            registry: viewModel.placeholderRegistry
                         ) { resolvedDict, company in
                             viewModel.applyFormData(resolvedDict: resolvedDict, company: company)
                         }

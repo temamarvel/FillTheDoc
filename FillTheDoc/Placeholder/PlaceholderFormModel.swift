@@ -8,22 +8,25 @@ struct PlaceholderFieldState: Sendable, Equatable {
 @MainActor
 @Observable
 final class PlaceholderFormModel {
-    private(set) var editableDefinitions: [EditablePlaceholderDefinition]
+    private let registry: PlaceholderRegistryProtocol
+    private(set) var editableDescriptors: [PlaceholderDescriptor]
     private(set) var fieldStates: [PlaceholderKey: PlaceholderFieldState]
     
     init(
-        editableDefinitions: [EditablePlaceholderDefinition],
+        registry: PlaceholderRegistryProtocol,
         initialValues: [PlaceholderKey: String] = [:]
     ) {
-        self.editableDefinitions = editableDefinitions
-        var states: [PlaceholderKey: PlaceholderFieldState] = [:]
+        self.registry = registry
+        let editable = registry.allDescriptors.filter { $0.kind == .editable }
+        self.editableDescriptors = editable
         
-        for definition in editableDefinitions {
-            let initial = initialValues[definition.key] ?? ""
-            let normalized = definition.normalizer(initial)
-            states[definition.key] = PlaceholderFieldState(
+        var states: [PlaceholderKey: PlaceholderFieldState] = [:]
+        for descriptor in editable {
+            let initial = initialValues[descriptor.key] ?? ""
+            let normalized = registry.normalizer(for: descriptor.key)(initial)
+            states[descriptor.key] = PlaceholderFieldState(
                 value: normalized,
-                issue: definition.validator(normalized)
+                issue: registry.validator(for: descriptor.key)(normalized)
             )
         }
         self.fieldStates = states
@@ -40,48 +43,47 @@ final class PlaceholderFormModel {
     }
     
     func setValue(_ newValue: String, for key: PlaceholderKey) {
-        guard let definition = editableDefinitions.first(where: { $0.key == key }) else { return }
-        let normalized = definition.normalizer(newValue)
+        let normalized = registry.normalizer(for: key)(newValue)
         fieldStates[key] = PlaceholderFieldState(
             value: normalized,
-            issue: definition.validator(normalized)
+            issue: registry.validator(for: key)(normalized)
         )
     }
     
-    func definitions(in section: EditablePlaceholderDefinition.Section) -> [EditablePlaceholderDefinition] {
-        editableDefinitions.filter { $0.section == section }
+    func descriptors(in section: PlaceholderSection) -> [PlaceholderDescriptor] {
+        editableDescriptors.filter { $0.section == section }
     }
     
     // MARK: - Custom fields
     
     func addCustomField(title: String, key: String, placeholder: String = "") {
         let placeholderKey = PlaceholderKey(rawValue: key)
-        let definition = EditablePlaceholderDefinition(
+        let descriptor = PlaceholderDescriptor(
             key: placeholderKey,
             title: title,
+            description: "",
             placeholder: placeholder,
             section: .custom,
-            isRequired: false,
-            normalizer: { $0.trimmingCharacters(in: .whitespacesAndNewlines) },
-            validator: { _ in nil }
+            kind: .custom,
+            isRequired: false
         )
-        editableDefinitions.append(definition)
+        editableDescriptors.append(descriptor)
         fieldStates[placeholderKey] = PlaceholderFieldState(value: "", issue: nil)
     }
     
     func removeCustomField(key: PlaceholderKey) {
-        editableDefinitions.removeAll { $0.key == key && $0.section == .custom }
+        editableDescriptors.removeAll { $0.key == key && $0.section == .custom }
         fieldStates.removeValue(forKey: key)
     }
     
     // MARK: - Bulk
     
     func editableValues() -> [PlaceholderKey: String] {
-        Dictionary(uniqueKeysWithValues: editableDefinitions.map { ($0.key, value(for: $0.key)) })
+        Dictionary(uniqueKeysWithValues: editableDescriptors.map { ($0.key, value(for: $0.key)) })
     }
     
-    func editableValues(in section: EditablePlaceholderDefinition.Section) -> [PlaceholderKey: String] {
-        Dictionary(uniqueKeysWithValues: definitions(in: section).map { ($0.key, value(for: $0.key)) })
+    func editableValues(in section: PlaceholderSection) -> [PlaceholderKey: String] {
+        Dictionary(uniqueKeysWithValues: descriptors(in: section).map { ($0.key, value(for: $0.key)) })
     }
     
     var hasErrors: Bool {
@@ -90,11 +92,9 @@ final class PlaceholderFormModel {
     
     // MARK: - External issues (e.g. from DaData reference validation)
     
-    /// Применяет внешние issues к полям. Не перезаписывает локальные error-ы.
     func applyExternalIssues(_ issues: [PlaceholderKey: FieldIssue]) {
         for (key, issue) in issues {
             guard var state = fieldStates[key] else { continue }
-            // Не перезаписываем error от локальной валидации warning-ом от внешнего источника
             if state.issue == nil || state.issue?.severity == .warning {
                 state.issue = issue
                 fieldStates[key] = state

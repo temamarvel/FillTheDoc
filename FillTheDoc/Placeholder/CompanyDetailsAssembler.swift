@@ -1,6 +1,19 @@
 import Foundation
 
 enum CompanyDetailsAssembler {
+    
+    /// Извлекает начальные значения полей из CompanyDetails DTO → [PlaceholderKey: String].
+    static func initialValues(from company: CompanyDetails) -> [PlaceholderKey: String] {
+        var result: [PlaceholderKey: String] = [:]
+        for key in CompanyDetails.CompanyDetailsKeys.allCases {
+            if let value = company[key] {
+                result[PlaceholderKey(rawValue: key.rawValue)] = value
+            }
+        }
+        return result
+    }
+    
+    /// Собирает CompanyDetails из словаря placeholder-значений.
     static func makeCompanyDetails(from values: [PlaceholderKey: String]) -> CompanyDetails {
         CompanyDetails(
             companyName: values["company_name"]?.trimmedNilIfEmpty,
