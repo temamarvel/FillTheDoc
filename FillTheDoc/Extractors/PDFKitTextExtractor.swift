@@ -9,6 +9,10 @@ import Foundation
 import PDFKit
 
 
+/// PDF-adapter на базе `PDFKit`.
+///
+/// Он извлекает только доступный selectable text. Если страницы являются сканами
+/// и `PDFKit` не видит текстового слоя, extractor помечает результат как `needsOCR`.
 struct PDFKitTextExtractor: TextExtracting {
     init() {}
     

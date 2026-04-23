@@ -1,5 +1,11 @@
 import Foundation
 
+/// Структурированная модель реквизитов компании/ИП.
+///
+/// Это центральный DTO на границе между LLM-извлечением и подтверждением пользователем:
+/// - LLM возвращает JSON именно в эту структуру,
+/// - форма редактирует значения, совместимые с этой структурой,
+/// - derived placeholders вычисляются уже из подтверждённого `CompanyDetails`.
 struct CompanyDetails: Decodable, LLMExtractable, Sendable {
     let companyName: String?
     let legalForm: LegalForm?
@@ -40,6 +46,8 @@ struct CompanyDetails: Decodable, LLMExtractable, Sendable {
     }
     
     enum CompanyDetailsKeys: String, CodingKey, CaseIterable {
+        // Ключи совпадают с placeholder-key naming, чтобы снижать количество маппингов
+        // между LLM JSON, формой и шаблоном.
         case companyName = "company_name"
         case legalForm = "legal_form"
         case ceoFullName = "ceo_full_name"
@@ -76,10 +84,12 @@ struct CompanyDetails: Decodable, LLMExtractable, Sendable {
 }
 
 extension CompanyDetails {
+    /// Краткое полное имя, пригодное для договоров: например `ООО «Ромашка»`.
     var fullCompanyName: String {
         legalForm == .ip ? "\(legalForm?.shortName ?? "") \(companyName ?? "")" : "\(legalForm?.shortName ?? "") «\(companyName ?? "")»"
     }
     
+    /// Расширенное полное имя: например `Общество с ограниченной ответственностью «Ромашка»`.
     var fullCompanyNameExpanded: String {
         legalForm == .ip ? "\(legalForm?.fullName ?? "") \(companyName ?? "")" : "\(legalForm?.fullName ?? "") «\(companyName ?? "")»"
     }
@@ -139,6 +149,8 @@ extension CompanyDetails {
     }
     
     func asDictionary(expandedLegalForm: Bool = false) -> [String: String] {
+        // Исторический helper, полезный там, где нужен плоский словарь,
+        // но не заменяющий placeholder-domain целиком.
         var result: [String: String] = [:]
         
         for key in CompanyDetailsKeys.allCases {

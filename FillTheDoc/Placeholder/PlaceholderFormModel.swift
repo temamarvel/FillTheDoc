@@ -1,10 +1,18 @@
 import Foundation
 
+/// Текущее состояние одного поля placeholder-формы.
 struct PlaceholderFieldState: Sendable, Equatable {
     var value: String
     var issue: FieldIssue?
 }
 
+/// UI-модель формы редактирования плейсхолдеров.
+///
+/// Модель не знает про SwiftUI-элементы, но знает:
+/// - какие built-in placeholder'ы редактируемы,
+/// - как нормализовать ввод,
+/// - как валидировать поле,
+/// - как собрать актуальные значения для дальнейшего резолва.
 @MainActor
 @Observable
 final class PlaceholderFormModel {
@@ -43,6 +51,7 @@ final class PlaceholderFormModel {
     }
     
     func setValue(_ newValue: String, for key: PlaceholderKey) {
+        // Нормализация и валидация живут в registry, чтобы форма не дублировала domain-правила.
         let normalized = registry.normalizer(for: key)(newValue)
         fieldStates[key] = PlaceholderFieldState(
             value: normalized,
@@ -57,6 +66,8 @@ final class PlaceholderFormModel {
     // MARK: - Custom fields
     
     func addCustomField(title: String, key: String, placeholder: String = "") {
+        // Custom field пока хранится как локальное runtime-расширение формы.
+        // Если позже появится persistent store, он должен поставлять такие descriptor'ы в registry/catalog.
         let placeholderKey = PlaceholderKey(rawValue: key)
         let descriptor = PlaceholderDescriptor(
             key: placeholderKey,

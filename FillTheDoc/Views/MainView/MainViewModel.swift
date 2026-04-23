@@ -3,6 +3,19 @@ import SwiftUI
 import OpenAIClient
 import DocxUtils
 
+/// Главный orchestration-объект приложения.
+///
+/// `MainViewModel` связывает между собой почти все прикладные слои:
+/// - UI (`MainView`, форма редактирования, экспорт),
+/// - извлечение текста из входного файла,
+/// - LLM-экстракцию `CompanyDetails`,
+/// - домен плейсхолдеров,
+/// - заполнение DOCX-шаблона,
+/// - побочные действия вроде копирования строки для Google Sheets.
+///
+/// Важно: view model сознательно не хранит низкоуровневую логику
+/// извлечения/валидации/резолва. Эта логика вынесена в специализированные
+/// сервисы, а здесь остаётся только координация сценария и UI-state.
 @MainActor
 @Observable
 final class MainViewModel {
@@ -40,6 +53,9 @@ final class MainViewModel {
     
     private var extractTask: Task<Void, Never>?
     private var scanTask: Task<Void, Never>?
+    /// Счётчик поколений защищает UI от race condition:
+    /// если пользователь быстро меняет входной файл, более старый результат
+    /// извлечения не должен перезаписать более новый.
     private var extractionGeneration: Int = 0
     
     // MARK: - State (exporter)
@@ -124,6 +140,8 @@ final class MainViewModel {
     
     func handleDetailsDrop(_ urls: [URL]) {
         isDataApproved = false
+        // При смене входного документа сбрасываем подтверждённые данные,
+        // потому что они относятся к предыдущему файлу.
         details = nil
         resolvedValues = nil
         googleSheetsRow = nil
@@ -132,6 +150,8 @@ final class MainViewModel {
     }
     
     func applyFormData(resolvedDict: [String: String], company: CompanyDetails) {
+        // На этом этапе данные считаются подтверждёнными пользователем,
+        // поэтому именно они становятся источником истины для последующего fill.
         details = company
         resolvedValues = resolvedDict
         isDataApproved = true
@@ -156,6 +176,9 @@ final class MainViewModel {
         scanTask?.cancel()
         scanTask = Task {
             do {
+                // Сканер возвращает все ключи из шаблона, а их интерпретация
+                // (известный / неизвестный / control token) делается уже выше,
+                // через placeholder-domain.
                 let keys = try scanner.scanKeys(templateURL: templateURL)
                 try Task.checkCancellation()
                 self.templatePlaceholders = keys
@@ -183,9 +206,12 @@ final class MainViewModel {
             defer { Task { @MainActor [weak self] in self?.isLoading = false } }
             
             do {
+                // Первый этап: приводим произвольный входной файл
+                // к обычному тексту, пригодному для prompt'а.
                 let extractedDetails = try await extractorService.extract(from: detailsURL)
                 try Task.checkCancellation()
                 
+                // Второй этап: LLM строит структурированный `CompanyDetails`.
                 let companyDetails = try await self.callOpenAI(extractedDetails: extractedDetails)
                 try Task.checkCancellation()
                 
@@ -212,6 +238,8 @@ final class MainViewModel {
             
             let tempOutURL = makeTempOutputURL(from: templateURL)
             
+            // Сначала собираем/раскрываем условные блоки, затем подставляем значения.
+            // Это позволяет template engine корректно обработать служебные control tokens.
             try conditionalAssembler.assemble(
                 templateURL: templateURL,
                 outputURL: tempOutURL,
@@ -229,6 +257,9 @@ final class MainViewModel {
             showExporter = true
             
             if let details, let resolvedValues {
+                // Отдельный read-model для копирования строки в Google Sheets.
+                // Он не является источником истины для плейсхолдеров,
+                // а только переиспользует уже подтверждённые данные.
                 let documentDetails = DocumentDetails(
                     documentNumber: resolvedValues["document_number"],
                     fee: resolvedValues["fee"],
@@ -251,6 +282,8 @@ final class MainViewModel {
     // MARK: - Private
     
     private func callOpenAI(extractedDetails: ExtractionResult) async throws -> CompanyDetails {
+        // View model знает, КОГДА вызвать модель, но правила prompt'а и JSON-схему
+        // инкапсулирует `PromptBuilder` + `CompanyDetails`.
         let openAIClient = OpenAIClient(apiKey: apiKeyStore.apiKey ?? "", model: "gpt-4o-mini")
         let system = PromptBuilder.system(for: CompanyDetails.self)
         let user = PromptBuilder.user(sourceText: extractedDetails.text)

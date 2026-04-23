@@ -2,6 +2,12 @@ import Foundation
 
 // MARK: - Protocol
 
+/// Единая точка доступа к placeholder-domain.
+///
+/// Реестр объединяет три типа знаний о плейсхолдере:
+/// - метаданные (`PlaceholderDescriptor`),
+/// - нормализацию и валидацию вводимых значений,
+/// - резолв итогового значения для шаблона.
 protocol PlaceholderRegistryProtocol: Sendable {
     var allDescriptors: [PlaceholderDescriptor] { get }
     func descriptor(for key: PlaceholderKey) -> PlaceholderDescriptor?
@@ -14,6 +20,16 @@ protocol PlaceholderRegistryProtocol: Sendable {
 
 // MARK: - Default implementation
 
+/// Стандартная built-in реализация реестра плейсхолдеров.
+///
+/// Это основной «источник истины» для встроенных ключей приложения.
+/// Именно здесь собраны:
+/// - список известных плейсхолдеров,
+/// - правила нормализации и валидации полей формы,
+/// - вычисление derived/system значений.
+///
+/// За счёт этого UI, библиотека плейсхолдеров и DOCX-resolver
+/// работают на одном и том же наборе определений.
 final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked Sendable {
     
     let allDescriptors: [PlaceholderDescriptor]
@@ -29,6 +45,8 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
         customValidators: [PlaceholderKey: @Sendable (String) -> FieldIssue?] = [:],
         customResolvers: [PlaceholderKey: @Sendable (PlaceholderResolutionContext) -> String?] = [:]
     ) {
+        // Custom placeholders проектируются как расширение built-in каталога,
+        // а не как отдельная параллельная система.
         let all = Self.builtInDescriptors + customDescriptors
         self.allDescriptors = all
         self.index = Dictionary(uniqueKeysWithValues: all.map { ($0.key, $0) })
@@ -69,6 +87,7 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
     // MARK: - Convenience: resolve all
     
     func resolveAll(context: PlaceholderResolutionContext) -> [String: String] {
+        // Возвращаем словарь, непосредственно пригодный для шаблонизатора DOCX.
         var result: [String: String] = [:]
         for descriptor in allDescriptors {
             if let value = resolve(descriptor.key, context: context) {
@@ -84,6 +103,9 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
     
     // MARK: - Built-in descriptors
     
+    // Ниже встроенный каталог плейсхолдеров приложения.
+    // Он определяет пользовательский контракт системы: какие ключи приложение знает,
+    // как их показывает и какие из них требуют ручного ввода.
     private static let builtInDescriptors: [PlaceholderDescriptor] = [
         
         // MARK: Company — editable
@@ -272,6 +294,7 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
     
     // MARK: - Built-in normalizers
     
+    // Эти правила применяются в форме до валидации и до построения итогового context.
     private static let builtInNormalizers: [PlaceholderKey: @Sendable (String) -> String] = [
         "company_name": { $0.trimmed },
         "legal_form": { $0.trimmed.uppercased() },
@@ -291,6 +314,8 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
     
     // MARK: - Built-in validators
     
+    // Валидаторы возвращают `FieldIssue`, чтобы UI мог показывать как ошибки,
+    // так и мягкие предупреждения, не блокирующие весь сценарий.
     private static let builtInValidators: [PlaceholderKey: @Sendable (String) -> FieldIssue?] = [
         "company_name": Validators.nonEmpty,
         "legal_form": Validators.legalFormField,
@@ -310,6 +335,8 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
     
     // MARK: - Built-in resolvers (for derived placeholders)
     
+    // Derived placeholders рассчитываются из уже подтверждённых данных пользователя.
+    // Благодаря этому docx fill, preview и отладка могут использовать один и тот же механизм.
     private static let dateFormatterLong: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "ru_RU")

@@ -1,6 +1,11 @@
 import Foundation
 import DaDataAPIClient
 
+/// Справочная валидация company-реквизитов через DaData/ФНС.
+///
+/// Это не основной источник истины и не жёсткий gate сценария.
+/// Сервис выдаёт в основном warning'и, чтобы помочь пользователю заметить
+/// расхождения между извлечёнными/введёнными данными и реестровыми данными.
 public actor CompanyDetailsValidator {
     
     public struct Policy: Sendable {
@@ -31,6 +36,8 @@ public actor CompanyDetailsValidator {
     
     /// Принимает текущие значения полей, возвращает найденные issues от DaData.
     func validateWithReference(values: [PlaceholderKey: String]) async -> [PlaceholderKey: FieldIssue] {
+        // lookup строится по ОГРН или ИНН — без одного из этих идентификаторов
+        // внешняя сверка не имеет смысла.
         let ogrn = values[PlaceholderKey(rawValue: "ogrn")]?.trimmedNilIfEmpty
         let inn = values[PlaceholderKey(rawValue: "inn")]?.trimmedNilIfEmpty
         

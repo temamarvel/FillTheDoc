@@ -8,6 +8,10 @@
 
 import Foundation
 
+/// Нормализованный результат text-extraction pipeline.
+///
+/// Это уже не «сырой» ответ конкретного extractor'а, а формат,
+/// который безопасно отдавать выше в приложение: в LLM-слой, логи и UI.
 struct ExtractionResult: Sendable {
     enum Method: Sendable {
         case plainText
@@ -21,6 +25,8 @@ struct ExtractionResult: Sendable {
     let needsOCR: Bool
     let diagnostics: Diagnostics
     
+    /// Метаданные, которые помогают понять, как именно был получен результат
+    /// и почему он может быть неполным.
     struct Diagnostics: Sendable {
         var originalURL: URL
         var fileExtension: String
@@ -36,6 +42,7 @@ struct ExtractionResult: Sendable {
 struct RawExtractionOutput {
     let text: String
     let method: ExtractionResult.Method
+    /// Флаг «похоже, нужен OCR». Это эвристический сигнал, а не окончательный verdict.
     let needsOCR: Bool
     let notes: [String]
 }

@@ -9,6 +9,11 @@
 import Foundation
 import SwiftUI
 
+/// UI-facing store для API-ключа OpenAI.
+///
+/// Хранит минимум состояния, нужный интерфейсу:
+/// текущее значение ключа, необходимость показать prompt и текст ошибки.
+/// Низкоуровневое взаимодействие с Keychain делегируется `KeychainService`.
 @MainActor
 @Observable
 final class APIKeyStore {
@@ -29,23 +34,23 @@ final class APIKeyStore {
     
     func load() async {
         
-            do {
-                let loaded = try await keychain.loadString(account: account)?
-                    .trimmed
-                
-                if let loaded, !loaded.isEmpty {
-                    apiKey = loaded
-                    isPromptPresented = false
-                    errorText = nil
-                } else {
-                    apiKey = nil
-                    isPromptPresented = true
-                }
-            } catch {
+        do {
+            let loaded = try await keychain.loadString(account: account)?
+                .trimmed
+            
+            if let loaded, !loaded.isEmpty {
+                apiKey = loaded
+                isPromptPresented = false
+                errorText = nil
+            } else {
                 apiKey = nil
-                errorText = "Не удалось прочитать ключ из Keychain: \(error.localizedDescription)"
                 isPromptPresented = true
             }
+        } catch {
+            apiKey = nil
+            errorText = "Не удалось прочитать ключ из Keychain: \(error.localizedDescription)"
+            isPromptPresented = true
+        }
         
     }
     
@@ -59,16 +64,16 @@ final class APIKeyStore {
         }
         
         
-            do {
-                try await keychain.saveString(trimmed, account: account)
-                apiKey = trimmed
-                errorText = nil
-                isPromptPresented = false
-            } catch {
-                apiKey = nil
-                errorText = "Не удалось сохранить ключ в Keychain: \(error.localizedDescription)"
-                isPromptPresented = true
-            }
+        do {
+            try await keychain.saveString(trimmed, account: account)
+            apiKey = trimmed
+            errorText = nil
+            isPromptPresented = false
+        } catch {
+            apiKey = nil
+            errorText = "Не удалось сохранить ключ в Keychain: \(error.localizedDescription)"
+            isPromptPresented = true
+        }
         
     }
     

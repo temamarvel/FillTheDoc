@@ -1,6 +1,10 @@
 import Foundation
 
 /// Результат анализа ключей, найденных в шаблоне.
+///
+/// Это read-model поверх результатов scanner'а: она помогает UI понять,
+/// какие placeholder'ы понятны приложению, какие будут заполнены автоматически,
+/// а какие требуют внимания пользователя.
 struct PlaceholderUsageReport: Sendable {
     /// Известные плейсхолдеры, которые приложение может заполнить
     let known: Set<PlaceholderKey>
@@ -14,7 +18,7 @@ struct PlaceholderUsageReport: Sendable {
 
 /// Анализирует ключи, найденные сканером шаблона, относительно реестра.
 enum PlaceholderUsageAnalyzer {
-
+    
     static func analyze(
         templateKeys: Set<PlaceholderKey>,
         registry: PlaceholderRegistryProtocol
@@ -23,7 +27,7 @@ enum PlaceholderUsageAnalyzer {
         var unknown = Set<PlaceholderKey>()
         var autoFillable = Set<PlaceholderKey>()
         var requiresInput = Set<PlaceholderKey>()
-
+        
         for key in templateKeys where !key.isControlToken {
             guard let descriptor = registry.descriptor(for: key) else {
                 unknown.insert(key)
@@ -31,13 +35,13 @@ enum PlaceholderUsageAnalyzer {
             }
             known.insert(key)
             switch descriptor.kind {
-            case .derived:
-                autoFillable.insert(key)
-            case .editable, .custom:
-                requiresInput.insert(key)
+                case .derived:
+                    autoFillable.insert(key)
+                case .editable, .custom:
+                    requiresInput.insert(key)
             }
         }
-
+        
         return PlaceholderUsageReport(
             known: known,
             unknown: unknown,

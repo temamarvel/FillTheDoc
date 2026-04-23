@@ -1,5 +1,9 @@
 import Foundation
 
+/// Канонический идентификатор плейсхолдера в приложении.
+///
+/// Важно, что `PlaceholderKey` описывает только identity (`company_name`, `date_short` и т.п.)
+/// и не знает ничего про UI, валидацию или способ вычисления значения.
 struct PlaceholderKey: Hashable, Codable, Sendable, RawRepresentable, ExpressibleByStringLiteral {
     let rawValue: String
     

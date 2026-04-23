@@ -6,6 +6,14 @@
 //
 
 
+/// Централизованный builder для системного и пользовательского prompt'ов.
+///
+/// Его задача — удерживать контракт с моделью в одном месте:
+/// - какие поля нужно вернуть,
+/// - какие нормализации разрешены,
+/// - в каком формате должен прийти JSON.
+///
+/// Благодаря этому правила извлечения не размазываются по `MainViewModel`.
 enum PromptBuilder {
     
     static func system<T: LLMExtractable>(for type: T.Type) -> String {
@@ -107,15 +115,15 @@ enum PromptBuilder {
         
         return base
     }
-
+    
     static func user(sourceText: String) -> String {
         """
         Extract requisites from the SOURCE TEXT below.
-
+        
         Notes:
         - Requisites often appear near labels like: "Реквизиты", "ИНН", "КПП", "ОГРН/ОГРНИП", "Генеральный директор/Директор", "E-mail/Email".
         - If multiple companies are present, prefer the main organization (often "Исполнитель/Поставщик/Продавец" depending on document type).
-
+        
         SOURCE TEXT:
         ---
         \(sourceText)

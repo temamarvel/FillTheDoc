@@ -8,6 +8,8 @@
 import Foundation
 
 
+/// Самый прямой extractor: читает файл как `Data` и декодирует текст best-effort.
+/// Используется для `txt`, где не нужна внешняя утилита или структурный парсер.
 struct PlainTextExtractor: TextExtracting {
     init() {}
     

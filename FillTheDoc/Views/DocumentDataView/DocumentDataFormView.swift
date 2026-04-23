@@ -7,6 +7,13 @@
 
 import SwiftUI
 
+/// Экран ручного подтверждения и редактирования placeholder-данных.
+///
+/// Это ключевая UX-граница проекта:
+/// - LLM предлагает черновик `CompanyDetails`,
+/// - пользователь проверяет и исправляет поля,
+/// - после нажатия «Применить» приложение строит финальный словарь значений
+///   для шаблона и помечает данные как подтверждённые.
 struct DocumentDataFormView: View {
     @State private var formModel: PlaceholderFormModel
     private let registry: PlaceholderRegistryProtocol
@@ -118,6 +125,8 @@ struct DocumentDataFormView: View {
     // MARK: - Reference validation scheduling
     
     private func scheduleReferenceValidation() {
+        // Справочная валидация не запускается на каждую клавишу:
+        // она дебаунсится и работает только когда есть ИНН/ОГРН для lookup.
         let ogrn = formModel.value(for: "ogrn").trimmedNilIfEmpty
         let inn = formModel.value(for: "inn").trimmedNilIfEmpty
         let lookupKey = ogrn ?? inn

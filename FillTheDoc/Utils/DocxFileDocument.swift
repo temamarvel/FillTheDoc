@@ -9,6 +9,10 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// Адаптер между временным `.docx` файлом на диске и `fileExporter` из SwiftUI.
+///
+/// Само заполнение шаблона уже выполнено к моменту создания этого объекта;
+/// `DocxFileDocument` только отдаёт готовые bytes в системный save panel.
 struct DocxFileDocument: FileDocument {
     // Для exporter важнее writableContentTypes
     static var writableContentTypes: [UTType] { [.docxSafe] }

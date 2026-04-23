@@ -1,6 +1,7 @@
 import Foundation
 import Security
 
+/// Ошибки низкоуровневого слоя работы с Keychain.
 enum KeychainError: Error, LocalizedError {
     case unexpectedStatus(OSStatus)
     case invalidData
@@ -18,7 +19,10 @@ enum KeychainError: Error, LocalizedError {
     }
 }
 
-/// Низкоуровневый сервис Keychain: хранение/чтение/удаление значений по account.
+/// Низкоуровневый сервис Keychain: хранение/чтение/удаление значений по `account`.
+///
+/// Это infrastructure-слой без знания о UI и без привязки к конкретному типу секрета.
+/// `APIKeyStore` строит поверх него уже прикладочное поведение для ключа OpenAI.
 actor KeychainService {
     private let service: String
     

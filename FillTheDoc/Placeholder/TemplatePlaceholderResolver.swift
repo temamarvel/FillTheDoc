@@ -1,5 +1,9 @@
 import Foundation
 
+/// Фасад для построения словаря значений, пригодного для подстановки в DOCX.
+///
+/// Сам resolver не содержит domain-правил — он только собирает `PlaceholderResolutionContext`
+/// из текущего состояния формы и делегирует вычисление значений в реестр.
 enum TemplatePlaceholderResolver {
     /// Resolves all placeholder values using the unified registry + form model.
     static func resolve(

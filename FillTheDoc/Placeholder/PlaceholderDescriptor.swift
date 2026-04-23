@@ -2,6 +2,10 @@ import Foundation
 
 // MARK: - PlaceholderSection
 
+/// UI- и каталог-ориентированная группировка плейсхолдеров.
+///
+/// `section` не определяет, КАК считается значение, а только помогает
+/// показывать плейсхолдеры пользователю и группировать форму/библиотеку.
 enum PlaceholderSection: String, Hashable, Sendable, CaseIterable {
     case company
     case document
@@ -20,6 +24,7 @@ enum PlaceholderSection: String, Hashable, Sendable, CaseIterable {
 
 // MARK: - PlaceholderKind
 
+/// Способ происхождения значения плейсхолдера внутри приложения.
 enum PlaceholderKind: String, Hashable, Sendable {
     /// Значение вводит пользователь вручную
     case editable
@@ -39,6 +44,14 @@ enum PlaceholderKind: String, Hashable, Sendable {
 
 // MARK: - PlaceholderDescriptor
 
+/// Каноническое описание плейсхолдера.
+///
+/// Через `PlaceholderDescriptor` приложение документирует всё, что относится
+/// к метаданным плейсхолдера: отображаемое имя, описание, секцию, пример,
+/// обязательность и token для шаблона.
+///
+/// Важно: descriptor не содержит само значение. Значения получаются отдельно,
+/// через `PlaceholderResolutionContext` + `PlaceholderRegistry`.
 struct PlaceholderDescriptor: Identifiable, Hashable, Sendable {
     var id: PlaceholderKey { key }
     

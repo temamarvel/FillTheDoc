@@ -10,6 +10,10 @@ import Foundation
 
 import Foundation
 
+/// Value-object для сравнения версий приложения.
+///
+/// Нужен потому, что сравнение строк вида `1.10` и `1.9`, а также prerelease-суффиксов,
+/// нельзя надёжно делать обычным lexical compare.
 struct AppVersion: Comparable, CustomStringConvertible {
     let components: [Int]
     let prerelease: Prerelease?
@@ -135,17 +139,17 @@ struct GitHubReleaseDTO: Decodable, Sendable {
     let htmlURL: URL
     let body: String?
     let assets: [Asset]
-
+    
     struct Asset: Decodable, Sendable {
         let name: String
         let browserDownloadURL: URL
-
+        
         enum CodingKeys: String, CodingKey {
             case name
             case browserDownloadURL = "browser_download_url"
         }
     }
-
+    
     enum CodingKeys: String, CodingKey {
         case tagName = "tag_name"
         case name
@@ -168,62 +172,68 @@ enum AppUpdateError: LocalizedError {
     case missingCurrentVersion
     case invalidResponseStatus(Int)
     case invalidHTTPResponse
-
+    
     var errorDescription: String? {
         switch self {
-        case .missingCurrentVersion:
-            return "Не удалось получить текущую версию приложения."
-        case .invalidResponseStatus(let code):
-            return "GitHub вернул ошибку со статусом \(code)."
-        case .invalidHTTPResponse:
-            return "Некорректный ответ сервера."
+            case .missingCurrentVersion:
+                return "Не удалось получить текущую версию приложения."
+            case .invalidResponseStatus(let code):
+                return "GitHub вернул ошибку со статусом \(code)."
+            case .invalidHTTPResponse:
+                return "Некорректный ответ сервера."
         }
     }
 }
 
+/// Сервис проверки обновлений через GitHub Releases API.
+///
+/// Это прикладной network-layer, который:
+/// - запрашивает последний release репозитория,
+/// - сравнивает его с локальной версией,
+/// - отдаёт UI уже готовую информацию для показа пользователю.
 actor AppUpdateService {
     private let owner: String
     private let repo: String
     private let session: URLSession
-
+    
     init(owner: String, repo: String, session: URLSession = .shared) {
         self.owner = owner
         self.repo = repo
         self.session = session
     }
-
+    
     func checkForUpdate() async throws -> AppUpdateInfo? {
         let currentVersion = try currentAppVersion()
-
+        
         let url = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/releases/latest")!
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         request.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
         request.setValue("FillTheDoc", forHTTPHeaderField: "User-Agent")
-
+        
         let (data, response) = try await session.data(for: request)
-
+        
         guard let http = response as? HTTPURLResponse else {
             throw AppUpdateError.invalidHTTPResponse
         }
-
+        
         guard 200..<300 ~= http.statusCode else {
             throw AppUpdateError.invalidResponseStatus(http.statusCode)
         }
-
+        
         let decoder = JSONDecoder()
         let release = try decoder.decode(GitHubReleaseDTO.self, from: data)
-
+        
         let latestVersion = normalizeVersion(release.tagName)
         let normalizedCurrentVersion = normalizeVersion(currentVersion)
-
+        
         guard isVersion(latestVersion, greaterThan: normalizedCurrentVersion) else {
             return nil
         }
-
+        
         let preferredAsset = preferredDownloadAsset(from: release.assets)
-
+        
         return AppUpdateInfo(
             currentVersion: normalizedCurrentVersion,
             latestVersion: latestVersion,
@@ -233,7 +243,7 @@ actor AppUpdateService {
             releaseNotes: release.body
         )
     }
-
+    
     private func currentAppVersion() throws -> String {
         guard
             let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
@@ -241,32 +251,32 @@ actor AppUpdateService {
         else {
             throw AppUpdateError.missingCurrentVersion
         }
-
+        
         return version
     }
-
+    
     private func normalizeVersion(_ raw: String) -> String {
         raw
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "v", with: "", options: [.anchored, .caseInsensitive])
     }
-
+    
     private func preferredDownloadAsset(from assets: [GitHubReleaseDTO.Asset]) -> GitHubReleaseDTO.Asset? {
         if let dmg = assets.first(where: { $0.name.localizedCaseInsensitiveContains(".dmg") }) {
             return dmg
         }
-
+        
         if let zip = assets.first(where: { $0.name.localizedCaseInsensitiveContains(".zip") }) {
             return zip
         }
-
+        
         return assets.first
     }
-
+    
     private func isVersion(_ lhs: String, greaterThan rhs: String) -> Bool {
         compareVersions(lhs, rhs) == .orderedDescending
     }
-
+    
     private func compareVersions(_ lhs: String, _ rhs: String) -> ComparisonResult {
         guard let left = AppVersion(lhs), let right = AppVersion(rhs) else {
             return .orderedSame

@@ -7,6 +7,11 @@
 
 import Foundation
 
+/// Read-model для операций после подтверждения данных пользователем.
+///
+/// В отличие от `CompanyDetails`, эта структура не приходит из LLM напрямую.
+/// Она собирается уже внутри приложения, когда нужно экспортировать данные
+/// в шаблон, строку для Google Sheets или другие downstream-представления.
 struct DocumentDetails: Codable {
     let documentNumber: String?
     let fee: String?
@@ -47,12 +52,12 @@ struct DocumentDetails: Codable {
         case documentNumber = "document_number"
         case fee = "fee"
         case minFee = "min_fee"
-//        case dateShort = "date_short"
-//        case dateLong = "date_long"
-//        case ceoRole = "ceoRole"
-//        case rules
-//        case fullCompanyName = "full_company_name"
-//        case fullCompanyNameExpanded = "full_company_name_expanded"
+        //        case dateShort = "date_short"
+        //        case dateLong = "date_long"
+        //        case ceoRole = "ceoRole"
+        //        case rules
+        //        case fullCompanyName = "full_company_name"
+        //        case fullCompanyNameExpanded = "full_company_name_expanded"
     }
     
     func asDictionary() -> [String: String] {
@@ -76,22 +81,22 @@ struct DocumentDetails: Codable {
         switch key {
             case .documentNumber:
                 return documentNumber
-//            case .ceoRole:
-//                return ceoRole
-//            case .dateLong:
-//                return dateLong
-//            case .dateShort:
-//                return dateShort
+                //            case .ceoRole:
+                //                return ceoRole
+                //            case .dateLong:
+                //                return dateLong
+                //            case .dateShort:
+                //                return dateShort
             case .fee:
                 return fee
             case .minFee:
                 return minFee
-//            case .fullCompanyName:
-//                return fullCompanyName
-//            case .fullCompanyNameExpanded:
-//                return fullCompanyNameExpanded
-//            case .rules:
-//                return rules
+                //            case .fullCompanyName:
+                //                return fullCompanyName
+                //            case .fullCompanyNameExpanded:
+                //                return fullCompanyNameExpanded
+                //            case .rules:
+                //                return rules
         }
     }
     
@@ -103,18 +108,18 @@ struct DocumentDetails: Codable {
                 fee
             case .minFee:
                 minFee
-//            case .dateShort:
-//                dateShort
-//            case .dateLong:
-//                dateLong
-//            case .ceoRole:
-//                ceoRole
-//            case .rules:
-//                rules
-//            case .fullCompanyName:
-//                fullCompanyName
-//            case .fullCompanyNameExpanded:
-//                fullCompanyNameExpanded
+                //            case .dateShort:
+                //                dateShort
+                //            case .dateLong:
+                //                dateLong
+                //            case .ceoRole:
+                //                ceoRole
+                //            case .rules:
+                //                rules
+                //            case .fullCompanyName:
+                //                fullCompanyName
+                //            case .fullCompanyNameExpanded:
+                //                fullCompanyNameExpanded
         }
     }
 }

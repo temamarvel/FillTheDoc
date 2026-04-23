@@ -8,6 +8,10 @@
 import Foundation
 
 
+/// Office-extractor через системную утилиту `textutil`.
+///
+/// Такой подход хорошо подходит для macOS-only приложения: он переиспользует нативную
+/// конвертацию Apple для `doc/docx/xls/xlsx` и не требует тащить тяжёлые внешние зависимости.
 struct TextutilOfficeExtractor: TextExtracting {
     private let runner: ProcessRunning
     private let timeout: TimeInterval

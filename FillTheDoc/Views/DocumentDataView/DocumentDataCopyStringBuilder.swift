@@ -9,6 +9,10 @@
 import Foundation
 import AppKit
 
+/// Строит TSV-строку для внешнего сценария копирования в Google Sheets.
+///
+/// Это отдельный presentation/export helper: он не влияет на placeholder-resolution,
+/// а только сериализует уже подтверждённые данные в нужный порядок колонок.
 final class DocumentDataCopyStringBuilder {
     
     func makeRow(from data: DocumentDetails) -> String {

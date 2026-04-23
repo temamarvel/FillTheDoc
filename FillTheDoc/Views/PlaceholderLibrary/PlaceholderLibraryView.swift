@@ -2,6 +2,7 @@ import SwiftUI
 
 // MARK: - PlaceholderLibraryItem
 
+/// Read-model для отображения плейсхолдера в библиотеке.
 struct PlaceholderLibraryItem: Identifiable {
     var id: PlaceholderKey { descriptor.key }
     let descriptor: PlaceholderDescriptor
@@ -10,6 +11,12 @@ struct PlaceholderLibraryItem: Identifiable {
 
 // MARK: - PlaceholderLibraryView
 
+/// Справочник известных плейсхолдеров приложения.
+///
+/// Экран решает две задачи одновременно:
+/// - документирует пользователю, какие ключи приложение понимает,
+/// - показывает состояние конкретного шаблона: какие ключи используются,
+///   а какие из найденных шаблонных ключей не распознаны.
 struct PlaceholderLibraryView: View {
     let placeholders: [PlaceholderDescriptor]
     let usedKeys: Set<PlaceholderKey>
@@ -38,6 +45,7 @@ struct PlaceholderLibraryView: View {
     }
     
     private var groupedItems: [(PlaceholderSection, [PlaceholderLibraryItem])] {
+        // Порядок секций задаётся явно, чтобы UI не зависел от порядка в registry.
         let order: [PlaceholderSection] = [.company, .document, .computed, .custom]
         return order.compactMap { section in
             let items = filteredItems.filter { $0.descriptor.section == section }

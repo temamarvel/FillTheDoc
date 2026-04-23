@@ -1,5 +1,9 @@
 import Foundation
 
+/// Двусторонний mapper между `CompanyDetails` и placeholder-словарями формы.
+///
+/// Этот тип полезен как boundary helper: он не хранит состояние,
+/// а только инкапсулирует преобразования между DTO и placeholder-domain.
 enum CompanyDetailsAssembler {
     
     /// Извлекает начальные значения полей из CompanyDetails DTO → [PlaceholderKey: String].

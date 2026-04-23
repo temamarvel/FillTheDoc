@@ -8,6 +8,15 @@
 import Foundation
 
 
+/// Фасад над несколькими стратегиями извлечения текста из документов.
+///
+/// Сервис решает три прикладные задачи:
+/// 1. безопасно открыть файл, выбранный пользователем в sandbox-среде macOS;
+/// 2. привести разные форматы (`txt`, `pdf`, `docx`, `xlsx`...) к plain text;
+/// 3. вернуть не только текст, но и диагностическую информацию для UI и логов.
+///
+/// Это намеренно не actor и не view model: сервис не владеет UI-state,
+/// а только выполняет чистую прикладную операцию, удобную для DI и тестов.
 public struct DocumentTextExtractorService: Sendable {
     
     public struct Configuration {
@@ -55,6 +64,7 @@ public struct DocumentTextExtractorService: Sendable {
     }
     
     func extract(from originalURL: URL) async throws -> ExtractionResult {
+        // Диагностика собирается независимо от того, завершится ли extraction успехом.
         var diagnostics = ExtractionResult.Diagnostics(
             originalURL: originalURL,
             fileExtension: originalURL.pathExtension.lowercased(),
@@ -65,6 +75,8 @@ public struct DocumentTextExtractorService: Sendable {
         )
         
         return try security.withAccess(originalURL) {
+            // Работа идёт с временной копией файла, чтобы внешние утилиты вроде textutil
+            // не зависели от исходного sandbox-url и не держали открытый ресурс дольше нужного.
             let tempURL = try tempStore.copyToTemp(originalURL)
             defer { tempStore.cleanup(forTempCopy: tempURL) }
             
@@ -86,10 +98,13 @@ public struct DocumentTextExtractorService: Sendable {
                 
                 diagnostics.notes.append(contentsOf: raw.notes)
                 
+                // Нормализация подготавливает текст именно для LLM/prompt'а:
+                // убирает артефакты форматирования, ограничивает объём и делает результат стабильнее.
                 let normalized = Normalizers.forDocumentDisplay(raw.text, maxChars: config.maxChars)
                 let finalText = normalized.trimmed
                 diagnostics.producedChars = finalText.count
                 
+                // Для PDF пустой результат обычно означает скан, а не отсутствие содержимого.
                 let finalNeedsOCR = raw.needsOCR || (ext == "pdf" && finalText.isEmpty)
                 if finalText.isEmpty {
                     diagnostics.notes.append("Text is empty after normalization.")
@@ -103,6 +118,9 @@ public struct DocumentTextExtractorService: Sendable {
                     diagnostics: diagnostics
                 )
             } catch {
+                // Сервис по умолчанию предпочитает деградировать мягко: вернуть пустой результат
+                // с диагностикой, а не ломать весь UX. Жёсткое поведение включается флагом
+                // `requireNonEmptyText`.
                 diagnostics.errors.append("Extractor error: \(String(describing: error))")
                 let needsOCR = (ext == "pdf")
                 let result = ExtractionResult(
