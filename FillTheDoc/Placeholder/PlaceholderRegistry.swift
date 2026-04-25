@@ -39,6 +39,29 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
     private let validators: [PlaceholderKey: @Sendable (String) -> FieldIssue?]
     private let resolvers: [PlaceholderKey: @Sendable (PlaceholderResolutionContext) -> String?]
     
+    private enum BuiltInKey {
+        static let companyName: PlaceholderKey = "company_name"
+        static let legalForm: PlaceholderKey = "legal_form"
+        static let ceoFullName: PlaceholderKey = "ceo_full_name"
+        static let ceoFullGenitiveName: PlaceholderKey = "ceo_full_genitive_name"
+        static let ceoShortenName: PlaceholderKey = "ceo_shorten_name"
+        static let ogrn: PlaceholderKey = "ogrn"
+        static let inn: PlaceholderKey = "inn"
+        static let kpp: PlaceholderKey = "kpp"
+        static let email: PlaceholderKey = "email"
+        static let address: PlaceholderKey = "address"
+        static let phone: PlaceholderKey = "phone"
+        static let documentNumber: PlaceholderKey = "document_number"
+        static let fee: PlaceholderKey = "fee"
+        static let minFee: PlaceholderKey = "min_fee"
+        static let dateLong: PlaceholderKey = "date_long"
+        static let dateShort: PlaceholderKey = "date_short"
+        static let ceoRole: PlaceholderKey = "ceo_role"
+        static let fullCompanyName: PlaceholderKey = "full_company_name"
+        static let fullCompanyNameExpanded: PlaceholderKey = "full_company_name_expanded"
+        static let rules: PlaceholderKey = "rules"
+    }
+    
     init(
         customDescriptors: [PlaceholderDescriptor] = [],
         customNormalizers: [PlaceholderKey: @Sendable (String) -> String] = [:],
@@ -107,11 +130,9 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
     // Он определяет пользовательский контракт системы: какие ключи приложение знает,
     // как их показывает и какие из них требуют ручного ввода.
     private static let builtInDescriptors: [PlaceholderDescriptor] = [
-        
         // MARK: Company — editable
-        
         .init(
-            key: "company_name",
+            key: BuiltInKey.companyName,
             title: "Название компании",
             description: "Краткое наименование организации без указания правовой формы.",
             placeholder: "ООО «Ромашка»",
@@ -120,7 +141,7 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             isRequired: true
         ),
         .init(
-            key: "legal_form",
+            key: BuiltInKey.legalForm,
             title: "Правовая форма",
             description: "Аббревиатура правовой формы: ООО, АО, ИП и т.д.",
             placeholder: "ООО / АО / ИП",
@@ -129,7 +150,7 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             isRequired: true
         ),
         .init(
-            key: "ceo_full_name",
+            key: BuiltInKey.ceoFullName,
             title: "Руководитель (полное имя)",
             description: "Фамилия Имя Отчество руководителя в именительном падеже.",
             placeholder: "Иванов Иван Иванович",
@@ -138,7 +159,7 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             isRequired: true
         ),
         .init(
-            key: "ceo_full_genitive_name",
+            key: BuiltInKey.ceoFullGenitiveName,
             title: "Руководитель (родительный падеж)",
             description: "Фамилия Имя Отчество руководителя в родительном падеже.",
             placeholder: "Иванова Ивана Ивановича",
@@ -147,7 +168,7 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             isRequired: true
         ),
         .init(
-            key: "ceo_shorten_name",
+            key: BuiltInKey.ceoShortenName,
             title: "Руководитель (кратко)",
             description: "Фамилия с инициалами руководителя.",
             placeholder: "Иванов И.И.",
@@ -156,7 +177,7 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             isRequired: true
         ),
         .init(
-            key: "ogrn",
+            key: BuiltInKey.ogrn,
             title: "ОГРН / ОГРНИП",
             description: "Основной государственный регистрационный номер. 13 цифр для юрлиц, 15 для ИП.",
             placeholder: "13/15 цифр",
@@ -165,7 +186,7 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             isRequired: true
         ),
         .init(
-            key: "inn",
+            key: BuiltInKey.inn,
             title: "ИНН",
             description: "Идентификационный номер налогоплательщика. 10 цифр для юрлиц, 12 для ИП.",
             placeholder: "10/12 цифр",
@@ -174,7 +195,7 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             isRequired: true
         ),
         .init(
-            key: "kpp",
+            key: BuiltInKey.kpp,
             title: "КПП",
             description: "Код причины постановки на учёт. 9 цифр. Только для юрлиц.",
             placeholder: "9 цифр",
@@ -183,7 +204,7 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             isRequired: false
         ),
         .init(
-            key: "email",
+            key: BuiltInKey.email,
             title: "Email",
             description: "Электронная почта организации.",
             placeholder: "example@domain.com",
@@ -192,7 +213,7 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             isRequired: false
         ),
         .init(
-            key: "address",
+            key: BuiltInKey.address,
             title: "Адрес",
             description: "Юридический или фактический адрес.",
             placeholder: "город, улица, дом",
@@ -201,7 +222,7 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             isRequired: false
         ),
         .init(
-            key: "phone",
+            key: BuiltInKey.phone,
             title: "Телефон",
             description: "Контактный телефон в международном формате.",
             placeholder: "+79991234567",
@@ -209,11 +230,9 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             exampleValue: "+79991234567",
             isRequired: false
         ),
-        
         // MARK: Document — editable
-        
         .init(
-            key: "document_number",
+            key: BuiltInKey.documentNumber,
             title: "Номер документа",
             description: "Номер договора или иного документа.",
             placeholder: "yyyy-mm-#",
@@ -222,7 +241,7 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             isRequired: false
         ),
         .init(
-            key: "fee",
+            key: BuiltInKey.fee,
             title: "Комиссия, %",
             description: "Размер комиссионного вознаграждения в процентах.",
             placeholder: "10",
@@ -231,7 +250,7 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             isRequired: true
         ),
         .init(
-            key: "min_fee",
+            key: BuiltInKey.minFee,
             title: "Мин. комиссия, руб",
             description: "Минимальный размер комиссионного вознаграждения в рублях.",
             placeholder: "5000",
@@ -239,11 +258,9 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             exampleValue: "5000",
             isRequired: true
         ),
-        
         // MARK: Computed — derived
-        
         .init(
-            key: "date_long",
+            key: BuiltInKey.dateLong,
             title: "Дата (полная)",
             description: "Текущая дата в формате «dd» MMMM yyyy г.",
             section: .computed, kind: .derived,
@@ -251,7 +268,7 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             isRequired: false
         ),
         .init(
-            key: "date_short",
+            key: BuiltInKey.dateShort,
             title: "Дата (краткая)",
             description: "Текущая дата в формате dd.MM.yyyy.",
             section: .computed, kind: .derived,
@@ -259,7 +276,7 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             isRequired: false
         ),
         .init(
-            key: "ceo_role",
+            key: BuiltInKey.ceoRole,
             title: "Должность руководителя",
             description: "«Генеральный директор» для юрлиц или «Индивидуальный предприниматель» для ИП.",
             section: .computed, kind: .derived,
@@ -267,7 +284,7 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             isRequired: false
         ),
         .init(
-            key: "full_company_name",
+            key: BuiltInKey.fullCompanyName,
             title: "Полное наименование компании",
             description: "Наименование компании с правовой формой в краткой форме, например ООО «Ромашка».",
             section: .computed, kind: .derived,
@@ -275,7 +292,7 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             isRequired: false
         ),
         .init(
-            key: "full_company_name_expanded",
+            key: BuiltInKey.fullCompanyNameExpanded,
             title: "Полное наименование (развёрнуто)",
             description: "Наименование компании с расшифровкой правовой формы, например Общество с ограниченной ответственностью «Ромашка».",
             section: .computed, kind: .derived,
@@ -283,7 +300,7 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             isRequired: false
         ),
         .init(
-            key: "rules",
+            key: BuiltInKey.rules,
             title: "Основание деятельности",
             description: "Документ, на основании которого действует руководитель: Устав для юрлиц или выписка ЕГРИП для ИП.",
             section: .computed, kind: .derived,
@@ -296,20 +313,20 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
     
     // Эти правила применяются в форме до валидации и до построения итогового context.
     private static let builtInNormalizers: [PlaceholderKey: @Sendable (String) -> String] = [
-        "company_name": { $0.trimmed },
-        "legal_form": { $0.trimmed.uppercased() },
-        "ceo_full_name": { $0.trimmed },
-        "ceo_full_genitive_name": { $0.trimmed },
-        "ceo_shorten_name": { $0.trimmed },
-        "ogrn": Normalizers.trimmedDigitsOnly,
-        "inn": Normalizers.trimmedDigitsOnly,
-        "kpp": Normalizers.trimmedDigitsOnly,
-        "email": { $0.trimmed },
-        "address": { $0.trimmed },
-        "phone": Normalizers.phone,
-        "document_number": { $0.trimmed },
-        "fee": { $0.trimmed },
-        "min_fee": { $0.trimmed },
+        BuiltInKey.companyName: { $0.trimmed },
+        BuiltInKey.legalForm: { $0.trimmed.uppercased() },
+        BuiltInKey.ceoFullName: { $0.trimmed },
+        BuiltInKey.ceoFullGenitiveName: { $0.trimmed },
+        BuiltInKey.ceoShortenName: { $0.trimmed },
+        BuiltInKey.ogrn: Normalizers.trimmedDigitsOnly,
+        BuiltInKey.inn: Normalizers.trimmedDigitsOnly,
+        BuiltInKey.kpp: Normalizers.trimmedDigitsOnly,
+        BuiltInKey.email: { $0.trimmed },
+        BuiltInKey.address: { $0.trimmed },
+        BuiltInKey.phone: Normalizers.phone,
+        BuiltInKey.documentNumber: { $0.trimmed },
+        BuiltInKey.fee: { $0.trimmed },
+        BuiltInKey.minFee: { $0.trimmed },
     ]
     
     // MARK: - Built-in validators
@@ -317,20 +334,20 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
     // Валидаторы возвращают `FieldIssue`, чтобы UI мог показывать как ошибки,
     // так и мягкие предупреждения, не блокирующие весь сценарий.
     private static let builtInValidators: [PlaceholderKey: @Sendable (String) -> FieldIssue?] = [
-        "company_name": Validators.nonEmpty,
-        "legal_form": Validators.legalFormField,
-        "ceo_full_name": Validators.fullName,
-        "ceo_full_genitive_name": Validators.fullName,
-        "ceo_shorten_name": Validators.shortenName,
-        "ogrn": Validators.ogrn,
-        "inn": Validators.inn,
-        "kpp": Validators.kpp,
-        "email": Validators.email,
-        "address": Validators.address,
-        "phone": Validators.phone,
-        "document_number": { _ in nil },
-        "fee": Validators.percentage,
-        "min_fee": Validators.percentage,
+        BuiltInKey.companyName: Validators.nonEmpty,
+        BuiltInKey.legalForm: Validators.legalFormField,
+        BuiltInKey.ceoFullName: Validators.fullName,
+        BuiltInKey.ceoFullGenitiveName: Validators.fullName,
+        BuiltInKey.ceoShortenName: Validators.shortenName,
+        BuiltInKey.ogrn: Validators.ogrn,
+        BuiltInKey.inn: Validators.inn,
+        BuiltInKey.kpp: Validators.kpp,
+        BuiltInKey.email: Validators.email,
+        BuiltInKey.address: Validators.address,
+        BuiltInKey.phone: Validators.phone,
+        BuiltInKey.documentNumber: { _ in nil },
+        BuiltInKey.fee: Validators.percentage,
+        BuiltInKey.minFee: Validators.percentage,
     ]
     
     // MARK: - Built-in resolvers (for derived placeholders)
@@ -354,22 +371,22 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
     }()
     
     private static let builtInResolvers: [PlaceholderKey: @Sendable (PlaceholderResolutionContext) -> String?] = [
-        "date_long": { ctx in
+        BuiltInKey.dateLong: { ctx in
             dateFormatterLong.string(from: ctx.now)
         },
-        "date_short": { ctx in
+        BuiltInKey.dateShort: { ctx in
             dateFormatterShort.string(from: ctx.now)
         },
-        "ceo_role": { ctx in
+        BuiltInKey.ceoRole: { ctx in
             ctx.companyDetails.legalForm == .ip ? "Индивидуальный предприниматель" : "Генеральный директор"
         },
-        "full_company_name": { ctx in
+        BuiltInKey.fullCompanyName: { ctx in
             ctx.companyDetails.fullCompanyName
         },
-        "full_company_name_expanded": { ctx in
+        BuiltInKey.fullCompanyNameExpanded: { ctx in
             ctx.companyDetails.fullCompanyNameExpanded
         },
-        "rules": { ctx in
+        BuiltInKey.rules: { ctx in
             ctx.companyDetails.legalForm == .ip
             ? "Листа  записи в Едином государственном реестре индивидуальных предпринимателей (ЕГРИП)"
             : "Устава"
