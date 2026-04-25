@@ -222,18 +222,18 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             key: .fee,
             title: "Комиссия, %",
             description: "Размер комиссионного вознаграждения в процентах.",
-            placeholder: "10",
+            placeholder: "1",
             section: .document, kind: .editable,
-            exampleValue: "10",
+            exampleValue: "1",
             isRequired: true
         ),
         .init(
             key: .minFee,
             title: "Мин. комиссия, руб",
             description: "Минимальный размер комиссионного вознаграждения в рублях.",
-            placeholder: "5000",
+            placeholder: "10",
             section: .document, kind: .editable,
-            exampleValue: "5000",
+            exampleValue: "10",
             isRequired: true
         ),
         // MARK: Computed — derived
