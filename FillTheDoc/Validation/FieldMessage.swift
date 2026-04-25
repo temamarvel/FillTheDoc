@@ -11,7 +11,7 @@ struct FieldIssue: Equatable, Sendable {
     let severity: Severity
     let text: String
     
-    init(_ severity: Severity, _ text: String) {
+    nonisolated init(_ severity: Severity, _ text: String) {
         self.severity = severity
         self.text = text
     }
@@ -27,11 +27,11 @@ struct FieldIssue: Equatable, Sendable {
     
     // MARK: - Convenience factories
     
-    static func error(_ text: String) -> FieldIssue {
+    nonisolated static func error(_ text: String) -> FieldIssue {
         FieldIssue(.error, text)
     }
     
-    static func warning(_ text: String) -> FieldIssue {
+    nonisolated static func warning(_ text: String) -> FieldIssue {
         FieldIssue(.warning, text)
     }
 }

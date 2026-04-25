@@ -19,7 +19,7 @@ struct CompanyDetails: Decodable, LLMExtractable, Sendable {
     let address: String?
     let phone: String?
     
-    init(
+    nonisolated init(
         companyName: String?,
         legalForm: LegalForm?,
         ceoFullName: String?,
@@ -85,16 +85,16 @@ struct CompanyDetails: Decodable, LLMExtractable, Sendable {
 
 extension CompanyDetails {
     /// Краткое полное имя, пригодное для договоров: например `ООО «Ромашка»`.
-    var fullCompanyName: String {
+    nonisolated var fullCompanyName: String {
         legalForm == .ip ? "\(legalForm?.shortName ?? "") \(companyName ?? "")" : "\(legalForm?.shortName ?? "") «\(companyName ?? "")»"
     }
     
     /// Расширенное полное имя: например `Общество с ограниченной ответственностью «Ромашка»`.
-    var fullCompanyNameExpanded: String {
+    nonisolated var fullCompanyNameExpanded: String {
         legalForm == .ip ? "\(legalForm?.fullName ?? "") \(companyName ?? "")" : "\(legalForm?.fullName ?? "") «\(companyName ?? "")»"
     }
     
-    subscript(key: CompanyDetailsKeys) -> String? {
+    nonisolated subscript(key: CompanyDetailsKeys) -> String? {
         switch key {
             case .companyName:
                 return companyName

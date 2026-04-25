@@ -27,7 +27,7 @@ struct PlaceholderResolutionContext: Sendable {
     }
     
     /// Собирает CompanyDetails из editable values.
-    var companyDetails: CompanyDetails {
+    nonisolated var companyDetails: CompanyDetails {
         CompanyDetailsAssembler.makeCompanyDetails(from: editableValues)
     }
 }

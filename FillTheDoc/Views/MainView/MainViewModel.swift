@@ -40,7 +40,7 @@ final class MainViewModel {
     
     private(set) var details: CompanyDetails?
     /// Resolved placeholder dictionary ready for template substitution
-    var resolvedValues: [String: String]?
+    var resolvedValues: [PlaceholderKey: String]?
     private(set) var templatePlaceholders: [String] = []
     private(set) var googleSheetsRow: String?
     
@@ -149,11 +149,11 @@ final class MainViewModel {
         extractDetails()
     }
     
-    func applyFormData(resolvedDict: [String: String], company: CompanyDetails) {
+    func applyFormData(resolvedValues: [PlaceholderKey: String], company: CompanyDetails) {
         // На этом этапе данные считаются подтверждёнными пользователем,
         // поэтому именно они становятся источником истины для последующего fill.
         details = company
-        resolvedValues = resolvedDict
+        self.resolvedValues = resolvedValues
         isDataApproved = true
     }
     
@@ -235,6 +235,7 @@ final class MainViewModel {
         
         do {
             guard let values = resolvedValues else { return }
+            let stringValues = values.stringKeyed
             
             let tempOutURL = makeTempOutputURL(from: templateURL)
             
@@ -243,13 +244,13 @@ final class MainViewModel {
             try conditionalAssembler.assemble(
                 templateURL: templateURL,
                 outputURL: tempOutURL,
-                values: values
+                values: stringValues
             )
             
             let report = try replacer.fill(
                 templateURL: tempOutURL,
                 outputURL: tempOutURL,
-                values: values
+                values: stringValues
             )
             
             exportDocument = try DocxFileDocument(fileURL: tempOutURL)
@@ -261,9 +262,9 @@ final class MainViewModel {
                 // Он не является источником истины для плейсхолдеров,
                 // а только переиспользует уже подтверждённые данные.
                 let documentDetails = DocumentDetails(
-                    documentNumber: resolvedValues["document_number"],
-                    fee: resolvedValues["fee"],
-                    minFee: resolvedValues["min_fee"],
+                    documentNumber: resolvedValues[.documentNumber],
+                    fee: resolvedValues[.fee],
+                    minFee: resolvedValues[.minFee],
                     companyDetails: details
                 )
                 let row = googleSheetsRowBuilder.makeRow(

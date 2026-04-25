@@ -38,8 +38,8 @@ public actor CompanyDetailsValidator {
     func validateWithReference(values: [PlaceholderKey: String]) async -> [PlaceholderKey: FieldIssue] {
         // lookup строится по ОГРН или ИНН — без одного из этих идентификаторов
         // внешняя сверка не имеет смысла.
-        let ogrn = values[PlaceholderKey(rawValue: "ogrn")]?.trimmedNilIfEmpty
-        let inn = values[PlaceholderKey(rawValue: "inn")]?.trimmedNilIfEmpty
+        let ogrn = values[.ogrn]?.trimmedNilIfEmpty
+        let inn = values[.inn]?.trimmedNilIfEmpty
         
         guard let identifier = ogrn ?? inn else { return [:] }
         
@@ -73,29 +73,29 @@ public actor CompanyDetailsValidator {
     // MARK: - Cross validation with DaData
     
     private func crossValidate(key: PlaceholderKey, value: String, companyInfo: DaDataCompanyInfo) -> FieldIssue? {
-        switch key.rawValue {
-            case "inn":
+        switch key {
+            case .inn:
                 let apiINN = companyInfo.inn.map { $0.digitsOnly }
                 if let apiINN, apiINN != value.digitsOnly {
                     return .warning("ИНН не совпадает с ФНС.")
                 }
                 return nil
                 
-            case "kpp":
+            case .kpp:
                 if let apiKPP = companyInfo.kpp.map({ $0.digitsOnly }),
                    apiKPP != value.digitsOnly {
                     return .warning("КПП не совпадает с ФНС.")
                 }
                 return nil
                 
-            case "ogrn":
+            case .ogrn:
                 if let apiOGRN = companyInfo.ogrn.map({ $0.digitsOnly }),
                    apiOGRN != value.digitsOnly {
                     return .warning("ОГРН/ОГРНИП не совпадает с ФНС.")
                 }
                 return nil
                 
-            case "company_name":
+            case .companyName:
                 let apiName =
                 companyInfo.name?.fullWithOpf
                 ?? companyInfo.name?.shortWithOpf
@@ -110,7 +110,7 @@ public actor CompanyDetailsValidator {
                 }
                 return nil
                 
-            case "ceo_full_name":
+            case .ceoFullName:
                 if let apiCEO = companyInfo.management?.name, !apiCEO.isEmpty {
                     let sim = Validators.jaccardSimilarity(value, apiCEO)
                     let contains = Validators.containsNormalized(value, apiCEO)
@@ -120,7 +120,7 @@ public actor CompanyDetailsValidator {
                 }
                 return nil
                 
-            case "address":
+            case .address:
                 if let apiAddress = companyInfo.address?.value, !apiAddress.isEmpty {
                     let sim = Validators.jaccardSimilarity(value, apiAddress)
                     let contains = Validators.containsNormalized(value, apiAddress)

@@ -14,14 +14,14 @@ enum Normalizers {
     // MARK: - Combined normalizers
     
     /// Обрезает пробелы и оставляет только цифры.
-    static func trimmedDigitsOnly(_ s: String) -> String {
+    nonisolated static func trimmedDigitsOnly(_ s: String) -> String {
         s.trimmed.digitsOnly
     }
     
     // MARK: - Specialized normalizers
     
     /// Нормализует телефонный номер: убирает скобки, лишние пробелы, оставляет +, цифры и дефисы.
-    static func phone(_ s: String) -> String {
+    nonisolated static func phone(_ s: String) -> String {
         let t = s.trimmed
         // Убираем скобки и множественные пробелы, оставляем цифры, +, -
         let cleaned = t
@@ -34,7 +34,7 @@ enum Normalizers {
     
     /// Нормализирует правовую форму: приводит к верхнему регистру после обрезки.
     /// Удаляет диакритику, кавычки, пунктуацию.
-    static func legalForm(_ value: String) -> String {
+    nonisolated static func legalForm(_ value: String) -> String {
         value
             .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
             .lowercased()
@@ -53,7 +53,7 @@ enum Normalizers {
     
     /// Нормализирует текст для сравнения: удаляет пунктуацию, нижний регистр, коллапсирует пробелы.
     /// Используется для Jaccard similarity, containsNormalized.
-    static func forComparison(_ s: String) -> String {
+    nonisolated static func forComparison(_ s: String) -> String {
         let lower = s.lowercased()
         
         let cleaned = lower.unicodeScalars.map { scalar -> Character in
@@ -77,13 +77,13 @@ enum Normalizers {
     }
     
     /// Разбивает нормализованную строку на токены (слова).
-    static func toTokens(_ s: String) -> Set<String> {
+    nonisolated static func toTokens(_ s: String) -> Set<String> {
         Set(forComparison(s).split(separator: " ").map(String.init).filter { !$0.isEmpty })
     }
     
     /// Нормализирует большой текст для отображения: коллапсирует пустые строки, обрезает по символам.
     /// Используется при извлечении текста из документов.
-    static func forDocumentDisplay(_ text: String, maxChars: Int) -> String {
+    nonisolated static func forDocumentDisplay(_ text: String, maxChars: Int) -> String {
         var s = text
         s = s.replacingOccurrences(of: "\r\n", with: "\n")
         s = s.replacingOccurrences(of: "\r", with: "\n")
@@ -108,7 +108,7 @@ enum Normalizers {
         """
     }
     
-    private static func collapseBlankLines(_ s: String, maxConsecutive: Int) -> String {
+    nonisolated private static func collapseBlankLines(_ s: String, maxConsecutive: Int) -> String {
         var result = ""
         result.reserveCapacity(s.count)
         

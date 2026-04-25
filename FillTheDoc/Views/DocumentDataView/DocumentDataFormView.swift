@@ -25,12 +25,12 @@ struct DocumentDataFormView: View {
     
     @FocusState private var focusedKey: PlaceholderKey?
     
-    let onApply: ([String: String], CompanyDetails) -> Void
+    let onApply: ([PlaceholderKey: String], CompanyDetails) -> Void
     
     init(
         companyDetails: CompanyDetails,
         registry: PlaceholderRegistryProtocol,
-        onApply: @escaping ([String: String], CompanyDetails) -> Void
+        onApply: @escaping ([PlaceholderKey: String], CompanyDetails) -> Void
     ) {
         self.registry = registry
         let initialValues = CompanyDetailsAssembler.initialValues(from: companyDetails)
@@ -127,8 +127,8 @@ struct DocumentDataFormView: View {
     private func scheduleReferenceValidation() {
         // Справочная валидация не запускается на каждую клавишу:
         // она дебаунсится и работает только когда есть ИНН/ОГРН для lookup.
-        let ogrn = formModel.value(for: "ogrn").trimmedNilIfEmpty
-        let inn = formModel.value(for: "inn").trimmedNilIfEmpty
+        let ogrn = formModel.value(for: .ogrn).trimmedNilIfEmpty
+        let inn = formModel.value(for: .inn).trimmedNilIfEmpty
         let lookupKey = ogrn ?? inn
         guard let lookupKey, !lookupKey.isEmpty else { return }
         if lookupKey == lastLookupKey { return }

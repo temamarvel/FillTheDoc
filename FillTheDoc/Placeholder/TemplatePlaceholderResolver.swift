@@ -10,7 +10,7 @@ enum TemplatePlaceholderResolver {
         formModel: PlaceholderFormModel,
         registry: PlaceholderRegistryProtocol,
         now: Date = .now
-    ) -> [String: String] {
+    ) -> [PlaceholderKey: String] {
         let allValues = formModel.editableValues()
         let customValues = formModel.editableValues(in: .custom)
         

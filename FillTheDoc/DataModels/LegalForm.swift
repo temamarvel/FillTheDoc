@@ -16,7 +16,7 @@ enum LegalForm: String, CaseIterable, Sendable {
 }
 
 extension LegalForm {
-    var shortName: String {
+    nonisolated var shortName: String {
         switch self {
             case .ooo: return "ООО"
             case .zao: return "ЗАО"
@@ -26,7 +26,7 @@ extension LegalForm {
         }
     }
     
-    var fullName: String {
+    nonisolated var fullName: String {
         switch self {
             case .ooo:
                 return "Общество с ограниченной ответственностью"
@@ -41,7 +41,7 @@ extension LegalForm {
         }
     }
     
-    static func parse(_ raw: String) -> LegalForm? {
+    nonisolated static func parse(_ raw: String) -> LegalForm? {
         let normalized = Normalizers.legalForm(raw)
         
         for form in Self.allCases {
@@ -56,7 +56,7 @@ extension LegalForm {
 }
 
 private extension LegalForm {
-    static func aliases(for form: LegalForm) -> Set<String> {
+    nonisolated static func aliases(for form: LegalForm) -> Set<String> {
         switch form {
             case .ooo:
                 return [

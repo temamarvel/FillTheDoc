@@ -55,8 +55,8 @@ struct MainView: View {
                         DocumentDataFormView(
                             companyDetails: details,
                             registry: viewModel.placeholderRegistry
-                        ) { resolvedDict, company in
-                            viewModel.applyFormData(resolvedDict: resolvedDict, company: company)
+                        ) { resolvedValues, company in
+                            viewModel.applyFormData(resolvedValues: resolvedValues, company: company)
                         }
                     } else {
                         EmptyCompanyDetailsView()
