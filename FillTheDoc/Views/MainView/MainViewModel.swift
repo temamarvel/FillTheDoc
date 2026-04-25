@@ -86,10 +86,15 @@ final class MainViewModel {
         Set(templatePlaceholders.map { PlaceholderKey(rawValue: $0) }.filter { !$0.isControlToken })
     }
     
+    var templateUsageReport: PlaceholderUsageReport {
+        PlaceholderUsageAnalyzer.analyze(
+            templateKeys: templatePlaceholderKeys,
+            registry: placeholderRegistry
+        )
+    }
+    
     var unknownTemplatePlaceholderKeys: Set<PlaceholderKey> {
-        templatePlaceholderKeys.filter {
-            !placeholderRegistry.contains($0) && !$0.isControlToken
-        }
+        templateUsageReport.unknown
     }
     
     // MARK: - Init
@@ -257,16 +262,7 @@ final class MainViewModel {
             exportDefaultFilename = "\(templateURL.deletingPathExtension().lastPathComponent)_filled"
             showExporter = true
             
-            if let details, let resolvedValues {
-                // Отдельный read-model для копирования строки в Google Sheets.
-                // Он не является источником истины для плейсхолдеров,
-                // а только переиспользует уже подтверждённые данные.
-                let documentDetails = DocumentDetails(
-                    documentNumber: resolvedValues[.documentNumber],
-                    fee: resolvedValues[.fee],
-                    minFee: resolvedValues[.minFee],
-                    companyDetails: details
-                )
+            if let resolvedValues {
                 let row = googleSheetsRowBuilder.makeRow(from: resolvedValues)
                 googleSheetsRow = row
                 googleSheetsRowBuilder.copyToPasteboard(row)

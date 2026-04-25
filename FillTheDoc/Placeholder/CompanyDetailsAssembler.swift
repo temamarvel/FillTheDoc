@@ -11,7 +11,7 @@ enum CompanyDetailsAssembler {
         var result: [PlaceholderKey: String] = [:]
         for key in CompanyDetails.CompanyDetailsKeys.allCases {
             if let value = company[key] {
-                result[PlaceholderKey(rawValue: key.rawValue)] = value
+                result[key.placeholderKey] = value
             }
         }
         return result

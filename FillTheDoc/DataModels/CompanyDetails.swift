@@ -7,6 +7,8 @@ import Foundation
 /// - форма редактирует значения, совместимые с этой структурой,
 /// - derived placeholders вычисляются уже из подтверждённого `CompanyDetails`.
 struct CompanyDetails: Decodable, LLMExtractable, Sendable {
+    typealias SchemaKeys = CompanyDetailsKeys
+    
     let companyName: String?
     let legalForm: LegalForm?
     let ceoFullName: String?
@@ -59,6 +61,22 @@ struct CompanyDetails: Decodable, LLMExtractable, Sendable {
         case email
         case address
         case phone
+        
+        nonisolated var placeholderKey: PlaceholderKey {
+            switch self {
+                case .companyName: return .companyName
+                case .legalForm: return .legalForm
+                case .ceoFullName: return .ceoFullName
+                case .ceoFullGenitiveName: return .ceoFullGenitiveName
+                case .ceoShortenName: return .ceoShortenName
+                case .ogrn: return .ogrn
+                case .inn: return .inn
+                case .kpp: return .kpp
+                case .email: return .email
+                case .address: return .address
+                case .phone: return .phone
+            }
+        }
     }
     
     init(from decoder: Decoder) throws {
@@ -86,12 +104,32 @@ struct CompanyDetails: Decodable, LLMExtractable, Sendable {
 extension CompanyDetails {
     /// Краткое полное имя, пригодное для договоров: например `ООО «Ромашка»`.
     nonisolated var fullCompanyName: String {
-        legalForm == .ip ? "\(legalForm?.shortName ?? "") \(companyName ?? "")" : "\(legalForm?.shortName ?? "") «\(companyName ?? "")»"
+        let name = companyName?.trimmed ?? ""
+        guard let legalForm else { return name }
+        
+        if legalForm == .ip {
+            return [legalForm.shortName, name]
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+        }
+        
+        guard !name.isEmpty else { return legalForm.shortName }
+        return "\(legalForm.shortName) «\(name)»"
     }
     
     /// Расширенное полное имя: например `Общество с ограниченной ответственностью «Ромашка»`.
     nonisolated var fullCompanyNameExpanded: String {
-        legalForm == .ip ? "\(legalForm?.fullName ?? "") \(companyName ?? "")" : "\(legalForm?.fullName ?? "") «\(companyName ?? "")»"
+        let name = companyName?.trimmed ?? ""
+        guard let legalForm else { return name }
+        
+        if legalForm == .ip {
+            return [legalForm.fullName, name]
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+        }
+        
+        guard !name.isEmpty else { return legalForm.fullName }
+        return "\(legalForm.fullName) «\(name)»"
     }
     
     nonisolated subscript(key: CompanyDetailsKeys) -> String? {

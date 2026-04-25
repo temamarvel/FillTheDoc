@@ -162,7 +162,7 @@ struct DocumentDataFormView: View {
 //}
 //
 //private struct PreviewWrapper: View {
-//    @State private var result: DocumentDetails? = nil
+//    @State private var isApplied = false
 //    @State private var requisites = CompanyDetails(
 //        companyName: "ООО «Ромашка»",
 //        legalForm: LegalForm.parse("OOO"),
@@ -182,8 +182,8 @@ struct DocumentDataFormView: View {
 //            companyDetails: requisites,
 //            metadata: CompanyDetails.fieldMetadata,
 //            keys: [.company(.companyName), .company(.legalForm), .company(.ceoFullName), .company(.ceoShortenName), .company(.ogrn), .company(.inn), .company(.kpp), .company(.email)]
-//        ) { updated in
-//            result = updated
+//        ) { _, _ in
+//            isApplied = true
 //        }
 //        .frame(width: 600, height: 700)
 //        .padding()

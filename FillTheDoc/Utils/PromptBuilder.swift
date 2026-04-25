@@ -17,6 +17,7 @@
 enum PromptBuilder {
     
     static func system<T: LLMExtractable>(for type: T.Type) -> String {
+        let schemaKeysLine = type.llmSchemaKeysLine
         
         let base = """
         You are a precision information extraction engine for Russian legal entity and sole proprietor requisites.
@@ -25,7 +26,7 @@ enum PromptBuilder {
         Hard rules:
         - Output must be a single JSON object.
         - No markdown, no comments, no explanations, no extra text.
-        - Use exactly these keys: "company_name", "legal_form", "ceo_full_name", ceo_full_genitive_name, "ceo_shorten_name", "ogrn", "inn", "kpp", "email", "address", "phone"
+        - Use exactly these keys: \(schemaKeysLine)
         - Do not add any extra keys.
         - Every value must be either a string or null.
         - If a value is missing, unknown, unreadable, ambiguous, or not explicitly present in the source text, return null.
