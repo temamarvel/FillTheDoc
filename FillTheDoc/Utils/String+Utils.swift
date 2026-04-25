@@ -25,7 +25,7 @@ nonisolated extension String {
     
     /// Заменяет символы переноса строки и табуляцию на пробел, затем обрезает.
     /// Используется при формировании строки для Google Sheets (TSV).
-    var sanitizedForTSV: String {
+    var sanitizedForCopiedString: String {
         replacingOccurrences(of: "\t", with: " ")
             .replacingOccurrences(of: "\r\n", with: " ")
             .replacingOccurrences(of: "\n", with: " ")

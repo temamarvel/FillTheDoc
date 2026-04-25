@@ -15,21 +15,21 @@ import AppKit
 /// а только сериализует уже подтверждённые данные в нужный порядок колонок.
 final class DocumentDataCopyStringBuilder {
     
-    func makeRow(from data: DocumentDetails, resolvedValues: [PlaceholderKey: String]) -> String {
+    func makeRow(from resolvedValues: [PlaceholderKey: String]) -> String {
         let values: [String] = [
-            data.companyDetails?.fullCompanyName.sanitizedForTSV ?? "",   // Наименование
-            data.companyDetails?.ceoFullName?.sanitizedForTSV ?? "",      // ФИО
-            data.companyDetails?.inn?.sanitizedForTSV ?? "",              // ИНН
-            data.companyDetails?.phone?.sanitizedForTSV ?? "",            // Телефон компании
-            data.companyDetails?.email?.sanitizedForTSV ?? "",            // E-mail Компании
-            data.documentNumber?.sanitizedForTSV ?? "",                        // Номер договора
-            (resolvedValues[.dateShort] ?? "").sanitizedForTSV,           // Дата договора
-            "",                                                           // Расч.счет
-            data.fee?.sanitizedForTSV ?? "",                              // %
-            data.minFee?.sanitizedForTSV ?? "",                           // Min
-            "",                                                           // Прямые выплаты
-            "",                                                           // МП. Карты
-            ""                                                            // МП. СБП
+            resolvedValues.sanitizedValue(for: .fullCompanyName),   // Наименование
+            resolvedValues.sanitizedValue(for: .ceoFullName),       // ФИО
+            resolvedValues.sanitizedValue(for: .inn),               // ИНН
+            resolvedValues.sanitizedValue(for: .phone),             // Телефон компании
+            resolvedValues.sanitizedValue(for: .email),             // E-mail Компании
+            resolvedValues.sanitizedValue(for: .documentNumber),    // Номер договора
+            resolvedValues.sanitizedValue(for: .dateShort),         // Дата договора
+            "",                                                     // Расч.счет
+            resolvedValues.sanitizedValue(for: .fee),               // %
+            resolvedValues.sanitizedValue(for: .minFee),            // Min
+            "",                                                     // Прямые выплаты
+            "",                                                     // МП. Карты
+            ""                                                      // МП. СБП
         ]
         
         return values.joined(separator: "\t")
@@ -39,5 +39,11 @@ final class DocumentDataCopyStringBuilder {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(row, forType: .string)
+    }
+}
+
+private extension Dictionary where Key == PlaceholderKey, Value == String {
+    func sanitizedValue(for key: PlaceholderKey) -> String {
+        (self[key] ?? "").sanitizedForCopiedString
     }
 }

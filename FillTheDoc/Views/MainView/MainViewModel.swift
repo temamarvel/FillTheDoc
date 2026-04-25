@@ -267,10 +267,7 @@ final class MainViewModel {
                     minFee: resolvedValues[.minFee],
                     companyDetails: details
                 )
-                let row = googleSheetsRowBuilder.makeRow(
-                    from: documentDetails,
-                    resolvedValues: resolvedValues
-                )
+                let row = googleSheetsRowBuilder.makeRow(from: resolvedValues)
                 googleSheetsRow = row
                 googleSheetsRowBuilder.copyToPasteboard(row)
             }
