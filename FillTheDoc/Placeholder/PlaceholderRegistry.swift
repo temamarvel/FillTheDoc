@@ -212,15 +212,15 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
         
         // MARK: Document — editable
         
-            .init(
-                key: "document_number",
-                title: "Номер документа",
-                description: "Номер договора или иного документа.",
-                placeholder: "yyyy-mm-#",
-                section: .document, kind: .editable,
-                exampleValue: "2024-01-001",
-                isRequired: false
-            ),
+        .init(
+            key: "document_number",
+            title: "Номер документа",
+            description: "Номер договора или иного документа.",
+            placeholder: "yyyy-mm-#",
+            section: .document, kind: .editable,
+            exampleValue: "2024-01-001",
+            isRequired: false
+        ),
         .init(
             key: "fee",
             title: "Комиссия, %",
@@ -242,14 +242,14 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
         
         // MARK: Computed — derived
         
-            .init(
-                key: "date_long",
-                title: "Дата (полная)",
-                description: "Текущая дата в формате «dd» MMMM yyyy г.",
-                section: .computed, kind: .derived,
-                exampleValue: "«22» апреля 2026 г.",
-                isRequired: false
-            ),
+        .init(
+            key: "date_long",
+            title: "Дата (полная)",
+            description: "Текущая дата в формате «dd» MMMM yyyy г.",
+            section: .computed, kind: .derived,
+            exampleValue: "«22» апреля 2026 г.",
+            isRequired: false
+        ),
         .init(
             key: "date_short",
             title: "Дата (краткая)",
