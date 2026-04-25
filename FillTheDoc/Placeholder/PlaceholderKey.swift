@@ -2,8 +2,16 @@ import Foundation
 
 /// Канонический идентификатор плейсхолдера в приложении.
 ///
-/// Важно, что `PlaceholderKey` описывает только identity (`company_name`, `date_short` и т.п.)
-/// и не знает ничего про UI, валидацию или способ вычисления значения.
+/// Это самый «тонкий» тип placeholder-domain: он описывает только identity
+/// (`company_name`, `date_short`, `fee` и т.п.) и принципиально не знает:
+/// - как поле показывается в UI;
+/// - обязательно ли оно;
+/// - как валидируется;
+/// - откуда берётся его значение.
+///
+/// Все эти знания живут отдельно, в `PlaceholderDescriptor` и `PlaceholderRegistry`.
+/// Такое разделение делает ключи универсальными: их можно использовать и в форме,
+/// и в библиотеке плейсхолдеров, и в словаре для DOCX fill.
 struct PlaceholderKey: Hashable, Codable, Sendable, RawRepresentable, ExpressibleByStringLiteral {
     let rawValue: String
     
@@ -18,6 +26,10 @@ struct PlaceholderKey: Hashable, Codable, Sendable, RawRepresentable, Expressibl
     /// Returns `true` for keys that are conditional-assembly control tokens
     /// (e.g. `switch_start:legal_form`, `case_end`, `default_start`),
     /// not regular replacement placeholders.
+    ///
+    /// Это важное различие для template engine:
+    /// control tokens управляют сборкой условных блоков и не должны вести себя
+    /// как обычные пользовательские поля вроде `inn` или `company_name`.
     nonisolated var isControlToken: Bool {
         // Control tokens either contain a colon (switch_start:key, case_start:value)
         // or match one of the fixed service keywords.
@@ -63,6 +75,8 @@ extension PlaceholderKey {
 }
 
 extension Dictionary where Key == PlaceholderKey, Value == String {
+    /// Мостик из type-safe placeholder-domain в string-keyed формат,
+    /// который ожидает нижележащий DOCX-template engine.
     var stringKeyed: [String: String] {
         self.reduce(into: [String: String]()) { result, entry in
             result[entry.key.rawValue] = entry.value

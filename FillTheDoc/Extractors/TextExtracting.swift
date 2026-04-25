@@ -12,6 +12,9 @@ import Foundation
 ///
 /// Контракт максимально простой: на вход даётся локальный URL временной копии файла,
 /// на выходе — `RawExtractionOutput` без knowledge о UI, sandbox и диагностике верхнего уровня.
+///
+/// Такой интерфейс позволяет легко добавлять новые стратегии extraction,
+/// не переписывая orchestration-сервис и не смешивая инфраструктурные детали разных форматов.
 protocol TextExtracting {
     func extract(from url: URL) throws -> RawExtractionOutput
 }

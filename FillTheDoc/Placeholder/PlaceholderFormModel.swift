@@ -8,11 +8,15 @@ struct PlaceholderFieldState: Sendable, Equatable {
 
 /// UI-модель формы редактирования плейсхолдеров.
 ///
-/// Модель не знает про SwiftUI-элементы, но знает:
+/// Это промежуточный слой между SwiftUI и placeholder-domain.
+/// Модель не знает про конкретные SwiftUI-элементы, но знает:
 /// - какие built-in placeholder'ы редактируемы,
 /// - как нормализовать ввод,
 /// - как валидировать поле,
 /// - как собрать актуальные значения для дальнейшего резолва.
+///
+/// Благодаря этому `DocumentDataFormView` остаётся в основном декларативным UI,
+/// а правила поведения формы не размазываются по binding'ам и callback'ам.
 @MainActor
 @Observable
 final class PlaceholderFormModel {
@@ -68,6 +72,7 @@ final class PlaceholderFormModel {
     func addCustomField(title: String, key: String, placeholder: String = "") {
         // Custom field пока хранится как локальное runtime-расширение формы.
         // Если позже появится persistent store, он должен поставлять такие descriptor'ы в registry/catalog.
+        // Пока это компромисс в пользу простоты: custom поля существуют в рамках текущей сессии редактирования.
         let placeholderKey = PlaceholderKey(rawValue: key)
         let descriptor = PlaceholderDescriptor(
             key: placeholderKey,
@@ -104,6 +109,8 @@ final class PlaceholderFormModel {
     // MARK: - External issues (e.g. from DaData reference validation)
     
     func applyExternalIssues(_ issues: [PlaceholderKey: FieldIssue]) {
+        // Внешняя reference-validation может добавлять предупреждения,
+        // но не должна безусловно перетирать локальные blocking-errors формы.
         for (key, issue) in issues {
             guard var state = fieldStates[key] else { continue }
             if state.issue == nil || state.issue?.severity == .warning {

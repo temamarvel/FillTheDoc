@@ -2,10 +2,21 @@ import Foundation
 
 /// Структурированная модель реквизитов компании/ИП.
 ///
-/// Это центральный DTO на границе между LLM-извлечением и подтверждением пользователем:
-/// - LLM возвращает JSON именно в эту структуру,
-/// - форма редактирует значения, совместимые с этой структурой,
-/// - derived placeholders вычисляются уже из подтверждённого `CompanyDetails`.
+/// Это центральный DTO проекта на границе между несколькими слоями сразу:
+/// - LLM возвращает JSON именно в эту структуру;
+/// - форма подтверждения редактирует значения, совместимые с этой структурой;
+/// - placeholder-domain вычисляет derived-поля уже из подтверждённого `CompanyDetails`.
+///
+/// Важно понимать жизненный цикл этой модели:
+/// 1. сначала она появляется как черновик после ответа модели;
+/// 2. затем пользователь может исправить поля через форму;
+/// 3. после подтверждения обновлённый `CompanyDetails` используется как источник истины
+///    для вычисляемых плейсхолдеров и финального export.
+///
+/// Поэтому тип должен быть одновременно:
+/// - удобным для JSON-декодирования;
+/// - понятным для формы;
+/// - достаточно стабильным как публичный внутренний контракт проекта.
 struct CompanyDetails: Decodable, LLMExtractable, Sendable {
     typealias SchemaKeys = CompanyDetailsKeys
     
@@ -49,7 +60,9 @@ struct CompanyDetails: Decodable, LLMExtractable, Sendable {
     
     enum CompanyDetailsKeys: String, CodingKey, CaseIterable {
         // Ключи совпадают с placeholder-key naming, чтобы снижать количество маппингов
-        // между LLM JSON, формой и шаблоном.
+        // между LLM JSON, формой, placeholder-domain и шаблоном.
+        // Это осознанный компромисс: naming становится более важной частью архитектуры,
+        // зато проект избегает нескольких хрупких слоёв преобразования одних и тех же полей.
         case companyName = "company_name"
         case legalForm = "legal_form"
         case ceoFullName = "ceo_full_name"
@@ -103,6 +116,9 @@ struct CompanyDetails: Decodable, LLMExtractable, Sendable {
 
 extension CompanyDetails {
     /// Краткое полное имя, пригодное для договоров: например `ООО «Ромашка»`.
+    ///
+    /// Это derived presentation-value: он не хранится в исходном DTO как отдельное поле,
+    /// а строится детерминированно из `legalForm` + `companyName`.
     nonisolated var fullCompanyName: String {
         let name = companyName?.trimmed ?? ""
         guard let legalForm else { return name }
@@ -118,6 +134,8 @@ extension CompanyDetails {
     }
     
     /// Расширенное полное имя: например `Общество с ограниченной ответственностью «Ромашка»`.
+    ///
+    /// Используется там, где шаблон требует юридически более развёрнутую форму наименования.
     nonisolated var fullCompanyNameExpanded: String {
         let name = companyName?.trimmed ?? ""
         guard let legalForm else { return name }
@@ -132,6 +150,10 @@ extension CompanyDetails {
         return "\(legalForm.fullName) «\(name)»"
     }
     
+    /// Удобный доступ по schema-key для мостика между DTO и placeholder-domain.
+    ///
+    /// Этот subscript нужен в основном `CompanyDetailsAssembler`, чтобы не размазывать
+    /// логику маппинга по коду и не дублировать список полей вручную в нескольких местах.
     nonisolated subscript(key: CompanyDetailsKeys) -> String? {
         switch key {
             case .companyName:

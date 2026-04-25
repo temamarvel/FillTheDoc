@@ -6,6 +6,7 @@ import Foundation
 ///
 /// `section` не определяет, КАК считается значение, а только помогает
 /// показывать плейсхолдеры пользователю и группировать форму/библиотеку.
+/// Это presentation-классификация, а не вычислительная.
 enum PlaceholderSection: String, Hashable, Sendable, CaseIterable {
     case company
     case document
@@ -52,6 +53,9 @@ enum PlaceholderKind: String, Hashable, Sendable {
 ///
 /// Важно: descriptor не содержит само значение. Значения получаются отдельно,
 /// через `PlaceholderResolutionContext` + `PlaceholderRegistry`.
+///
+/// Если `PlaceholderKey` — это identity поля, то `PlaceholderDescriptor` — его паспорт
+/// для UI, справочника плейсхолдеров и общей документации системы.
 struct PlaceholderDescriptor: Identifiable, Hashable, Sendable {
     var id: PlaceholderKey { key }
     
@@ -64,7 +68,7 @@ struct PlaceholderDescriptor: Identifiable, Hashable, Sendable {
     let exampleValue: String?
     let isRequired: Bool
     
-    /// The token string to insert in a template, e.g. <!company_name!>
+    /// Строка токена, которую пользователь вставляет в Word-шаблон, например `<!company_name!>`.
     var token: String { "<!\(key.rawValue)!>" }
     
     init(

@@ -12,6 +12,13 @@ import Foundation
 ///
 /// Такой подход хорошо подходит для macOS-only приложения: он переиспользует нативную
 /// конвертацию Apple для `doc/docx/xls/xlsx` и не требует тащить тяжёлые внешние зависимости.
+///
+/// Компромисс этого решения:
+/// - плюс: меньше зависимостей и меньше кода поддержки форматов;
+/// - минус: поведение привязано к macOS и к возможностям системной утилиты.
+///
+/// Сам extractor здесь intentionally тонкий: он только запускает утилиту и возвращает raw output.
+/// Sandbox access, temp files, диагностика и policy верхнего уровня живут в `DocumentTextExtractorService`.
 struct TextutilOfficeExtractor: TextExtracting {
     private let runner: ProcessRunning
     private let timeout: TimeInterval

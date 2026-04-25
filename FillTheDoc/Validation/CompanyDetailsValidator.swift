@@ -6,10 +6,15 @@ import DaDataAPIClient
 /// Это не основной источник истины и не жёсткий gate сценария.
 /// Сервис выдаёт в основном warning'и, чтобы помочь пользователю заметить
 /// расхождения между извлечёнными/введёнными данными и реестровыми данными.
+///
+/// Ключевая идея: reference validation помогает оператору принять решение,
+/// но не «чинит» данные автоматически. Финальное слово остаётся за человеком.
 public actor CompanyDetailsValidator {
     
     public struct Policy: Sendable {
+        /// Ниже порога считаем, что название слишком непохоже на реестровое.
         public var nameSimilarityThreshold: Double
+        /// Для адресов порог ниже, потому что форматирование адресов обычно менее стабильно.
         public var addressSimilarityThreshold: Double
         
         public init(
@@ -43,7 +48,8 @@ public actor CompanyDetailsValidator {
         
         guard let identifier = ogrn ?? inn else { return [:] }
         
-        // Fetch or use cache
+        // Кеш нужен, чтобы не выполнять одинаковый сетевой lookup много раз,
+        // пока пользователь редактирует другие поля той же компании.
         var companyInfo: DaDataCompanyInfo?
         do {
             if let cached = cache[identifier] {
@@ -56,7 +62,8 @@ public actor CompanyDetailsValidator {
                 }
             }
         } catch {
-            // network error — skip
+            // Network/reference layer здесь intentionally fail-soft:
+            // отсутствие сети не должно ломать редактирование формы.
         }
         
         guard let companyInfo else { return [:] }
@@ -73,6 +80,8 @@ public actor CompanyDetailsValidator {
     // MARK: - Cross validation with DaData
     
     private func crossValidate(key: PlaceholderKey, value: String, companyInfo: DaDataCompanyInfo) -> FieldIssue? {
+        // Здесь проверяются только те поля, для которых у нас есть meaningful external reference.
+        // Для остальных либо нет надёжного источника, либо такая сверка не даёт практической пользы.
         switch key {
             case .inn:
                 let apiINN = companyInfo.inn.map { $0.digitsOnly }

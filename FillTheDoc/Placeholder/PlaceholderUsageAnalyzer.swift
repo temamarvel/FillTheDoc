@@ -5,6 +5,9 @@ import Foundation
 /// Это read-model поверх результатов scanner'а: она помогает UI понять,
 /// какие placeholder'ы понятны приложению, какие будут заполнены автоматически,
 /// а какие требуют внимания пользователя.
+///
+/// Сам scanner знает только список найденных ключей. Этот report добавляет к нему смысл,
+/// используя знания из placeholder-registry.
 struct PlaceholderUsageReport: Sendable {
     /// Известные плейсхолдеры, которые приложение может заполнить
     let known: Set<PlaceholderKey>

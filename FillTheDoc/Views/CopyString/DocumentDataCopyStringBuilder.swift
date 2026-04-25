@@ -13,9 +13,14 @@ import AppKit
 ///
 /// Это отдельный presentation/export helper: он не влияет на placeholder-resolution,
 /// а только сериализует уже подтверждённые данные в нужный порядок колонок.
+///
+/// Порядок колонок здесь — часть внешнего бизнес-процесса, а не универсальная модель данных.
+/// Поэтому логика вынесена в отдельный helper, чтобы она не смешивалась с доменной моделью
+/// плейсхолдеров или логикой DOCX export.
 final class DocumentDataCopyStringBuilder {
     
     func makeRow(from resolvedValues: [PlaceholderKey: String]) -> String {
+        // Пустые колонки сохраняются намеренно: downstream-таблица ожидает фиксированную структуру.
         let values: [String] = [
             resolvedValues.sanitizedValue(for: .fullCompanyName),   // Наименование
             resolvedValues.sanitizedValue(for: .ceoFullName),       // ФИО
@@ -36,6 +41,8 @@ final class DocumentDataCopyStringBuilder {
     }
     
     func copyToPasteboard(_ row: String) {
+        // Копирование в буфер — сознательный UX shortcut для оператора,
+        // который переносит данные в стороннюю таблицу вручную.
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(row, forType: .string)

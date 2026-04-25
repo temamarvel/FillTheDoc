@@ -12,8 +12,13 @@ import SwiftUI
 /// UI-facing store для API-ключа OpenAI.
 ///
 /// Хранит минимум состояния, нужный интерфейсу:
-/// текущее значение ключа, необходимость показать prompt и текст ошибки.
-/// Низкоуровневое взаимодействие с Keychain делегируется `KeychainService`.
+/// - текущее значение ключа;
+/// - необходимость показать prompt;
+/// - текст ошибки для пользователя.
+///
+/// Важно: этот тип не хранит секрет «сам по себе» как полноценное secure storage.
+/// Он управляет UI-состоянием вокруг секрета, а низкоуровневое чтение/сохранение
+/// делегирует `KeychainService`.
 @MainActor
 @Observable
 final class APIKeyStore {
@@ -33,7 +38,8 @@ final class APIKeyStore {
     }
     
     func load() async {
-        
+        // Загрузка вызывается на старте экрана, чтобы сразу понять:
+        // можно ли выполнять OpenAI-сценарий или нужно запросить ключ у пользователя.
         do {
             let loaded = try await keychain.loadString(account: account)?
                 .trimmed
@@ -62,8 +68,8 @@ final class APIKeyStore {
             errorText = "Ключ не может быть пустым."
             return
         }
-        
-        
+        // После успешного сохранения этот store становится источником UI-state,
+        // но canonical место хранения секрета по-прежнему Keychain.
         do {
             try await keychain.saveString(trimmed, account: account)
             apiKey = trimmed
@@ -91,6 +97,7 @@ final class APIKeyStore {
     }
     
     /// Удобно для guard’ов в действиях.
+    /// Не проверяет валидность ключа на стороне OpenAI, только факт наличия непустого значения.
     var hasKey: Bool {
         let k = apiKey?.trimmed ?? ""
         return !k.isEmpty

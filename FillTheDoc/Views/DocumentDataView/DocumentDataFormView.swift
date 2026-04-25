@@ -9,11 +9,14 @@ import SwiftUI
 
 /// Экран ручного подтверждения и редактирования placeholder-данных.
 ///
-/// Это ключевая UX-граница проекта:
-/// - LLM предлагает черновик `CompanyDetails`,
-/// - пользователь проверяет и исправляет поля,
-/// - после нажатия «Применить» приложение строит финальный словарь значений
-///   для шаблона и помечает данные как подтверждённые.
+/// Это ключевая UX-граница проекта и самое важное место для понимания философии приложения:
+/// - LLM предлагает только черновик `CompanyDetails`;
+/// - пользователь остаётся финальным владельцем данных;
+/// - только после нажатия «Применить» значения считаются подтверждёнными
+///   и могут попасть в шаблон/экспорт.
+///
+/// Иначе говоря, здесь проект делает переход от "AI suggestion" к
+/// "approved business data".
 struct DocumentDataFormView: View {
     @State private var formModel: PlaceholderFormModel
     private let registry: PlaceholderRegistryProtocol
@@ -21,6 +24,8 @@ struct DocumentDataFormView: View {
     
     @State private var errorText = ""
     @State private var validationTask: Task<Void, Never>?
+    /// Последний ключ lookup'а нужен, чтобы не дёргать справочную сверку повторно
+    /// для тех же самых реквизитов без фактического изменения идентификатора компании.
     @State private var lastLookupKey: String?
     
     @FocusState private var focusedKey: PlaceholderKey?
@@ -68,6 +73,9 @@ struct DocumentDataFormView: View {
                 Button("Применить") {
                     let companyValues = formModel.editableValues(in: .company)
                     let company = CompanyDetailsAssembler.makeCompanyDetails(from: companyValues)
+                    // На этом шаге строим уже не только DTO компании, но и полный placeholder-map,
+                    // включая derived/system значения, чтобы дальнейший export pipeline
+                    // больше не зависел от промежуточного состояния формы.
                     let resolved = TemplatePlaceholderResolver.resolve(
                         formModel: formModel,
                         registry: registry
@@ -127,6 +135,7 @@ struct DocumentDataFormView: View {
     private func scheduleReferenceValidation() {
         // Справочная валидация не запускается на каждую клавишу:
         // она дебаунсится и работает только когда есть ИНН/ОГРН для lookup.
+        // Это снижает шум в UI и лишние сетевые запросы во время обычного ввода.
         let ogrn = formModel.value(for: .ogrn).trimmedNilIfEmpty
         let inn = formModel.value(for: .inn).trimmedNilIfEmpty
         let lookupKey = ogrn ?? inn
@@ -148,6 +157,8 @@ struct DocumentDataFormView: View {
     }
     
     private func runReferenceValidation() {
+        // Ручной запуск нужен как явное действие пользователя на случай,
+        // если авто-проверка не сработала или хочется повторно свериться после серии правок.
         validationTask?.cancel()
         validationTask = Task {
             let companyValues = formModel.editableValues(in: .company)

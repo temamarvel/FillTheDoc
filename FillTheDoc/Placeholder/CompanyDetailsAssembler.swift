@@ -2,11 +2,18 @@ import Foundation
 
 /// Двусторонний mapper между `CompanyDetails` и placeholder-словарями формы.
 ///
-/// Этот тип полезен как boundary helper: он не хранит состояние,
-/// а только инкапсулирует преобразования между DTO и placeholder-domain.
+/// Это boundary helper между двумя представлениями одних и тех же данных:
+/// - DTO-моделью, удобной для LLM и derived-логики;
+/// - словарём `[PlaceholderKey: String]`, удобным для формы и registry.
+///
+/// Тип не хранит состояние и не принимает решений — он только гарантирует,
+/// что переход между этими представлениями остаётся централизованным и симметричным.
 enum CompanyDetailsAssembler {
     
-    /// Извлекает начальные значения полей из CompanyDetails DTO → [PlaceholderKey: String].
+    /// Извлекает начальные значения полей из `CompanyDetails` в placeholder-словарь.
+    ///
+    /// Используется, когда LLM уже вернул DTO, а форма должна получить стартовые значения
+    /// для редактирования пользователем.
     nonisolated static func initialValues(from company: CompanyDetails) -> [PlaceholderKey: String] {
         var result: [PlaceholderKey: String] = [:]
         for key in CompanyDetails.CompanyDetailsKeys.allCases {
@@ -17,7 +24,10 @@ enum CompanyDetailsAssembler {
         return result
     }
     
-    /// Собирает CompanyDetails из словаря placeholder-значений.
+    /// Собирает `CompanyDetails` из словаря placeholder-значений.
+    ///
+    /// Обратное преобразование нужно в тот момент, когда пользователь уже подправил форму,
+    /// и приложению снова нужен структурированный DTO для derived-полей и export pipeline.
     nonisolated static func makeCompanyDetails(from values: [PlaceholderKey: String]) -> CompanyDetails {
         CompanyDetails(
             companyName: values[.companyName]?.trimmedNilIfEmpty,

@@ -3,13 +3,23 @@ import UniformTypeIdentifiers
 
 /// Главный экран приложения.
 ///
-/// Экран намеренно остаётся «тонким»: он не принимает бизнес-решения сам,
-/// а только связывает визуальные состояния с `MainViewModel`.
-/// Основной пользовательский сценарий здесь такой:
-/// 1. Пользователь перетаскивает шаблон DOCX и файл с реквизитами.
-/// 2. `MainViewModel` сканирует плейсхолдеры шаблона и извлекает данные из документа.
-/// 3. Пользователь подтверждает/редактирует значения в форме.
-/// 4. После подтверждения запускается заполнение шаблона и экспорт результата.
+/// Этот view — композиционный корневой контейнер, а не место для business logic.
+/// Его задача — собрать на одном экране все крупные этапы сценария:
+/// - загрузку шаблона и файла с реквизитами;
+/// - ручное подтверждение данных;
+/// - запуск финального fill/export;
+/// - показ служебных элементов вроде prompt'а для API key и бейджа обновлений.
+///
+/// Почему экран intentionally «тонкий»:
+/// - бизнес-решения и порядок шагов принадлежат `MainViewModel`;
+/// - специализированные view'шки ниже отвечают только за свои маленькие куски UI;
+/// - благодаря этому корневой экран остаётся читаемым и не размазывает архитектуру по layout-коду.
+///
+/// Базовый flow для чтения кода:
+/// 1. Drop зоны передают URL'ы в `MainViewModel`.
+/// 2. После LLM-извлечения появляется `DocumentDataFormView`.
+/// 3. После «Применить» форма отдаёт подтверждённые значения обратно в view model.
+/// 4. Кнопка `Заполнить шаблон` запускает export пайплайн.
 struct MainView: View {
     @State private var viewModel: MainViewModel
     @State private var showLibrary: Bool = false
@@ -48,10 +58,6 @@ struct MainView: View {
                     DocumentDataCopyStringPresenterView(content: googleSheetsRow)
                 } else {
                     if let details = viewModel.details {
-                        //                        let keys = viewModel.templatePlaceholders.compactMap {
-                        //                            CompanyDetails.CodingKeys(rawValue: $0)
-                        //                        }
-                        
                         DocumentDataFormView(
                             companyDetails: details,
                             registry: viewModel.placeholderRegistry

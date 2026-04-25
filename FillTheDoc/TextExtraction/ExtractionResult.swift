@@ -12,6 +12,11 @@ import Foundation
 ///
 /// Это уже не «сырой» ответ конкретного extractor'а, а формат,
 /// который безопасно отдавать выше в приложение: в LLM-слой, логи и UI.
+///
+/// Идея разделения такая:
+/// - низкий слой возвращает `RawExtractionOutput`;
+/// - `DocumentTextExtractorService` добавляет policy, нормализацию и диагностику;
+/// - выше по стеку все работают уже только с `ExtractionResult`.
 struct ExtractionResult: Sendable {
     enum Method: Sendable {
         case plainText
@@ -37,8 +42,11 @@ struct ExtractionResult: Sendable {
     }
 }
 
-/// Raw output from a single TextExtracting implementation.
-/// `DocumentTextExtractorService` wraps this into a full `ExtractionResult` with diagnostics.
+/// Raw output from a single `TextExtracting` implementation.
+///
+/// Здесь intentionally ещё нет полной диагностики верхнего уровня и нет policy-решений
+/// о том, что считать ошибкой, а что мягкой деградацией.
+/// Этим занимается `DocumentTextExtractorService`.
 struct RawExtractionOutput {
     let text: String
     let method: ExtractionResult.Method

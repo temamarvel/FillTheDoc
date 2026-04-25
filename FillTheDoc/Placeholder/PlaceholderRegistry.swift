@@ -4,10 +4,14 @@ import Foundation
 
 /// Единая точка доступа к placeholder-domain.
 ///
-/// Реестр объединяет три типа знаний о плейсхолдере:
-/// - метаданные (`PlaceholderDescriptor`),
-/// - нормализацию и валидацию вводимых значений,
-/// - резолв итогового значения для шаблона.
+/// Реестр объединяет три разных типа знаний о плейсхолдере:
+/// - метаданные (`PlaceholderDescriptor`) для UI и документации;
+/// - правила нормализации и валидации вводимых значений;
+/// - способ получить финальное значение для шаблона.
+///
+/// Иначе говоря, это главный «словарь системы» о placeholder'ах.
+/// Если вы хотите понять, какие ключи поддерживаются проектом и как они себя ведут,
+/// обычно начинать нужно именно отсюда.
 protocol PlaceholderRegistryProtocol: Sendable {
     var allDescriptors: [PlaceholderDescriptor] { get }
     func descriptor(for key: PlaceholderKey) -> PlaceholderDescriptor?
@@ -25,12 +29,15 @@ protocol PlaceholderRegistryProtocol: Sendable {
 ///
 /// Это основной «источник истины» для встроенных ключей приложения.
 /// Именно здесь собраны:
-/// - список известных плейсхолдеров,
-/// - правила нормализации и валидации полей формы,
+/// - список известных плейсхолдеров;
+/// - правила нормализации и валидации полей формы;
 /// - вычисление derived/system значений.
 ///
-/// За счёт этого UI, библиотека плейсхолдеров и DOCX-resolver
+/// За счёт этого UI, библиотека плейсхолдеров, validation и DOCX-resolver
 /// работают на одном и том же наборе определений.
+///
+/// Этот тип выглядит большим не случайно: он сознательно централизует знания,
+/// которые иначе начали бы расходиться по проекту маленькими копиями и special-case'ами.
 final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked Sendable {
     
     let allDescriptors: [PlaceholderDescriptor]
@@ -77,11 +84,11 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
     }
     
     func resolve(_ key: PlaceholderKey, context: PlaceholderResolutionContext) -> String? {
-        // Derived placeholders use resolvers
+        // Для derived/system ключей приоритет у явного resolver'а.
         if let resolver = resolvers[key] {
             return resolver(context)
         }
-        // Editable/custom placeholders use values from context
+        // Для editable/custom ключей источник истины — уже подготовленные значения из context.
         return context.editableValues[key] ?? context.customValues[key]
     }
     
@@ -107,6 +114,8 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
     // Ниже встроенный каталог плейсхолдеров приложения.
     // Он определяет пользовательский контракт системы: какие ключи приложение знает,
     // как их показывает и какие из них требуют ручного ввода.
+    // Добавление нового built-in placeholder обычно начинается именно с этой секции,
+    // а затем продолжается normalizer/validator/resolver правилами ниже по файлу.
     nonisolated private static let builtInDescriptors: [PlaceholderDescriptor] = [
         // MARK: Company — editable
         .init(
@@ -290,6 +299,7 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
     // MARK: - Built-in normalizers
     
     // Эти правила применяются в форме до валидации и до построения итогового context.
+    // Они intentionally держатся рядом с descriptor'ами, чтобы поведение поля читалось из одного файла.
     nonisolated private static let builtInNormalizers: [PlaceholderKey: @Sendable (String) -> String] = [
         .companyName: { $0.trimmed },
         .legalForm: { $0.trimmed.uppercased() },
@@ -331,7 +341,8 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
     // MARK: - Built-in resolvers (for derived placeholders)
     
     // Derived placeholders рассчитываются из уже подтверждённых данных пользователя.
-    // Благодаря этому docx fill, preview и отладка могут использовать один и тот же механизм.
+    // Благодаря этому docx fill, preview и отладка используют один и тот же механизм,
+    // а логика вычисляемых значений не прячется внутри view или export-кода.
     nonisolated private static func formatDateLong(_ date: Date, locale: Locale) -> String {
         let formatter = DateFormatter()
         formatter.locale = locale
@@ -382,6 +393,8 @@ extension PlaceholderRegistryProtocol {
     ///
     /// Кастомные реестры могут переопределить её, если им нужен более
     /// эффективный способ или особая логика для неизвестных custom-ключей.
+    /// В стандартном случае достаточно пройти по всем descriptor'ам и затем
+    /// добрать пользовательские значения, которых нет в built-in каталоге.
     func resolveAll(context: PlaceholderResolutionContext) -> [PlaceholderKey: String] {
         var result: [PlaceholderKey: String] = [:]
         

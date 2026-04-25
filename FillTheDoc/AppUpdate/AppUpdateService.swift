@@ -14,6 +14,8 @@ import Foundation
 ///
 /// Нужен потому, что сравнение строк вида `1.10` и `1.9`, а также prerelease-суффиксов,
 /// нельзя надёжно делать обычным lexical compare.
+/// Этот тип изолирует всю логику сравнения, чтобы network/UI-слой оперировал уже
+/// понятным правилом «есть обновление / нет обновления».
 struct AppVersion: Comparable, CustomStringConvertible {
     let components: [Int]
     let prerelease: Prerelease?
@@ -188,9 +190,12 @@ enum AppUpdateError: LocalizedError {
 /// Сервис проверки обновлений через GitHub Releases API.
 ///
 /// Это прикладной network-layer, который:
-/// - запрашивает последний release репозитория,
-/// - сравнивает его с локальной версией,
+/// - запрашивает последний release репозитория;
+/// - сравнивает его с локальной версией;
 /// - отдаёт UI уже готовую информацию для показа пользователю.
+///
+/// Сервис не хранит observable state и не знает, как именно UI покажет результат.
+/// Его задача — выполнить запрос и вернуть нормализованный `AppUpdateInfo`.
 actor AppUpdateService {
     private let owner: String
     private let repo: String
@@ -203,6 +208,8 @@ actor AppUpdateService {
     }
     
     func checkForUpdate() async throws -> AppUpdateInfo? {
+        // Локальная версия берётся из bundle, а не прокидывается снаружи,
+        // чтобы сервис оставался self-contained относительно runtime-приложения.
         let currentVersion = try currentAppVersion()
         
         let url = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/releases/latest")!
@@ -262,6 +269,7 @@ actor AppUpdateService {
     }
     
     private func preferredDownloadAsset(from assets: [GitHubReleaseDTO.Asset]) -> GitHubReleaseDTO.Asset? {
+        // Предпочитаем те форматы, которые обычно удобнее для desktop-дистрибуции на macOS.
         if let dmg = assets.first(where: { $0.name.localizedCaseInsensitiveContains(".dmg") }) {
             return dmg
         }

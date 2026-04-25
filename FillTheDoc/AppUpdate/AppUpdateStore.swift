@@ -13,6 +13,10 @@ import Observation
 ///
 /// Хранит только observable state для интерфейса, а networking и сравнение версий
 /// делегирует `AppUpdateService`.
+///
+/// Это стандартный для проекта split ответственности:
+/// - service выполняет побочную работу и возвращает данные;
+/// - store хранит состояние, удобное для SwiftUI.
 @MainActor
 @Observable
 final class AppUpdateStore {
@@ -40,6 +44,8 @@ final class AppUpdateStore {
     }
     
     func checkForUpdates() async {
+        // Ошибка проверки обновлений не должна ломать основной сценарий приложения,
+        // поэтому store просто сохраняет её в `errorText` и обнуляет `updateInfo`.
         isChecking = true
         defer { isChecking = false }
         

@@ -23,6 +23,9 @@ enum KeychainError: Error, LocalizedError {
 ///
 /// Это infrastructure-слой без знания о UI и без привязки к конкретному типу секрета.
 /// `APIKeyStore` строит поверх него уже прикладочное поведение для ключа OpenAI.
+///
+/// Сервис intentionally generic: сегодня он используется для OpenAI API key,
+/// но сам по себе не знает ничего о конкретном секрете и может переиспользоваться шире.
 actor KeychainService {
     private let service: String
     
@@ -39,7 +42,7 @@ actor KeychainService {
             kSecAttrAccount as String: account
         ]
         
-        // Попробуем update (если item уже есть)
+        // Сначала пробуем update, чтобы не плодить дубликаты для одного account.
         let attributesToUpdate: [String: Any] = [
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
@@ -55,7 +58,7 @@ actor KeychainService {
             throw KeychainError.unexpectedStatus(updateStatus)
         }
         
-        // Если не найден — добавим
+        // Если item ещё не существует — добавляем новый.
         var addQuery = baseQuery
         addQuery[kSecValueData as String] = data
         addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
@@ -65,6 +68,7 @@ actor KeychainService {
     }
     
     func loadString(account: String) throws -> String? {
+        // Возвращаем `nil`, если секрета нет вовсе; это нормальный сценарий для первого запуска.
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -84,6 +88,7 @@ actor KeychainService {
     }
     
     func delete(account: String) throws {
+        // Удаление отсутствующего item не считается ошибкой прикладного уровня.
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,

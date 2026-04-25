@@ -5,17 +5,32 @@ import DocxUtils
 
 /// Главный orchestration-объект приложения.
 ///
-/// `MainViewModel` связывает между собой почти все прикладные слои:
-/// - UI (`MainView`, форма редактирования, экспорт),
-/// - извлечение текста из входного файла,
-/// - LLM-экстракцию `CompanyDetails`,
-/// - домен плейсхолдеров,
-/// - заполнение DOCX-шаблона,
-/// - побочные действия вроде копирования строки для Google Sheets.
+/// Это центральный координатор пользовательского сценария и главный файл,
+/// который стоит читать после `MainView`, если нужно быстро понять архитектуру.
 ///
-/// Важно: view model сознательно не хранит низкоуровневую логику
-/// извлечения/валидации/резолва. Эта логика вынесена в специализированные
-/// сервисы, а здесь остаётся только координация сценария и UI-state.
+/// `MainViewModel` связывает между собой почти все прикладные слои:
+/// - UI (`MainView`, форма редактирования, системный экспортёр);
+/// - extraction pipeline для входного документа с реквизитами;
+/// - вызов LLM и декодирование ответа в `CompanyDetails`;
+/// - placeholder-domain и построение итогового словаря значений;
+/// - заполнение DOCX-шаблона;
+/// - побочные действия вроде формирования строки для Google Sheets.
+///
+/// Ключевая идея: здесь находится логика порядка шагов, но не логика самих шагов.
+/// View model знает:
+/// - когда запускать extraction;
+/// - когда сбрасывать подтверждённые данные;
+/// - когда разрешать export;
+/// - какие зависимости позвать для очередного этапа.
+///
+/// Но она намеренно не знает деталей:
+/// - как конкретно извлекается текст из PDF/DOCX;
+/// - как устроен prompt к модели;
+/// - как валидируются отдельные поля;
+/// - как именно заменяются XML-токены внутри DOCX.
+///
+/// Такой split повышает читаемость и позволяет понимать проект «по слоям»,
+/// не погружаясь в низкоуровневые детали раньше времени.
 @MainActor
 @Observable
 final class MainViewModel {
@@ -39,7 +54,10 @@ final class MainViewModel {
     // MARK: - State (data)
     
     private(set) var details: CompanyDetails?
-    /// Resolved placeholder dictionary ready for template substitution
+    /// Итоговый словарь значений, который уже можно отдавать в DOCX-fill.
+    ///
+    /// Важно: он появляется только после пользовательского подтверждения формы,
+    /// а не сразу после ответа модели.
     var resolvedValues: [PlaceholderKey: String]?
     private(set) var templatePlaceholders: [String] = []
     private(set) var googleSheetsRow: String?
@@ -138,6 +156,8 @@ final class MainViewModel {
     // MARK: - Actions
     
     func handleTemplateDrop(_ urls: [URL]) {
+        // Смена шаблона не инвалидирует сам LLM draft, но инвалидирует утверждение данных,
+        // потому что новый шаблон может требовать другой набор placeholder'ов.
         isDataApproved = false
         if let url = urls.first { templatePath = url.path }
         scanPlaceholders()
@@ -155,8 +175,9 @@ final class MainViewModel {
     }
     
     func applyFormData(resolvedValues: [PlaceholderKey: String], company: CompanyDetails) {
-        // На этом этапе данные считаются подтверждёнными пользователем,
-        // поэтому именно они становятся источником истины для последующего fill.
+        // Это ключевая смысловая граница проекта:
+        // до этой точки `details` — черновик после LLM,
+        // после этой точки `details` и `resolvedValues` — подтверждённый оператором источник истины.
         details = company
         self.resolvedValues = resolvedValues
         isDataApproved = true
@@ -212,11 +233,14 @@ final class MainViewModel {
             
             do {
                 // Первый этап: приводим произвольный входной файл
-                // к обычному тексту, пригодному для prompt'а.
+                // к plain text, пригодному для prompt'а.
+                // View model не знает, как именно это делается для каждого формата,
+                // и получает уже нормализованный `ExtractionResult`.
                 let extractedDetails = try await extractorService.extract(from: detailsURL)
                 try Task.checkCancellation()
                 
                 // Второй этап: LLM строит структурированный `CompanyDetails`.
+                // Это всё ещё draft, а не окончательные данные для шаблона.
                 let companyDetails = try await self.callOpenAI(extractedDetails: extractedDetails)
                 try Task.checkCancellation()
                 
@@ -244,8 +268,12 @@ final class MainViewModel {
             
             let tempOutURL = makeTempOutputURL(from: templateURL)
             
-            // Сначала собираем/раскрываем условные блоки, затем подставляем значения.
-            // Это позволяет template engine корректно обработать служебные control tokens.
+            // Важно соблюдать порядок этапов:
+            // 1) сначала раскрываем условные блоки (`switch/case/...` control tokens),
+            // 2) затем делаем обычную подстановку placeholder'ов.
+            //
+            // Если поменять местами эти шаги, шаблонный движок может попытаться трактовать
+            // управляющие токены как обычный текст и часть условий перестанет работать.
             try conditionalAssembler.assemble(
                 templateURL: templateURL,
                 outputURL: tempOutURL,
@@ -263,6 +291,9 @@ final class MainViewModel {
             showExporter = true
             
             if let resolvedValues {
+                // Google Sheets row — побочный продукт утверждённых данных.
+                // Он сознательно строится здесь, после успешной подготовки итогового документа,
+                // чтобы пользователь не получил строку из неподтверждённого черновика.
                 let row = googleSheetsRowBuilder.makeRow(from: resolvedValues)
                 googleSheetsRow = row
                 googleSheetsRowBuilder.copyToPasteboard(row)
@@ -279,8 +310,9 @@ final class MainViewModel {
     // MARK: - Private
     
     private func callOpenAI(extractedDetails: ExtractionResult) async throws -> CompanyDetails {
-        // View model знает, КОГДА вызвать модель, но правила prompt'а и JSON-схему
-        // инкапсулирует `PromptBuilder` + `CompanyDetails`.
+        // View model знает, КОГДА вызвать модель, но детали контракта с ней хранит
+        // не здесь, а в `PromptBuilder` + `CompanyDetails`/`LLMExtractable`.
+        // Это позволяет менять prompt/схему независимо от orchestration-слоя.
         let openAIClient = OpenAIClient(apiKey: apiKeyStore.apiKey ?? "", model: "gpt-4o-mini")
         let system = PromptBuilder.system(for: CompanyDetails.self)
         let user = PromptBuilder.user(sourceText: extractedDetails.text)
