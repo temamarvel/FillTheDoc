@@ -16,6 +16,7 @@ protocol PlaceholderRegistryProtocol: Sendable {
     func normalizer(for key: PlaceholderKey) -> (@Sendable (String) -> String)
     func validator(for key: PlaceholderKey) -> (@Sendable (String) -> FieldIssue?)
     func resolve(_ key: PlaceholderKey, context: PlaceholderResolutionContext) -> String?
+    func resolveAll(context: PlaceholderResolutionContext) -> [String: String]
 }
 
 // MARK: - Default implementation
@@ -399,4 +400,24 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
 extension PlaceholderRegistryProtocol {
     /// Legacy accessor for views that used `allPlaceholders`
     var allPlaceholders: [PlaceholderDescriptor] { allDescriptors }
+    
+    /// Базовая реализация сборки полного словаря значений.
+    ///
+    /// Кастомные реестры могут переопределить её, если им нужен более
+    /// эффективный способ или особая логика для неизвестных custom-ключей.
+    func resolveAll(context: PlaceholderResolutionContext) -> [String: String] {
+        var result: [String: String] = [:]
+        
+        for descriptor in allDescriptors {
+            if let value = resolve(descriptor.key, context: context) {
+                result[descriptor.key.rawValue] = value
+            }
+        }
+        
+        for (key, value) in context.customValues where result[key.rawValue] == nil {
+            result[key.rawValue] = value
+        }
+        
+        return result
+    }
 }

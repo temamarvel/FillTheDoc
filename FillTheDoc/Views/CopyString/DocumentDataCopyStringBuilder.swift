@@ -15,7 +15,7 @@ import AppKit
 /// а только сериализует уже подтверждённые данные в нужный порядок колонок.
 final class DocumentDataCopyStringBuilder {
     
-    func makeRow(from data: DocumentDetails) -> String {
+    func makeRow(from data: DocumentDetails, resolvedValues: [String: String]) -> String {
         let values: [String] = [
             data.companyDetails?.fullCompanyName.sanitizedForTSV ?? "",   // Наименование
             data.companyDetails?.ceoFullName?.sanitizedForTSV ?? "",      // ФИО
@@ -23,7 +23,7 @@ final class DocumentDataCopyStringBuilder {
             data.companyDetails?.phone?.sanitizedForTSV ?? "",            // Телефон компании
             data.companyDetails?.email?.sanitizedForTSV ?? "",            // E-mail Компании
             data.documentNumber?.sanitizedForTSV ?? "",                        // Номер договора
-            data.dateShort.sanitizedForTSV,                               // Дата договора
+            (resolvedValues["date_short"] ?? "").sanitizedForTSV,        // Дата договора
             "",                                                           // Расч.счет
             data.fee?.sanitizedForTSV ?? "",                              // %
             data.minFee?.sanitizedForTSV ?? "",                           // Min

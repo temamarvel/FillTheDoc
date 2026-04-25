@@ -20,20 +20,6 @@ enum TemplatePlaceholderResolver {
             now: now
         )
         
-        if let defaultRegistry = registry as? DefaultPlaceholderRegistry {
-            return defaultRegistry.resolveAll(context: context)
-        }
-        
-        // Fallback: resolve through protocol
-        var result: [String: String] = [:]
-        for descriptor in registry.allDescriptors {
-            if let value = registry.resolve(descriptor.key, context: context) {
-                result[descriptor.key.rawValue] = value
-            }
-        }
-        for (key, value) in customValues where result[key.rawValue] == nil {
-            result[key.rawValue] = value
-        }
-        return result
+        return registry.resolveAll(context: context)
     }
 }

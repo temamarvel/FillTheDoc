@@ -120,45 +120,6 @@ extension CompanyDetails {
                 return phone
         }
     }
-    
-    func value(for key: CompanyDetailsKeys, expandedLegalForm: Bool) -> String? {
-        switch key {
-            case .companyName:
-                return companyName
-            case .legalForm:
-                return expandedLegalForm ? legalForm?.fullName : legalForm?.shortName
-            case .ceoFullName:
-                return ceoFullName
-            case .ceoFullGenitiveName:
-                return ceoFullGenitiveName
-            case .ceoShortenName:
-                return ceoShortenName
-            case .ogrn:
-                return ogrn
-            case .inn:
-                return inn
-            case .kpp:
-                return kpp
-            case .email:
-                return email
-            case .address:
-                return address
-            case .phone:
-                return phone
-        }
-    }
-    
-    func asDictionary(expandedLegalForm: Bool = false) -> [String: String] {
-        // Исторический helper, полезный там, где нужен плоский словарь,
-        // но не заменяющий placeholder-domain целиком.
-        var result: [String: String] = [:]
-        
-        for key in CompanyDetailsKeys.allCases {
-            result[key.rawValue] = value(for: key, expandedLegalForm: expandedLegalForm) ?? ""
-        }
-        
-        return result
-    }
 }
 
 
