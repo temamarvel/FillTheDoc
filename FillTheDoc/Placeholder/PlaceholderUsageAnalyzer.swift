@@ -37,11 +37,10 @@ enum PlaceholderUsageAnalyzer {
                 continue
             }
             known.insert(key)
-            switch descriptor.kind {
-                case .derived:
-                    autoFillable.insert(key)
-                case .editable, .custom:
-                    requiresInput.insert(key)
+            if descriptor.isDerived {
+                autoFillable.insert(key)
+            } else if descriptor.acceptsUserInput {
+                requiresInput.insert(key)
             }
         }
         

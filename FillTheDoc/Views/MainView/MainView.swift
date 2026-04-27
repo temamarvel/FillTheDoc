@@ -118,6 +118,9 @@ struct MainView: View {
         .task {
             await viewModel.apiKeyStore.load()
         }
+        .task {
+            await viewModel.loadCustomPlaceholders()
+        }
         .padding(20)
         .fileExporter(
             isPresented: $viewModel.showExporter,
@@ -141,8 +144,18 @@ struct MainView: View {
         .sheet(isPresented: $showLibrary) {
             PlaceholderLibraryView(
                 placeholders: viewModel.availablePlaceholders,
+                customDefinitions: viewModel.customPlaceholderDefinitions,
                 usedKeys: viewModel.templatePlaceholderKeys,
-                unknownKeys: viewModel.unknownTemplatePlaceholderKeys
+                unknownKeys: viewModel.unknownTemplatePlaceholderKeys,
+                onCreateCustom: { definition in
+                    try await viewModel.addCustomPlaceholder(definition)
+                },
+                onUpdateCustom: { definition in
+                    try await viewModel.updateCustomPlaceholder(definition)
+                },
+                onDeleteCustom: { key in
+                    try await viewModel.deleteCustomPlaceholder(key: key)
+                }
             )
         }
         .overlay {

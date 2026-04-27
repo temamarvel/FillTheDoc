@@ -4,63 +4,75 @@ import Foundation
 
 /// Единая точка доступа к placeholder-domain.
 ///
-/// Реестр объединяет три разных типа знаний о плейсхолдере:
-/// - метаданные (`PlaceholderDescriptor`) для UI и документации;
-/// - правила нормализации и валидации вводимых значений;
-/// - способ получить финальное значение для шаблона.
+/// Реестр хранит одновременно два вида знаний:
+/// - каталог всех известных placeholder'ов для UI/scanner/documentation;
+/// - правила получения итоговых строк для шаблона.
 ///
-/// Иначе говоря, это главный «словарь системы» о placeholder'ах.
-/// Если вы хотите понять, какие ключи поддерживаются проектом и как они себя ведут,
-/// обычно начинать нужно именно отсюда.
+/// Важный архитектурный сдвиг этой версии: input-поля теперь описываются не как
+/// «просто строка с placeholder'ом», а как полноценные runtime-definition'ы
+/// с `valueSource` и `inputKind`. Это позволяет безопасно добавлять choice-поля,
+/// не ломая ни LLM-схему, ни DOCX fill.
 protocol PlaceholderRegistryProtocol: Sendable {
     var allDescriptors: [PlaceholderDescriptor] { get }
+    var inputDescriptors: [PlaceholderDescriptor] { get }
+    var extractedDescriptors: [PlaceholderDescriptor] { get }
+    var manualDescriptors: [PlaceholderDescriptor] { get }
+    var customDescriptors: [PlaceholderDescriptor] { get }
+    var llmSchemaKeys: [PlaceholderKey] { get }
+    
     func descriptor(for key: PlaceholderKey) -> PlaceholderDescriptor?
     func contains(_ key: PlaceholderKey) -> Bool
     func descriptors(in section: PlaceholderSection) -> [PlaceholderDescriptor]
-    func normalizer(for key: PlaceholderKey) -> (@Sendable (String) -> String)
-    func validator(for key: PlaceholderKey) -> (@Sendable (String) -> FieldIssue?)
+    func normalizer(for key: PlaceholderKey) -> FieldNormalizer
+    func validator(for key: PlaceholderKey) -> FieldValidator
     func resolve(_ key: PlaceholderKey, context: PlaceholderResolutionContext) -> String?
     func resolveAll(context: PlaceholderResolutionContext) -> [PlaceholderKey: String]
 }
 
 // MARK: - Default implementation
 
-/// Стандартная built-in реализация реестра плейсхолдеров.
-///
-/// Это основной «источник истины» для встроенных ключей приложения.
-/// Именно здесь собраны:
-/// - список известных плейсхолдеров;
-/// - правила нормализации и валидации полей формы;
-/// - вычисление derived/system значений.
-///
-/// За счёт этого UI, библиотека плейсхолдеров, validation и DOCX-resolver
-/// работают на одном и том же наборе определений.
-///
-/// Этот тип выглядит большим не случайно: он сознательно централизует знания,
-/// которые иначе начали бы расходиться по проекту маленькими копиями и special-case'ами.
 final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked Sendable {
-    
     let allDescriptors: [PlaceholderDescriptor]
     
     private let index: [PlaceholderKey: PlaceholderDescriptor]
-    private let normalizers: [PlaceholderKey: @Sendable (String) -> String]
-    private let validators: [PlaceholderKey: @Sendable (String) -> FieldIssue?]
     private let resolvers: [PlaceholderKey: @Sendable (PlaceholderResolutionContext) -> String?]
     
-    nonisolated init(
-        customDescriptors: [PlaceholderDescriptor] = [],
-        customNormalizers: [PlaceholderKey: @Sendable (String) -> String] = [:],
-        customValidators: [PlaceholderKey: @Sendable (String) -> FieldIssue?] = [:],
-        customResolvers: [PlaceholderKey: @Sendable (PlaceholderResolutionContext) -> String?] = [:]
-    ) {
-        // Custom placeholders проектируются как расширение built-in каталога,
-        // а не как отдельная параллельная система.
-        let all = Self.builtInDescriptors + customDescriptors
+    var inputDescriptors: [PlaceholderDescriptor] {
+        allDescriptors
+            .filter(\.acceptsUserInput)
+            .sorted(by: Self.sortDescriptors)
+    }
+    
+    var extractedDescriptors: [PlaceholderDescriptor] {
+        inputDescriptors.filter { $0.valueSource == .extracted }
+    }
+    
+    var manualDescriptors: [PlaceholderDescriptor] {
+        inputDescriptors.filter { $0.valueSource == .manual }
+    }
+    
+    var customDescriptors: [PlaceholderDescriptor] {
+        inputDescriptors.filter(\.isUserDefined)
+    }
+    
+    var llmSchemaKeys: [PlaceholderKey] {
+        extractedDescriptors.map(\.key)
+    }
+    
+    nonisolated init(customDefinitions: [CustomPlaceholderDefinition] = []) {
+        let runtimeCustomDescriptors = customDefinitions
+            .filter(\.isEnabled)
+            .map { $0.makeRuntimeDefinition() }
+            .filter { customDescriptor in
+                !Self.builtInDescriptorIndex.keys.contains(customDescriptor.key)
+            }
+        
+        let all = (Self.builtInDescriptors + runtimeCustomDescriptors)
+            .sorted(by: Self.sortDescriptors)
+        
         self.allDescriptors = all
         self.index = Dictionary(uniqueKeysWithValues: all.map { ($0.key, $0) })
-        self.normalizers = Self.builtInNormalizers.merging(customNormalizers) { _, new in new }
-        self.validators = Self.builtInValidators.merging(customValidators) { _, new in new }
-        self.resolvers = Self.builtInResolvers.merging(customResolvers) { _, new in new }
+        self.resolvers = Self.builtInResolvers
     }
     
     func descriptor(for key: PlaceholderKey) -> PlaceholderDescriptor? {
@@ -72,185 +84,270 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
     }
     
     func descriptors(in section: PlaceholderSection) -> [PlaceholderDescriptor] {
-        allDescriptors.filter { $0.section == section }
+        allDescriptors
+            .filter { $0.section == section }
+            .sorted(by: Self.sortDescriptors)
     }
     
-    func normalizer(for key: PlaceholderKey) -> (@Sendable (String) -> String) {
-        normalizers[key] ?? { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+    func normalizer(for key: PlaceholderKey) -> FieldNormalizer {
+        descriptor(for: key)?.normalizer ?? Self.defaultNormalizer
     }
     
-    func validator(for key: PlaceholderKey) -> (@Sendable (String) -> FieldIssue?) {
-        validators[key] ?? { _ in nil }
+    func validator(for key: PlaceholderKey) -> FieldValidator {
+        descriptor(for: key)?.validator ?? Self.defaultValidator
     }
     
     func resolve(_ key: PlaceholderKey, context: PlaceholderResolutionContext) -> String? {
-        // Для derived/system ключей приоритет у явного resolver'а.
         if let resolver = resolvers[key] {
             return resolver(context)
         }
-        // Для editable/custom ключей источник истины — уже подготовленные значения из context.
         return context.editableValues[key] ?? context.customValues[key]
     }
     
-    // MARK: - Convenience: resolve all
-    
     func resolveAll(context: PlaceholderResolutionContext) -> [PlaceholderKey: String] {
-        // Возвращаем словарь, непосредственно пригодный для шаблонизатора DOCX.
         var result: [PlaceholderKey: String] = [:]
+        
         for descriptor in allDescriptors {
             if let value = resolve(descriptor.key, context: context) {
                 result[descriptor.key] = value
             }
         }
-        // Also include custom values not in registry
+        
         for (key, value) in context.customValues where result[key] == nil {
             result[key] = value
         }
+        
         return result
     }
+}
+
+// MARK: - Built-ins
+
+private extension DefaultPlaceholderRegistry {
+    nonisolated static let defaultNormalizer: FieldNormalizer = { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+    nonisolated static let defaultValidator: FieldValidator = { _ in nil }
     
-    // MARK: - Built-in descriptors
+    nonisolated static func sortDescriptors(_ lhs: PlaceholderDescriptor, _ rhs: PlaceholderDescriptor) -> Bool {
+        if lhs.section == rhs.section {
+            if lhs.order == rhs.order {
+                return lhs.key.rawValue < rhs.key.rawValue
+            }
+            return lhs.order < rhs.order
+        }
+        return lhs.section.rawValue < rhs.section.rawValue
+    }
     
-    // Ниже встроенный каталог плейсхолдеров приложения.
-    // Он определяет пользовательский контракт системы: какие ключи приложение знает,
-    // как их показывает и какие из них требуют ручного ввода.
-    // Добавление нового built-in placeholder обычно начинается именно с этой секции,
-    // а затем продолжается normalizer/validator/resolver правилами ниже по файлу.
-    nonisolated private static let builtInDescriptors: [PlaceholderDescriptor] = [
-        // MARK: Company — editable
+    nonisolated static let builtInDescriptors: [PlaceholderDescriptor] = [
         .init(
             key: .companyName,
             title: "Название компании",
             description: "Краткое наименование организации без указания правовой формы.",
-            placeholder: "ООО «Ромашка»",
-            section: .company, kind: .editable,
+            section: .company,
+            order: 10,
+            valueSource: .extracted,
+            inputKind: .text(.init(placeholder: "ООО «Ромашка»", isRequired: true)),
             exampleValue: "Ромашка",
-            isRequired: true
+            isRequired: true,
+            normalizer: { $0.trimmed },
+            validator: Validators.nonEmpty
         ),
         .init(
             key: .legalForm,
             title: "Правовая форма",
             description: "Аббревиатура правовой формы: ООО, АО, ИП и т.д.",
-            placeholder: "ООО / АО / ИП",
-            section: .company, kind: .editable,
+            section: .company,
+            order: 20,
+            valueSource: .extracted,
+            inputKind: .text(.init(placeholder: "ООО / АО / ИП", isRequired: true)),
             exampleValue: "ООО",
-            isRequired: true
+            isRequired: true,
+            normalizer: { $0.trimmed.uppercased() },
+            validator: Validators.legalFormField
         ),
         .init(
             key: .ceoFullName,
             title: "Руководитель (полное имя)",
             description: "Фамилия Имя Отчество руководителя в именительном падеже.",
-            placeholder: "Иванов Иван Иванович",
-            section: .company, kind: .editable,
+            section: .company,
+            order: 30,
+            valueSource: .extracted,
+            inputKind: .text(.init(placeholder: "Иванов Иван Иванович", isRequired: true)),
             exampleValue: "Иванов Иван Иванович",
-            isRequired: true
+            isRequired: true,
+            normalizer: { $0.trimmed },
+            validator: Validators.fullName
         ),
         .init(
             key: .ceoFullGenitiveName,
             title: "Руководитель (родительный падеж)",
             description: "Фамилия Имя Отчество руководителя в родительном падеже.",
-            placeholder: "Иванова Ивана Ивановича",
-            section: .company, kind: .editable,
+            section: .company,
+            order: 40,
+            valueSource: .extracted,
+            inputKind: .text(.init(placeholder: "Иванова Ивана Ивановича", isRequired: true)),
             exampleValue: "Иванова Ивана Ивановича",
-            isRequired: true
+            isRequired: true,
+            normalizer: { $0.trimmed },
+            validator: Validators.fullName
         ),
         .init(
             key: .ceoShortenName,
             title: "Руководитель (кратко)",
             description: "Фамилия с инициалами руководителя.",
-            placeholder: "Иванов И.И.",
-            section: .company, kind: .editable,
+            section: .company,
+            order: 50,
+            valueSource: .extracted,
+            inputKind: .text(.init(placeholder: "Иванов И.И.", isRequired: true)),
             exampleValue: "Иванов И.И.",
-            isRequired: true
+            isRequired: true,
+            normalizer: { $0.trimmed },
+            validator: Validators.shortenName
         ),
         .init(
             key: .ogrn,
             title: "ОГРН / ОГРНИП",
             description: "Основной государственный регистрационный номер. 13 цифр для юрлиц, 15 для ИП.",
-            placeholder: "13/15 цифр",
-            section: .company, kind: .editable,
+            section: .company,
+            order: 60,
+            valueSource: .extracted,
+            inputKind: .text(.init(placeholder: "13/15 цифр", isRequired: true)),
             exampleValue: "1187746707280",
-            isRequired: true
+            isRequired: true,
+            normalizer: Normalizers.trimmedDigitsOnly,
+            validator: Validators.ogrn
         ),
         .init(
             key: .inn,
             title: "ИНН",
             description: "Идентификационный номер налогоплательщика. 10 цифр для юрлиц, 12 для ИП.",
-            placeholder: "10/12 цифр",
-            section: .company, kind: .editable,
+            section: .company,
+            order: 70,
+            valueSource: .extracted,
+            inputKind: .text(.init(placeholder: "10/12 цифр", isRequired: true)),
             exampleValue: "9731007287",
-            isRequired: true
+            isRequired: true,
+            normalizer: Normalizers.trimmedDigitsOnly,
+            validator: Validators.inn
         ),
         .init(
             key: .kpp,
             title: "КПП",
             description: "Код причины постановки на учёт. 9 цифр. Только для юрлиц.",
-            placeholder: "9 цифр",
-            section: .company, kind: .editable,
+            section: .company,
+            order: 80,
+            valueSource: .extracted,
+            inputKind: .text(.init(placeholder: "9 цифр", isRequired: false)),
             exampleValue: "773101001",
-            isRequired: false
+            isRequired: false,
+            normalizer: Normalizers.trimmedDigitsOnly,
+            validator: Validators.kpp
         ),
         .init(
             key: .email,
             title: "Email",
             description: "Электронная почта организации.",
-            placeholder: "example@domain.com",
-            section: .company, kind: .editable,
+            section: .company,
+            order: 90,
+            valueSource: .extracted,
+            inputKind: .text(.init(placeholder: "example@domain.com", isRequired: false)),
             exampleValue: "info@romashka.ru",
-            isRequired: false
+            isRequired: false,
+            normalizer: { $0.trimmed },
+            validator: Validators.email
         ),
         .init(
             key: .address,
             title: "Адрес",
             description: "Юридический или фактический адрес.",
-            placeholder: "город, улица, дом",
-            section: .company, kind: .editable,
+            section: .company,
+            order: 100,
+            valueSource: .extracted,
+            inputKind: .multilineText(.init(placeholder: "город, улица, дом", isRequired: false)),
             exampleValue: "г. Москва, ул. Ленина, д. 1",
-            isRequired: false
+            isRequired: false,
+            normalizer: { $0.trimmed },
+            validator: Validators.address
         ),
         .init(
             key: .phone,
             title: "Телефон",
             description: "Контактный телефон в международном формате.",
-            placeholder: "+79991234567",
-            section: .company, kind: .editable,
+            section: .company,
+            order: 110,
+            valueSource: .extracted,
+            inputKind: .text(.init(placeholder: "+79991234567", isRequired: false)),
             exampleValue: "+79991234567",
-            isRequired: false
+            isRequired: false,
+            normalizer: Normalizers.phone,
+            validator: Validators.phone
         ),
-        // MARK: Document — editable
         .init(
             key: .documentNumber,
             title: "Номер документа",
             description: "Номер договора или иного документа.",
-            placeholder: "yyyy-mm-#",
-            section: .document, kind: .editable,
+            section: .document,
+            order: 120,
+            valueSource: .manual,
+            inputKind: .text(.init(placeholder: "yyyy-mm-#", isRequired: false)),
             exampleValue: "2024-01-001",
-            isRequired: false
+            isRequired: false,
+            normalizer: { $0.trimmed },
+            validator: { _ in nil }
         ),
         .init(
             key: .fee,
             title: "Комиссия, %",
             description: "Размер комиссионного вознаграждения в процентах.",
-            placeholder: "1",
-            section: .document, kind: .editable,
+            section: .document,
+            order: 130,
+            valueSource: .manual,
+            inputKind: .text(.init(placeholder: "1", isRequired: true)),
             exampleValue: "1",
-            isRequired: true
+            isRequired: true,
+            normalizer: { $0.trimmed },
+            validator: Validators.percentage
         ),
         .init(
             key: .minFee,
             title: "Мин. комиссия, руб",
             description: "Минимальный размер комиссионного вознаграждения в рублях.",
-            placeholder: "10",
-            section: .document, kind: .editable,
+            section: .document,
+            order: 140,
+            valueSource: .manual,
+            inputKind: .text(.init(placeholder: "10", isRequired: true)),
             exampleValue: "10",
+            isRequired: true,
+            normalizer: { $0.trimmed },
+            validator: Validators.percentage
+        ),
+        .init(
+            key: .paymentMethod,
+            title: "Способ оплаты",
+            description: "Выбирается пользователем вручную и не участвует в LLM extraction.",
+            section: .document,
+            order: 150,
+            valueSource: .manual,
+            inputKind: .choice(
+                .init(
+                    options: [
+                        .init(id: "invoice", title: "счет", replacementValue: "счет"),
+                        .init(id: "sbp", title: "сбп", replacementValue: "сбп")
+                    ],
+                    defaultOptionID: nil,
+                    allowsEmptySelection: false,
+                    emptyTitle: "Не выбрано",
+                    presentationStyle: .segmented
+                )
+            ),
+            exampleValue: "счет",
             isRequired: true
         ),
-        // MARK: Computed — derived
         .init(
             key: .dateLong,
             title: "Дата (полная)",
             description: "Текущая дата в формате «dd» MMMM yyyy г.",
-            section: .computed, kind: .derived,
+            section: .computed,
+            order: 210,
             exampleValue: "«22» апреля 2026 г.",
             isRequired: false
         ),
@@ -258,7 +355,8 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             key: .dateShort,
             title: "Дата (краткая)",
             description: "Текущая дата в формате dd.MM.yyyy.",
-            section: .computed, kind: .derived,
+            section: .computed,
+            order: 220,
             exampleValue: "22.04.2026",
             isRequired: false
         ),
@@ -266,7 +364,8 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             key: .ceoRole,
             title: "Должность руководителя",
             description: "«Генеральный директор» для юрлиц или «Индивидуальный предприниматель» для ИП.",
-            section: .computed, kind: .derived,
+            section: .computed,
+            order: 230,
             exampleValue: "Генеральный директор",
             isRequired: false
         ),
@@ -274,7 +373,8 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             key: .fullCompanyName,
             title: "Полное наименование компании",
             description: "Наименование компании с правовой формой в краткой форме, например ООО «Ромашка».",
-            section: .computed, kind: .derived,
+            section: .computed,
+            order: 240,
             exampleValue: "ООО «Ромашка»",
             isRequired: false
         ),
@@ -282,7 +382,8 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             key: .fullCompanyNameExpanded,
             title: "Полное наименование (развёрнуто)",
             description: "Наименование компании с расшифровкой правовой формы, например Общество с ограниченной ответственностью «Ромашка».",
-            section: .computed, kind: .derived,
+            section: .computed,
+            order: 250,
             exampleValue: "Общество с ограниченной ответственностью «Ромашка»",
             isRequired: false
         ),
@@ -290,60 +391,18 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
             key: .rules,
             title: "Основание деятельности",
             description: "Документ, на основании которого действует руководитель: Устав для юрлиц или выписка ЕГРИП для ИП.",
-            section: .computed, kind: .derived,
+            section: .computed,
+            order: 260,
             exampleValue: "Устава",
             isRequired: false
         ),
     ]
     
-    // MARK: - Built-in normalizers
+    nonisolated static let builtInDescriptorIndex: [PlaceholderKey: PlaceholderDescriptor] = Dictionary(
+        uniqueKeysWithValues: builtInDescriptors.map { ($0.key, $0) }
+    )
     
-    // Эти правила применяются в форме до валидации и до построения итогового context.
-    // Они intentionally держатся рядом с descriptor'ами, чтобы поведение поля читалось из одного файла.
-    nonisolated private static let builtInNormalizers: [PlaceholderKey: @Sendable (String) -> String] = [
-        .companyName: { $0.trimmed },
-        .legalForm: { $0.trimmed.uppercased() },
-        .ceoFullName: { $0.trimmed },
-        .ceoFullGenitiveName: { $0.trimmed },
-        .ceoShortenName: { $0.trimmed },
-        .ogrn: Normalizers.trimmedDigitsOnly,
-        .inn: Normalizers.trimmedDigitsOnly,
-        .kpp: Normalizers.trimmedDigitsOnly,
-        .email: { $0.trimmed },
-        .address: { $0.trimmed },
-        .phone: Normalizers.phone,
-        .documentNumber: { $0.trimmed },
-        .fee: { $0.trimmed },
-        .minFee: { $0.trimmed },
-    ]
-    
-    // MARK: - Built-in validators
-    
-    // Валидаторы возвращают `FieldIssue`, чтобы UI мог показывать как ошибки,
-    // так и мягкие предупреждения, не блокирующие весь сценарий.
-    nonisolated private static let builtInValidators: [PlaceholderKey: @Sendable (String) -> FieldIssue?] = [
-        .companyName: Validators.nonEmpty,
-        .legalForm: Validators.legalFormField,
-        .ceoFullName: Validators.fullName,
-        .ceoFullGenitiveName: Validators.fullName,
-        .ceoShortenName: Validators.shortenName,
-        .ogrn: Validators.ogrn,
-        .inn: Validators.inn,
-        .kpp: Validators.kpp,
-        .email: Validators.email,
-        .address: Validators.address,
-        .phone: Validators.phone,
-        .documentNumber: { _ in nil },
-        .fee: Validators.percentage,
-        .minFee: Validators.percentage,
-    ]
-    
-    // MARK: - Built-in resolvers (for derived placeholders)
-    
-    // Derived placeholders рассчитываются из уже подтверждённых данных пользователя.
-    // Благодаря этому docx fill, preview и отладка используют один и тот же механизм,
-    // а логика вычисляемых значений не прячется внутри view или export-кода.
-    nonisolated private static func formatDateLong(_ date: Date, locale: Locale) -> String {
+    nonisolated static func formatDateLong(_ date: Date, locale: Locale) -> String {
         let formatter = DateFormatter()
         formatter.locale = locale
         formatter.timeZone = .current
@@ -351,7 +410,7 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
         return formatter.string(from: date)
     }
     
-    nonisolated private static func formatDateShort(_ date: Date, locale: Locale) -> String {
+    nonisolated static func formatDateShort(_ date: Date, locale: Locale) -> String {
         let formatter = DateFormatter()
         formatter.locale = locale
         formatter.timeZone = .current
@@ -359,7 +418,7 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
         return formatter.string(from: date)
     }
     
-    nonisolated private static let builtInResolvers: [PlaceholderKey: @Sendable (PlaceholderResolutionContext) -> String?] = [
+    nonisolated static let builtInResolvers: [PlaceholderKey: @Sendable (PlaceholderResolutionContext) -> String?] = [
         .dateLong: { ctx in
             formatDateLong(ctx.now, locale: ctx.locale)
         },
@@ -383,31 +442,8 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
     ]
 }
 
-// MARK: - Backward compatibility
+// MARK: - Backward compatibility helpers
 
 extension PlaceholderRegistryProtocol {
-    /// Legacy accessor for views that used `allPlaceholders`
     var allPlaceholders: [PlaceholderDescriptor] { allDescriptors }
-    
-    /// Базовая реализация сборки полного словаря значений.
-    ///
-    /// Кастомные реестры могут переопределить её, если им нужен более
-    /// эффективный способ или особая логика для неизвестных custom-ключей.
-    /// В стандартном случае достаточно пройти по всем descriptor'ам и затем
-    /// добрать пользовательские значения, которых нет в built-in каталоге.
-    func resolveAll(context: PlaceholderResolutionContext) -> [PlaceholderKey: String] {
-        var result: [PlaceholderKey: String] = [:]
-        
-        for descriptor in allDescriptors {
-            if let value = resolve(descriptor.key, context: context) {
-                result[descriptor.key] = value
-            }
-        }
-        
-        for (key, value) in context.customValues where result[key] == nil {
-            result[key] = value
-        }
-        
-        return result
-    }
 }

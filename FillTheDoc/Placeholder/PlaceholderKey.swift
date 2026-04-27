@@ -63,6 +63,7 @@ extension PlaceholderKey {
     nonisolated static let documentNumber: Self = "document_number"
     nonisolated static let fee: Self = "fee"
     nonisolated static let minFee: Self = "min_fee"
+    nonisolated static let paymentMethod: Self = "payment_method"
     
     // MARK: Computed
     

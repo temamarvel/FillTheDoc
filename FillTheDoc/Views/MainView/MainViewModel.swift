@@ -39,12 +39,13 @@ final class MainViewModel {
     
     let apiKeyStore: APIKeyStore
     let updateStore: AppUpdateStore
-    let placeholderRegistry: PlaceholderRegistryProtocol
+    private(set) var placeholderRegistry: PlaceholderRegistryProtocol
     private let scanner: DocxTemplateScanner
     private let conditionalAssembler: DocxTemplateConditionalAssembler
     private let replacer: DocxTemplateFiller
     private let googleSheetsRowBuilder: DocumentDataCopyStringBuilder
     private let extractorService: DocumentTextExtractorService
+    private let customPlaceholderRepository: CustomPlaceholderRepository?
     
     // MARK: - State (paths)
     
@@ -61,6 +62,7 @@ final class MainViewModel {
     var resolvedValues: [PlaceholderKey: String]?
     private(set) var templatePlaceholders: [String] = []
     private(set) var googleSheetsRow: String?
+    private(set) var customPlaceholderDefinitions: [CustomPlaceholderDefinition] = []
     
     // MARK: - State (UI)
     
@@ -100,6 +102,10 @@ final class MainViewModel {
         placeholderRegistry.allPlaceholders
     }
     
+    var availablePlaceholderKeys: Set<PlaceholderKey> {
+        Set(availablePlaceholders.map(\.key))
+    }
+    
     var templatePlaceholderKeys: Set<PlaceholderKey> {
         Set(templatePlaceholders.map { PlaceholderKey(rawValue: $0) }.filter { !$0.isControlToken })
     }
@@ -121,6 +127,7 @@ final class MainViewModel {
         apiKeyStore: APIKeyStore,
         updateStore: AppUpdateStore,
         placeholderRegistry: PlaceholderRegistryProtocol = DefaultPlaceholderRegistry(),
+        customPlaceholderRepository: CustomPlaceholderRepository? = nil,
         scanner: DocxTemplateScanner,
         conditionalAssembler: DocxTemplateConditionalAssembler,
         replacer: DocxTemplateFiller,
@@ -130,6 +137,7 @@ final class MainViewModel {
         self.apiKeyStore = apiKeyStore
         self.updateStore = updateStore
         self.placeholderRegistry = placeholderRegistry
+        self.customPlaceholderRepository = customPlaceholderRepository
         self.scanner = scanner
         self.conditionalAssembler = conditionalAssembler
         self.replacer = replacer
@@ -141,10 +149,21 @@ final class MainViewModel {
     convenience init() {
         let updateStore = AppUpdateStore()
         let apiKeyStore = APIKeyStore()
+        let customPlaceholderRepository: CustomPlaceholderRepository?
+        
+        do {
+            let fileURL = try AppStorageLocations.customPlaceholdersFileURL()
+            let store = FileCustomPlaceholderStore(fileURL: fileURL)
+            customPlaceholderRepository = CustomPlaceholderRepository(store: store)
+        } catch {
+            print("Custom placeholder storage init failed:", error)
+            customPlaceholderRepository = nil
+        }
         
         self.init(
             apiKeyStore: apiKeyStore,
             updateStore: updateStore,
+            customPlaceholderRepository: customPlaceholderRepository,
             scanner: DocxTemplateScanner(),
             conditionalAssembler: DocxTemplateConditionalAssembler(),
             replacer: DocxTemplateFiller(),
@@ -181,6 +200,38 @@ final class MainViewModel {
         details = company
         self.resolvedValues = resolvedValues
         isDataApproved = true
+    }
+    
+    func loadCustomPlaceholders() async {
+        guard let customPlaceholderRepository else { return }
+        do {
+            try await customPlaceholderRepository.load()
+            let allDefinitions = await customPlaceholderRepository.all()
+            refreshPlaceholderRegistry(customDefinitions: allDefinitions)
+        } catch {
+            print("Custom placeholder loading failed:", error)
+        }
+    }
+    
+    func addCustomPlaceholder(_ definition: CustomPlaceholderDefinition) async throws {
+        guard let customPlaceholderRepository else { return }
+        try await customPlaceholderRepository.add(definition)
+        let allDefinitions = await customPlaceholderRepository.all()
+        refreshPlaceholderRegistry(customDefinitions: allDefinitions)
+    }
+    
+    func updateCustomPlaceholder(_ definition: CustomPlaceholderDefinition) async throws {
+        guard let customPlaceholderRepository else { return }
+        try await customPlaceholderRepository.update(definition)
+        let allDefinitions = await customPlaceholderRepository.all()
+        refreshPlaceholderRegistry(customDefinitions: allDefinitions)
+    }
+    
+    func deleteCustomPlaceholder(key: PlaceholderKey) async throws {
+        guard let customPlaceholderRepository else { return }
+        try await customPlaceholderRepository.delete(key: key)
+        let allDefinitions = await customPlaceholderRepository.all()
+        refreshPlaceholderRegistry(customDefinitions: allDefinitions)
     }
     
     func handleExportResult(_ result: Result<URL, any Error>) {
@@ -313,6 +364,10 @@ final class MainViewModel {
         // View model знает, КОГДА вызвать модель, но детали контракта с ней хранит
         // не здесь, а в `PromptBuilder` + `CompanyDetails`/`LLMExtractable`.
         // Это позволяет менять prompt/схему независимо от orchestration-слоя.
+        assert(
+            Set(placeholderRegistry.llmSchemaKeys.map(\.rawValue)) == Set(CompanyDetails.llmSchemaKeys),
+            "LLM schema must stay aligned with extracted placeholder definitions. Manual/choice placeholders must not leak into prompt schema."
+        )
         let openAIClient = OpenAIClient(apiKey: apiKeyStore.apiKey ?? "", model: "gpt-4o-mini")
         let system = PromptBuilder.system(for: CompanyDetails.self)
         let user = PromptBuilder.user(sourceText: extractedDetails.text)
@@ -348,5 +403,15 @@ final class MainViewModel {
         var isDir: ObjCBool = false
         let exists = FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
         return exists && !isDir.boolValue
+    }
+    
+    private func refreshPlaceholderRegistry(customDefinitions: [CustomPlaceholderDefinition]) {
+        customPlaceholderDefinitions = customDefinitions.sorted { lhs, rhs in
+            if lhs.order == rhs.order {
+                return lhs.key.rawValue < rhs.key.rawValue
+            }
+            return lhs.order < rhs.order
+        }
+        placeholderRegistry = DefaultPlaceholderRegistry(customDefinitions: customDefinitions)
     }
 }

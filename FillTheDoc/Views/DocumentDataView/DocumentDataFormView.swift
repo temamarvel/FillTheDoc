@@ -32,11 +32,20 @@ struct DocumentDataFormView: View {
     
     let onApply: ([PlaceholderKey: String], CompanyDetails) -> Void
     
+    private var extractedValuesSnapshot: [PlaceholderKey: String] {
+        CompanyDetailsAssembler.initialValues(from: companyDetails)
+    }
+    
+    private var registrySignature: [String] {
+        registry.inputDescriptors.map(\.signature)
+    }
+    
     init(
         companyDetails: CompanyDetails,
         registry: PlaceholderRegistryProtocol,
         onApply: @escaping ([PlaceholderKey: String], CompanyDetails) -> Void
     ) {
+        self.companyDetails = companyDetails
         self.registry = registry
         let initialValues = CompanyDetailsAssembler.initialValues(from: companyDetails)
         
@@ -50,6 +59,8 @@ struct DocumentDataFormView: View {
         self.companyValidator = CompanyDetailsValidator()
         self.onApply = onApply
     }
+    
+    private let companyDetails: CompanyDetails
     
     var body: some View {
         VStack {
@@ -91,6 +102,12 @@ struct DocumentDataFormView: View {
             guard let _ = old, old != new else { return }
             scheduleReferenceValidation()
         }
+        .onChange(of: registrySignature) { _, _ in
+            formModel.syncDefinitions(with: registry, extractedValues: extractedValuesSnapshot)
+        }
+        .onChange(of: extractedValuesSnapshot) { _, newValue in
+            formModel.applyExtractedValues(newValue)
+        }
         .animation(.easeInOut(duration: 0.15), value: formModel.fieldStates)
     }
     
@@ -103,23 +120,14 @@ struct DocumentDataFormView: View {
                 let color = issueColor(for: issue)
                 
                 DocumentDataFieldView(
-                    title: descriptor.title,
-                    placeholder: descriptor.placeholder,
-                    text: binding(for: descriptor.key),
+                    descriptor: descriptor,
+                    formModel: formModel,
                     errorColor: color,
                     errorText: issue?.text,
-                    focusedKey: $focusedKey,
-                    key: descriptor.key
+                    focusedKey: $focusedKey
                 )
             }
         }
-    }
-    
-    private func binding(for key: PlaceholderKey) -> Binding<String> {
-        Binding(
-            get: { formModel.value(for: key) },
-            set: { formModel.setValue($0, for: key) }
-        )
     }
     
     private func issueColor(for issue: FieldIssue?) -> Color {
