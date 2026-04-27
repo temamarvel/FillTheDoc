@@ -163,6 +163,7 @@ struct DocumentDataFieldView: View {
                 startPoint: .leading,
                 endPoint: .trailing
             )
+            .cornerRadius(2)
         }
     }
 }
