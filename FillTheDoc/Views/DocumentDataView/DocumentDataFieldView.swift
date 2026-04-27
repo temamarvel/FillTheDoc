@@ -46,7 +46,7 @@ struct DocumentDataFieldView: View {
                         prompt: Text(descriptor.placeholder),
                         axis: .vertical
                     )
-                    .lineLimit(3...8)
+                    .lineLimit(1...8)
                     .focused($focusedKey, equals: descriptor.key)
                 } else {
                     TextField(
