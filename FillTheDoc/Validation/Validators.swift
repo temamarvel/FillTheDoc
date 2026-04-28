@@ -263,7 +263,7 @@ enum Validators {
     }
     
     /// Валидация: число (включая дробное) в диапазоне 0–100
-    nonisolated static func percentage(_ value: String) -> FieldIssue? {
+    nonisolated static func isInRange(_ value: String, _ range: ClosedRange<Double>) -> FieldIssue? {
         let trimmed = value.trimmed
         
         if trimmed.isEmpty {
@@ -289,8 +289,8 @@ enum Validators {
         }
         
         // TODO: range must be different
-        if number < 0 || number > 100 {
-            return .error("Значение должно быть от 0 до 100")
+        if number < range.lowerBound || number > range.upperBound {
+            return .error("Значение должно быть от \(range.lowerBound) до \(range.upperBound)")
         }
         
         return nil

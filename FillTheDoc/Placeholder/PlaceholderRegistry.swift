@@ -305,7 +305,7 @@ private extension DefaultPlaceholderRegistry {
             exampleValue: "1",
             isRequired: true,
             normalizer: { $0.trimmed },
-            validator: Validators.percentage
+            validator: {Validators.isInRange($0, 0...100)}
         ),
         .init(
             key: .minFee,
@@ -318,7 +318,7 @@ private extension DefaultPlaceholderRegistry {
             exampleValue: "10",
             isRequired: true,
             normalizer: { $0.trimmed },
-            validator: Validators.percentage
+            validator: {Validators.isInRange($0, 10...1000)}
         ),
         .init(
             key: .paymentMethod,

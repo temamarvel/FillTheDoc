@@ -35,7 +35,6 @@ struct DocumentDataFieldView: View {
             }
             
             VStack(alignment: .trailing, spacing: 4) {
-                //TODO: fix multiline layout
                 if multiline {
                     TextField(
                         "",

@@ -109,12 +109,11 @@ struct PlaceholderLibraryView: View {
                 }
                 Spacer(minLength: 12)
                 
-                //TODO: ввод пользовательских плейсхолдеров
-//                Button {
-//                    editorSheet = .create
-//                } label: {
-//                    Label("Добавить поле", systemImage: "plus")
-//                }
+                Button {
+                    editorSheet = .create
+                } label: {
+                    Label("Добавить поле", systemImage: "plus")
+                }
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
