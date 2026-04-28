@@ -247,40 +247,8 @@ struct CustomPlaceholderEditorView: View {
         return "<!\(key)!>"
     }
     
-    private var previewTitle: String {
-        let trimmed = titleText.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "Название поля" : trimmed
-    }
-    
-    private var previewPlaceholder: String {
-        let trimmed = textPlaceholder.trimmingCharacters(in: .whitespacesAndNewlines)
-        switch inputType {
-            case .text, .multilineText:
-                return trimmed.isEmpty ? "Введите значение" : trimmed
-            case .choice:
-                return "Выберите значение"
-        }
-    }
-    
-    private var selectedChoicePreviewText: String {
-        if let defaultOptionID,
-           let option = choiceOptions.first(where: { $0.id == defaultOptionID }),
-           !option.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return option.title
-        }
-        
-        if allowsEmptySelection {
-            let title = emptyTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-            return title.isEmpty ? "Не выбрано" : title
-        }
-        
-        if let firstNonEmpty = choiceOptions.first(where: {
-            !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        }) {
-            return firstNonEmpty.title
-        }
-        
-        return "Выберите значение"
+    private var previewDescriptor: PlaceholderDescriptor {
+        makePreviewDefinition().makeRuntimeDefinition()
     }
     
     var body: some View {
@@ -630,12 +598,10 @@ struct CustomPlaceholderEditorView: View {
                 Divider()
                     .padding(.vertical, 2)
                 
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(previewTitle)
-                        .font(.subheadline.weight(.medium))
-                    
-                    previewControl
+                Form{
+                    CustomPlaceholderDocumentDataFieldPreview(descriptor: previewDescriptor)
                 }
+                .formStyle(.grouped)
             }
             
             previewHintCard
@@ -645,114 +611,86 @@ struct CustomPlaceholderEditorView: View {
         .padding(24)
     }
     
-    @ViewBuilder
-    private var previewControl: some View {
+    private func makePreviewDefinition() -> CustomPlaceholderDefinition {
+        let previewKey = PlaceholderKey(rawValue: normalizedKeyText.isEmpty ? "placeholder_key" : normalizedKeyText)
+        let previewTitle = titleText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedTitle = previewTitle.isEmpty ? "Название поля" : previewTitle
+        let previewDescription = descriptionText.trimmedNilIfEmpty
+        let persistedInputKind: PersistedPlaceholderInputKind
+        
         switch inputType {
             case .text:
-                previewSingleLineTextControl
+                persistedInputKind = .text(
+                    PersistedTextInputConfiguration(
+                        placeholder: previewTextPlaceholder,
+                        isRequired: textRequired
+                    )
+                )
                 
             case .multilineText:
-                previewMultilineTextControl
+                persistedInputKind = .multilineText(
+                    PersistedTextInputConfiguration(
+                        placeholder: previewTextPlaceholder,
+                        isRequired: textRequired
+                    )
+                )
                 
             case .choice:
-                previewChoiceControl
-        }
-    }
-    
-    private var previewSingleLineTextControl: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                iconBadge(systemName: "textformat")
-                
-                previewTextInput(height: nil)
-            }
-            
-            if textRequired {
-                requiredHint
-            }
-        }
-    }
-    
-    private var previewMultilineTextControl: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 8) {
-                iconBadge(systemName: "text.alignleft")
-                
-                previewTextInput(height: 88)
-            }
-            
-            if textRequired {
-                requiredHint
-            }
-        }
-    }
-    
-    private var previewChoiceControl: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Menu {
-                if allowsEmptySelection {
-                    Button(emptyTitle.isEmpty ? "Не выбрано" : emptyTitle) {}
-                }
-                
-                ForEach(choiceOptions) { option in
-                    Button(option.title.isEmpty ? "Без названия" : option.title) {}
-                }
-            } label: {
-                HStack {
-                    Text(selectedChoicePreviewText)
-                        .foregroundStyle(.primary)
-                    
-                    Spacer()
-                    
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .frame(maxWidth: .infinity)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(nsColor: .textBackgroundColor))
+                persistedInputKind = .choice(
+                    PersistedChoiceInputConfiguration(
+                        options: previewChoiceOptions,
+                        defaultOptionID: defaultOptionID,
+                        allowsEmptySelection: allowsEmptySelection,
+                        emptyTitle: previewEmptyTitle,
+                        presentationStyle: presentationStyle
+                    )
                 )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                )
-            }
-            .menuStyle(.borderlessButton)
         }
+        
+        return CustomPlaceholderDefinition(
+            key: previewKey,
+            title: resolvedTitle,
+            description: previewDescription,
+            inputKind: persistedInputKind,
+            order: order,
+            isEnabled: isEnabled,
+            createdAt: mode.existingDefinition?.createdAt ?? .distantPast,
+            updatedAt: mode.existingDefinition?.updatedAt ?? .distantPast
+        )
     }
     
-    private func previewTextInput(height: CGFloat?) -> some View {
-        ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(nsColor: .textBackgroundColor))
-                .frame(height: height)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                )
-            
-            Text(previewPlaceholder)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-        }
-        .frame(height: height)
+    private var previewTextPlaceholder: String {
+        let trimmed = textPlaceholder.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "Введите значение" : trimmed
     }
     
-    private var requiredHint: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "asterisk")
-                .font(.system(size: 8, weight: .bold))
-                .foregroundStyle(.tint)
+    private var previewEmptyTitle: String {
+        let trimmed = emptyTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "Не выбрано" : trimmed
+    }
+    
+    private var previewChoiceOptions: [PlaceholderOption] {
+        let options = choiceOptions.enumerated().map { index, option in
+            let title = option.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            let resolvedTitle = title.isEmpty ? "Вариант \(index + 1)" : title
+            let replacementValue = option.replacementValue.trimmingCharacters(in: .whitespacesAndNewlines)
             
-            Text("Обязательное поле")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            return PlaceholderOption(
+                id: option.id,
+                title: resolvedTitle,
+                replacementValue: replacementValue.isEmpty ? resolvedTitle : replacementValue,
+                description: option.description?.trimmedNilIfEmpty
+            )
         }
+        
+        if options.isEmpty {
+            return [
+                PlaceholderOption(id: "preview_option_1", title: "Вариант 1", replacementValue: "Вариант 1"),
+                PlaceholderOption(id: "preview_option_2", title: "Вариант 2", replacementValue: "Вариант 2")
+            ]
+        }
+        
+        return options
     }
     
     private var previewHintCard: some View {
@@ -1079,6 +1017,90 @@ private struct ChoiceOptionRowView: View {
 
 // MARK: - EditorSectionView
 
+@MainActor
+private struct CustomPlaceholderDocumentDataFieldPreview: View {
+    let descriptor: PlaceholderDescriptor
+    
+    @State private var formModel: PlaceholderFormModel
+    @FocusState private var focusedKey: PlaceholderKey?
+    
+    init(descriptor: PlaceholderDescriptor) {
+        self.descriptor = descriptor
+        _formModel = State(
+            initialValue: PlaceholderFormModel(
+                registry: SinglePlaceholderPreviewRegistry(descriptor: descriptor)
+            )
+        )
+    }
+    
+    var body: some View {
+        DocumentDataFieldView(
+            descriptor: descriptor,
+            formModel: formModel,
+            errorColor: .clear,
+            errorText: nil,
+            focusedKey: $focusedKey
+        )
+        .onChange(of: descriptor.signature) { _, _ in
+            formModel.syncDefinitions(
+                with: SinglePlaceholderPreviewRegistry(descriptor: descriptor)
+            )
+        }
+    }
+}
+
+private struct SinglePlaceholderPreviewRegistry: PlaceholderRegistryProtocol {
+    let descriptor: PlaceholderDescriptor
+    
+    private static let defaultNormalizer: FieldNormalizer = { $0 }
+    private static let defaultValidator: FieldValidator = { _ in nil }
+    
+    var allDescriptors: [PlaceholderDescriptor] { [descriptor] }
+    var inputDescriptors: [PlaceholderDescriptor] { descriptor.acceptsUserInput ? [descriptor] : [] }
+    var extractedDescriptors: [PlaceholderDescriptor] { inputDescriptors.filter { $0.valueSource == .extracted } }
+    var manualDescriptors: [PlaceholderDescriptor] { inputDescriptors.filter { $0.valueSource == .manual } }
+    var customDescriptors: [PlaceholderDescriptor] { inputDescriptors.filter(\.isUserDefined) }
+    var llmSchemaKeys: [PlaceholderKey] { extractedDescriptors.map(\.key) }
+    
+    func descriptor(for key: PlaceholderKey) -> PlaceholderDescriptor? {
+        descriptor.key == key ? descriptor : nil
+    }
+    
+    func contains(_ key: PlaceholderKey) -> Bool {
+        descriptor.key == key
+    }
+    
+    func descriptors(in section: PlaceholderSection) -> [PlaceholderDescriptor] {
+        descriptor.section == section ? [descriptor] : []
+    }
+    
+    func normalizer(for key: PlaceholderKey) -> FieldNormalizer {
+        if key == descriptor.key {
+            return descriptor.normalizer
+        }
+        return Self.defaultNormalizer
+    }
+    
+    func validator(for key: PlaceholderKey) -> FieldValidator {
+        if key == descriptor.key {
+            return descriptor.validator
+        }
+        return Self.defaultValidator
+    }
+    
+    func resolve(_ key: PlaceholderKey, context: PlaceholderResolutionContext) -> String? {
+        guard key == descriptor.key else { return nil }
+        return context.editableValues[key] ?? context.customValues[key]
+    }
+    
+    func resolveAll(context: PlaceholderResolutionContext) -> [PlaceholderKey: String] {
+        guard let value = resolve(descriptor.key, context: context) else {
+            return [:]
+        }
+        return [descriptor.key: value]
+    }
+}
+
 private struct EditorSectionView<Content: View>: View {
     let title: String
     @ViewBuilder let content: Content
@@ -1236,16 +1258,6 @@ private extension CustomPlaceholderEditorView {
             )
     }
     
-    func iconBadge(systemName: String) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(nsColor: .controlBackgroundColor))
-            Image(systemName: systemName)
-                .foregroundStyle(.secondary)
-        }
-        .frame(width: 32, height: 32)
-    }
-    
     func errorBanner(text: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -1268,86 +1280,4 @@ private extension CustomPlaceholderEditorView {
                 .stroke(Color.red.opacity(0.20), lineWidth: 1)
         )
     }
-}
-
-
-#Preview("Создание") {
-    CustomPlaceholderEditorView(
-        mode: .create,
-        existingKeys: [
-            PlaceholderKey(rawValue: "company_name"),
-            PlaceholderKey(rawValue: "inn"),
-            PlaceholderKey(rawValue: "delivery_terms")
-        ],
-        onSave: { _ in }
-    )
-    .frame(width: 920, height: 640)
-}
-
-#Preview("Редактирование — text") {
-    CustomPlaceholderEditorView(
-        mode: .edit(
-            CustomPlaceholderDefinition(
-                key: PlaceholderKey(rawValue: "delivery_terms"),
-                title: "Условия доставки",
-                description: "Краткие условия и сроки доставки товара.",
-                inputKind: .text(
-                    PersistedTextInputConfiguration(
-                        placeholder: "Введите условия доставки",
-                        isRequired: true
-                    )
-                ),
-                order: 500,
-                isEnabled: true
-            )
-        ),
-        existingKeys: [
-            PlaceholderKey(rawValue: "company_name"),
-            PlaceholderKey(rawValue: "inn"),
-            PlaceholderKey(rawValue: "delivery_terms")
-        ],
-        onSave: { _ in }
-    )
-    .frame(width: 920, height: 640)
-}
-
-#Preview("Редактирование — choice") {
-    CustomPlaceholderEditorView(
-        mode: .edit(
-            CustomPlaceholderDefinition(
-                key: PlaceholderKey(rawValue: "has_vat"),
-                title: "Наличие НДС",
-                description: "Используется для выбора формулировки с НДС или без НДС.",
-                inputKind: .choice(
-                    PersistedChoiceInputConfiguration(
-                        options: [
-                            PlaceholderOption(
-                                id: "vat_yes",
-                                title: "С НДС",
-                                replacementValue: "с НДС"
-                            ),
-                            PlaceholderOption(
-                                id: "vat_no",
-                                title: "Без НДС",
-                                replacementValue: "без НДС"
-                            )
-                        ],
-                        defaultOptionID: "vat_yes",
-                        allowsEmptySelection: true,
-                        emptyTitle: "Не выбрано",
-                        presentationStyle: .menu
-                    )
-                ),
-                order: 500,
-                isEnabled: true
-            )
-        ),
-        existingKeys: [
-            PlaceholderKey(rawValue: "company_name"),
-            PlaceholderKey(rawValue: "inn"),
-            PlaceholderKey(rawValue: "has_vat")
-        ],
-        onSave: { _ in }
-    )
-    .frame(width: 920, height: 640)
 }
