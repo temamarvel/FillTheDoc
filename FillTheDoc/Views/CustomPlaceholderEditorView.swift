@@ -1269,3 +1269,85 @@ private extension CustomPlaceholderEditorView {
         )
     }
 }
+
+
+#Preview("Создание") {
+    CustomPlaceholderEditorView(
+        mode: .create,
+        existingKeys: [
+            PlaceholderKey(rawValue: "company_name"),
+            PlaceholderKey(rawValue: "inn"),
+            PlaceholderKey(rawValue: "delivery_terms")
+        ],
+        onSave: { _ in }
+    )
+    .frame(width: 920, height: 640)
+}
+
+#Preview("Редактирование — text") {
+    CustomPlaceholderEditorView(
+        mode: .edit(
+            CustomPlaceholderDefinition(
+                key: PlaceholderKey(rawValue: "delivery_terms"),
+                title: "Условия доставки",
+                description: "Краткие условия и сроки доставки товара.",
+                inputKind: .text(
+                    PersistedTextInputConfiguration(
+                        placeholder: "Введите условия доставки",
+                        isRequired: true
+                    )
+                ),
+                order: 500,
+                isEnabled: true
+            )
+        ),
+        existingKeys: [
+            PlaceholderKey(rawValue: "company_name"),
+            PlaceholderKey(rawValue: "inn"),
+            PlaceholderKey(rawValue: "delivery_terms")
+        ],
+        onSave: { _ in }
+    )
+    .frame(width: 920, height: 640)
+}
+
+#Preview("Редактирование — choice") {
+    CustomPlaceholderEditorView(
+        mode: .edit(
+            CustomPlaceholderDefinition(
+                key: PlaceholderKey(rawValue: "has_vat"),
+                title: "Наличие НДС",
+                description: "Используется для выбора формулировки с НДС или без НДС.",
+                inputKind: .choice(
+                    PersistedChoiceInputConfiguration(
+                        options: [
+                            PlaceholderOption(
+                                id: "vat_yes",
+                                title: "С НДС",
+                                replacementValue: "с НДС"
+                            ),
+                            PlaceholderOption(
+                                id: "vat_no",
+                                title: "Без НДС",
+                                replacementValue: "без НДС"
+                            )
+                        ],
+                        defaultOptionID: "vat_yes",
+                        allowsEmptySelection: true,
+                        emptyTitle: "Не выбрано",
+                        presentationStyle: .menu
+                    )
+                ),
+                order: 500,
+                isEnabled: true
+            )
+        ),
+        existingKeys: [
+            PlaceholderKey(rawValue: "company_name"),
+            PlaceholderKey(rawValue: "inn"),
+            PlaceholderKey(rawValue: "has_vat")
+        ],
+        onSave: { _ in }
+    )
+    .frame(width: 920, height: 640)
+}
