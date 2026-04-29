@@ -115,27 +115,21 @@ struct DocumentDataFormView: View {
     private func sectionView(title: String, section: PlaceholderSection) -> some View {
         Section(title) {
             ForEach(formModel.descriptors(in: section)) { descriptor in
-                let state = formModel.fieldStates[descriptor.key]
-                let issue = state?.issue
-                let color = issueColor(for: issue)
-                
                 DocumentDataFieldView(
                     descriptor: descriptor,
-                    formModel: formModel,
-                    errorColor: color,
-                    errorText: issue?.text,
+                    value: fieldBinding(for: descriptor.key),
+                    issue: formModel.issue(for: descriptor.key),
                     focusedKey: $focusedKey
                 )
             }
         }
     }
     
-    private func issueColor(for issue: FieldIssue?) -> Color {
-        guard let issue else { return .clear }
-        switch issue.severity {
-            case .error: return .red
-            case .warning: return .orange
-        }
+    private func fieldBinding(for key: PlaceholderKey) -> Binding<PlaceholderFieldValue> {
+        Binding(
+            get: { formModel.fieldValue(for: key) },
+            set: { formModel.setFieldValue($0, for: key) }
+        )
     }
     
     // MARK: - Reference validation scheduling

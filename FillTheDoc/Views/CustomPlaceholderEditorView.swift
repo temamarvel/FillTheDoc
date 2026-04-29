@@ -34,14 +34,19 @@ nonisolated private struct ChoiceOptionDraft: Identifiable, Hashable {
 
 private enum CustomPlaceholderEditorInputType: String, CaseIterable, Identifiable {
     case text
+    case multilineText
     case choice
     
     var id: String { rawValue }
     
     var title: String {
         switch self {
-            case .text: return "Текст"
-            case .choice: return "Выбор"
+            case .text:
+                return "Текст"
+            case .multilineText:
+                return "Многострочный"
+            case .choice:
+                return "Выбор"
         }
     }
 }
@@ -139,6 +144,8 @@ struct CustomPlaceholderEditorView: View {
     
     @State private var saveErrorText: String?
     @State private var isSaving = false
+    @State private var previewFieldValue: PlaceholderFieldValue = .empty
+    @FocusState private var previewFocusedKey: PlaceholderKey?
     
     init(
         mode: Mode,
@@ -158,8 +165,15 @@ struct CustomPlaceholderEditorView: View {
         _isEnabled = State(initialValue: definition?.isEnabled ?? true)
         
         switch definition?.inputKind {
-            case .text(let configuration), .multilineText(let configuration):
+            case .text(let configuration):
                 _inputType = State(initialValue: .text)
+                _textPlaceholder = State(initialValue: configuration.placeholder)
+                _textRequired = State(initialValue: configuration.isRequired)
+                _choiceOptions = State(initialValue: Self.defaultChoiceOptions())
+                _defaultOptionID = State(initialValue: nil)
+                
+            case .multilineText(let configuration):
+                _inputType = State(initialValue: .multilineText)
                 _textPlaceholder = State(initialValue: configuration.placeholder)
                 _textRequired = State(initialValue: configuration.isRequired)
                 _choiceOptions = State(initialValue: Self.defaultChoiceOptions())
@@ -189,11 +203,6 @@ struct CustomPlaceholderEditorView: View {
             .lowercased()
     }
     
-    private var tokenPreview: String {
-        let key = normalizedKey.isEmpty ? "placeholder_key" : normalizedKey
-        return "<!\(key)!>"
-    }
-    
     private var existingKeysForValidation: Set<PlaceholderKey> {
         var keys = existingKeys
         if let existingDefinition = mode.existingDefinition {
@@ -210,9 +219,30 @@ struct CustomPlaceholderEditorView: View {
         !isSaving && !validation.hasErrors
     }
     
-    private var previewTitle: String {
-        let title = titleText.trimmingCharacters(in: .whitespacesAndNewlines)
-        return title.isEmpty ? "Название поля" : title
+    private var tokenPreview: String {
+        previewDescriptor.token
+    }
+    
+    private var inputTypeDescription: String {
+        switch inputType {
+            case .text:
+                return "Текстовый плейсхолдер — обычное поле ввода."
+            case .multilineText:
+                return "Многострочный плейсхолдер подходит для длинных примечаний и условий."
+            case .choice:
+                return "Плейсхолдер с выбором — пользователь выбирает один вариант, а в документ подставляется связанное значение."
+        }
+    }
+    
+    private var textSettingsTitle: String {
+        switch inputType {
+            case .text:
+                return "Настройки текстового поля"
+            case .multilineText:
+                return "Настройки многострочного поля"
+            case .choice:
+                return "Настройки поля"
+        }
     }
     
     private var previewTextPlaceholder: String {
@@ -220,19 +250,8 @@ struct CustomPlaceholderEditorView: View {
         return placeholder.isEmpty ? "Введите значение" : placeholder
     }
     
-    private var previewChoiceTitle: String {
-        if let defaultOptionID,
-           let option = choiceOptions.first(where: { $0.id == defaultOptionID }),
-           !option.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return option.title
-        }
-        
-        if let first = choiceOptions.first,
-           !first.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return first.title
-        }
-        
-        return "Выберите значение"
+    private var previewDescriptor: PlaceholderDescriptor {
+        makePreviewDefinition().makeRuntimeDefinition()
     }
     
     var body: some View {
@@ -263,6 +282,10 @@ struct CustomPlaceholderEditorView: View {
         }
         .frame(minWidth: 760, minHeight: 660)
         .background(Color(nsColor: .windowBackgroundColor))
+        .onAppear(perform: syncPreviewFieldValue)
+        .onChange(of: previewDescriptor.signature) { _, _ in
+            syncPreviewFieldValue()
+        }
         .onChange(of: inputType) { _, newValue in
             saveErrorText = nil
             if newValue == .choice {
@@ -273,7 +296,10 @@ struct CustomPlaceholderEditorView: View {
         }
         .onChange(of: titleText) { _, _ in saveErrorText = nil }
         .onChange(of: keyText) { _, _ in saveErrorText = nil }
+        .onChange(of: descriptionText) { _, _ in saveErrorText = nil }
         .onChange(of: textPlaceholder) { _, _ in saveErrorText = nil }
+        .onChange(of: textRequired) { _, _ in saveErrorText = nil }
+        .onChange(of: defaultOptionID) { _, _ in saveErrorText = nil }
         .onChange(of: choiceOptions) { _, _ in
             saveErrorText = nil
             normalizeDefaultOptionID()
@@ -343,11 +369,9 @@ private extension CustomPlaceholderEditorView {
                 .labelsHidden()
                 .pickerStyle(.segmented)
                 
-                Text(inputType == .text
-                     ? "Текстовый плейсхолдер — обычное поле ввода."
-                     : "Плейсхолдер с выбором — пользователь выбирает один вариант, а в документ подставляется связанное значение.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                Text(inputTypeDescription)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -355,7 +379,7 @@ private extension CustomPlaceholderEditorView {
     @ViewBuilder
     var settingsCard: some View {
         switch inputType {
-            case .text:
+            case .text, .multilineText:
                 textSettingsCard
             case .choice:
                 choiceSettingsCard
@@ -366,13 +390,15 @@ private extension CustomPlaceholderEditorView {
         card {
             VStack(alignment: .leading, spacing: 16) {
                 cardHeader(
-                    title: "Настройки текстового поля",
+                    title: textSettingsTitle,
                     subtitle: "Настройте подсказку и обязательность заполнения."
                 )
                 
                 validatedField(
                     title: "Плейсхолдер",
-                    prompt: "Например: Введите номер договора",
+                    prompt: inputType == .multilineText
+                    ? "Например: Введите дополнительные условия"
+                    : "Например: Введите номер договора",
                     text: $textPlaceholder,
                     helper: "Текст-подсказка внутри поля ввода.",
                     error: validation.textPlaceholderError
@@ -510,12 +536,24 @@ private extension CustomPlaceholderEditorView {
                             .font(.caption.weight(.medium))
                             .foregroundStyle(.secondary)
                         
-                        VStack(alignment: .leading, spacing: 7) {
-                            Text(previewTitle)
-                                .font(.subheadline.weight(.medium))
-                            
-                            previewControl
+                        VStack(alignment: .leading, spacing: 0) {
+                            DocumentDataFieldView(
+                                descriptor: previewDescriptor,
+                                value: $previewFieldValue,
+                                issue: nil,
+                                focusedKey: $previewFocusedKey
+                            )
                         }
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color(nsColor: .textBackgroundColor))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.primary.opacity(0.10), lineWidth: 1)
+                        )
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -529,48 +567,6 @@ private extension CustomPlaceholderEditorView {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }
-        }
-    }
-    
-    @ViewBuilder
-    var previewControl: some View {
-        switch inputType {
-            case .text:
-                Text(previewTextPlaceholder)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color(nsColor: .textBackgroundColor))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.primary.opacity(0.10), lineWidth: 1)
-                    )
-                
-            case .choice:
-                HStack {
-                    Text(previewChoiceTitle)
-                        .foregroundStyle(.primary)
-                    
-                    Spacer()
-                    
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(nsColor: .textBackgroundColor))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.primary.opacity(0.10), lineWidth: 1)
-                )
         }
     }
     
@@ -598,6 +594,94 @@ private extension CustomPlaceholderEditorView {
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 16)
+    }
+}
+
+// MARK: - Preview state
+
+private extension CustomPlaceholderEditorView {
+    func makePreviewDefinition() -> CustomPlaceholderDefinition {
+        let key = PlaceholderKey(rawValue: normalizedKey.isEmpty ? "placeholder_key" : normalizedKey)
+        let title = titleText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedTitle = title.isEmpty ? "Название поля" : title
+        let description = descriptionText.trimmedNilIfEmpty
+        let inputKind: PersistedPlaceholderInputKind
+        
+        switch inputType {
+            case .text:
+                inputKind = .text(
+                    PersistedTextInputConfiguration(
+                        placeholder: previewTextPlaceholder,
+                        isRequired: textRequired
+                    )
+                )
+            case .multilineText:
+                inputKind = .multilineText(
+                    PersistedTextInputConfiguration(
+                        placeholder: previewTextPlaceholder,
+                        isRequired: textRequired
+                    )
+                )
+            case .choice:
+                inputKind = .choice(
+                    PersistedChoiceInputConfiguration(
+                        options: choiceOptions.isEmpty
+                        ? Self.defaultChoiceOptions().map(\.placeholderOption)
+                        : choiceOptions.map(\.placeholderOption),
+                        defaultOptionID: defaultOptionID,
+                        allowsEmptySelection: true,
+                        emptyTitle: "Не выбрано",
+                        presentationStyle: .menu
+                    )
+                )
+        }
+        
+        return CustomPlaceholderDefinition(
+            key: key,
+            title: resolvedTitle,
+            description: description,
+            inputKind: inputKind,
+            order: order,
+            isEnabled: isEnabled,
+            createdAt: mode.existingDefinition?.createdAt ?? .distantPast,
+            updatedAt: mode.existingDefinition?.updatedAt ?? .distantPast
+        )
+    }
+    
+    func syncPreviewFieldValue() {
+        previewFieldValue = normalizedPreviewFieldValue(
+            previewFieldValue,
+            for: previewDescriptor
+        )
+    }
+    
+    func normalizedPreviewFieldValue(
+        _ currentValue: PlaceholderFieldValue,
+        for descriptor: PlaceholderDescriptor
+    ) -> PlaceholderFieldValue {
+        switch descriptor.inputKind {
+            case .some(.text), .some(.multilineText):
+                if case .text(let text) = currentValue {
+                    return .text(text)
+                }
+                return .text("")
+            case .some(.choice(let configuration)):
+                if case .choice(let optionID) = currentValue,
+                   configuration.options.contains(where: { $0.id == optionID }) {
+                    return .choice(optionID: optionID)
+                }
+                if let defaultOptionID = configuration.defaultOptionID,
+                   configuration.options.contains(where: { $0.id == defaultOptionID }) {
+                    return .choice(optionID: defaultOptionID)
+                }
+                if !configuration.allowsEmptySelection,
+                   let firstOptionID = configuration.options.first?.id {
+                    return .choice(optionID: firstOptionID)
+                }
+                return .empty
+            case .none:
+                return .empty
+        }
     }
 }
 
@@ -701,7 +785,7 @@ private extension CustomPlaceholderEditorView {
         }
         
         switch inputType {
-            case .text:
+            case .text, .multilineText:
                 break
                 
             case .choice:
@@ -777,6 +861,13 @@ private extension CustomPlaceholderEditorView {
         switch inputType {
             case .text:
                 inputKind = .text(
+                    PersistedTextInputConfiguration(
+                        placeholder: textPlaceholder.trimmingCharacters(in: .whitespacesAndNewlines),
+                        isRequired: textRequired
+                    )
+                )
+            case .multilineText:
+                inputKind = .multilineText(
                     PersistedTextInputConfiguration(
                         placeholder: textPlaceholder.trimmingCharacters(in: .whitespacesAndNewlines),
                         isRequired: textRequired
@@ -944,3 +1035,4 @@ private extension CustomPlaceholderEditorView {
         )
     }
 }
+

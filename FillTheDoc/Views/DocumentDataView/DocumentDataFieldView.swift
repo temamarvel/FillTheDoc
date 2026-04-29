@@ -9,139 +9,217 @@ import SwiftUI
 
 struct DocumentDataFieldView: View {
     let descriptor: PlaceholderDescriptor
-    let formModel: PlaceholderFormModel
-    let errorColor: Color
-    let errorText: String?
+    let issue: FieldIssue?
+    @Binding private var value: PlaceholderFieldValue
     @FocusState.Binding var focusedKey: PlaceholderKey?
+    
+    init(
+        descriptor: PlaceholderDescriptor,
+        value: Binding<PlaceholderFieldValue>,
+        issue: FieldIssue? = nil,
+        focusedKey: FocusState<PlaceholderKey?>.Binding
+    ) {
+        self.descriptor = descriptor
+        self.issue = issue
+        self._value = value
+        self._focusedKey = focusedKey
+    }
     
     var body: some View {
         switch descriptor.inputKind {
             case .some(.text):
-                textFieldRow(multiline: false)
+                fieldRow(alignment: .center) {
+                    textField(axis: .horizontal, multiline: false)
+                }
             case .some(.multilineText):
-                textFieldRow(multiline: true)
+                fieldRow(alignment: .top) {
+                    textField(axis: .vertical, multiline: true)
+                }
             case .some(.choice(let configuration)):
-                choiceFieldRow(configuration: configuration)
+                fieldRow(alignment: .center) {
+                    choiceField(configuration: configuration)
+                }
             case .none:
                 EmptyView()
         }
     }
-    
+}
+
+private extension DocumentDataFieldView {
     @ViewBuilder
-    private func textFieldRow(multiline: Bool) -> some View {
-        HStack(alignment: multiline ? .top : .center) {
+    func fieldRow<Control: View>(
+        alignment: VerticalAlignment,
+        @ViewBuilder control: () -> Control
+    ) -> some View {
+        HStack(alignment: alignment) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(descriptor.title)
             }
             
+            Spacer(minLength: 16)
+            
             VStack(alignment: .trailing, spacing: 4) {
-                if multiline {
-                    TextField(
-                        "",
-                        text: Binding(
-                            get: { formModel.value(for: descriptor.key) },
-                            set: { formModel.setValue($0, for: descriptor.key) }
-                        ),
-                        prompt: Text(descriptor.placeholder),
-                        axis: .vertical
-                    )
-                    .lineLimit(1...8)
-                    .focused($focusedKey, equals: descriptor.key)
-                } else {
-                    TextField(
-                        "",
-                        text: Binding(
-                            get: { formModel.value(for: descriptor.key) },
-                            set: { formModel.setValue($0, for: descriptor.key) }
-                        ),
-                        prompt: Text(descriptor.placeholder),
-                        axis: .horizontal
-                    )
-                    .focused($focusedKey, equals: descriptor.key)
-                }
-                
+                control()
                 validationText
             }
             .background(validationBackground)
         }
     }
     
-    @ViewBuilder
-    private func choiceFieldRow(configuration: ChoiceInputConfiguration) -> some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(descriptor.title)
-                
+    func textField(axis: Axis, multiline: Bool) -> some View {
+        Group {
+            if multiline {
+                TextField(
+                    "",
+                    text: textBinding,
+                    prompt: Text(descriptor.placeholder),
+                    axis: axis
+                )
+                .lineLimit(1...8)
+            } else {
+                TextField(
+                    "",
+                    text: textBinding,
+                    prompt: Text(descriptor.placeholder),
+                    axis: axis
+                )
+                .lineLimit(1)
             }
-            
-            HStack{
-                Spacer()
-                
-                VStack(alignment: .trailing, spacing: 4) {
-                    switch configuration.presentationStyle {
-                        case .menu:
-                            Picker(
-                                "",
-                                selection: Binding<String?>(
-                                    get: { formModel.choiceSelection(for: descriptor.key) },
-                                    set: { formModel.setChoiceSelection($0, for: descriptor.key) }
-                                )
-                            ) {
-                                if configuration.allowsEmptySelection {
-                                    Text(configuration.emptyTitle)
-                                        .tag(String?.none)
-                                }
-                                ForEach(configuration.options) { option in
-                                    Text(option.title)
-                                        .tag(String?.some(option.id))
-                                }
-                            }
-                            
-                            .labelsHidden()
-                            .pickerStyle(.menu)
-                        case .segmented:
-                            if configuration.allowsEmptySelection || configuration.defaultOptionID == nil {
-                                Picker("", selection: Binding<String?>(
-                                    get: { formModel.choiceSelection(for: descriptor.key) },
-                                    set: { formModel.setChoiceSelection($0, for: descriptor.key) }
-                                )) {
-                                    Text(configuration.emptyTitle)
-                                        .tag(String?.none)
-                                    ForEach(configuration.options) { option in
-                                        Text(option.title)
-                                            .tag(String?.some(option.id))
-                                    }
-                                }
-                                .labelsHidden()
-                                .pickerStyle(.menu)
-                            } else {
-                                Picker("", selection: Binding<String>(
-                                    get: {
-                                        formModel.choiceSelection(for: descriptor.key)
-                                        ?? configuration.defaultOptionID
-                                        ?? configuration.options.first?.id
-                                        ?? ""
-                                    },
-                                    set: { formModel.setChoiceSelection($0, for: descriptor.key) }
-                                )) {
-                                    ForEach(configuration.options) { option in
-                                        Text(option.title).tag(option.id)
-                                    }
-                                }
-                                .labelsHidden()
-                                .pickerStyle(.segmented)
-                            }
+        }
+        .focused($focusedKey, equals: descriptor.key)
+    }
+    
+    @ViewBuilder
+    func choiceField(configuration: ChoiceInputConfiguration) -> some View {
+        switch configuration.presentationStyle {
+            case .menu:
+                Picker(
+                    "",
+                    selection: optionalChoiceSelectionBinding(for: configuration)
+                ) {
+                    if configuration.allowsEmptySelection {
+                        Text(configuration.emptyTitle)
+                            .tag(String?.none)
                     }
-                    
-                    validationText
+                    ForEach(configuration.options) { option in
+                        Text(option.title)
+                            .tag(String?.some(option.id))
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+            case .segmented:
+                if configuration.allowsEmptySelection || configuration.defaultOptionID == nil {
+                    Picker(
+                        "",
+                        selection: optionalChoiceSelectionBinding(for: configuration)
+                    ) {
+                        Text(configuration.emptyTitle)
+                            .tag(String?.none)
+                        ForEach(configuration.options) { option in
+                            Text(option.title)
+                                .tag(String?.some(option.id))
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                } else {
+                    Picker(
+                        "",
+                        selection: requiredChoiceSelectionBinding(for: configuration)
+                    ) {
+                        ForEach(configuration.options) { option in
+                            Text(option.title)
+                                .tag(option.id)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                }
+        }
+    }
+    
+    var textBinding: Binding<String> {
+        Binding(
+            get: {
+                switch value {
+                    case .text(let text):
+                        return text
+                    case .choice, .empty:
+                        return ""
+                }
+            },
+            set: { newValue in
+                value = .text(newValue)
+            }
+        )
+    }
+    
+    func optionalChoiceSelectionBinding(
+        for configuration: ChoiceInputConfiguration
+    ) -> Binding<String?> {
+        Binding(
+            get: {
+                effectiveChoiceSelection(for: configuration)
+            },
+            set: { newValue in
+                if let newValue {
+                    value = .choice(optionID: newValue)
+                } else {
+                    value = .empty
                 }
             }
-            .background(validationBackground)
+        )
+    }
+    
+    func requiredChoiceSelectionBinding(
+        for configuration: ChoiceInputConfiguration
+    ) -> Binding<String> {
+        Binding(
+            get: {
+                effectiveChoiceSelection(for: configuration)
+                ?? configuration.options.first?.id
+                ?? ""
+            },
+            set: { newValue in
+                value = .choice(optionID: newValue)
+            }
+        )
+    }
+    
+    func effectiveChoiceSelection(
+        for configuration: ChoiceInputConfiguration
+    ) -> String? {
+        if case .choice(let optionID) = value,
+           configuration.options.contains(where: { $0.id == optionID }) {
+            return optionID
+        }
+        if let defaultOptionID = configuration.defaultOptionID,
+           configuration.options.contains(where: { $0.id == defaultOptionID }) {
+            return defaultOptionID
+        }
+        if !configuration.allowsEmptySelection {
+            return configuration.options.first?.id
+        }
+        return nil
+    }
+    
+    var errorText: String? {
+        issue?.text
+    }
+    
+    var errorColor: Color {
+        guard let issue else { return .clear }
+        switch issue.severity {
+            case .error:
+                return .red
+            case .warning:
+                return .orange
         }
     }
     
     @ViewBuilder
-    private var validationText: some View {
+    var validationText: some View {
         if let errorText {
             Text(errorText)
                 .font(.caption)
@@ -151,7 +229,7 @@ struct DocumentDataFieldView: View {
     }
     
     @ViewBuilder
-    private var validationBackground: some View {
+    var validationBackground: some View {
         if errorText != nil {
             LinearGradient(
                 colors: [
@@ -167,39 +245,42 @@ struct DocumentDataFieldView: View {
     }
 }
 
-
 #Preview("Текстовое поле с ошибкой") {
-    DocumentDataFieldPreviewContainer(key: .fee)
-        .frame(width: 560)
+    DocumentDataFieldPreviewContainer(
+        key: .fee,
+        initialValue: .text(""),
+        issue: .error("Поле обязательно для заполнения.")
+    )
+    .frame(width: 560)
 }
 
 #Preview("Многострочное поле") {
     DocumentDataFieldPreviewContainer(
         key: .address,
-        initialValues: [
-            .address: "г. Москва, ул. Ленина, д. 1, офис 25"
-        ]
+        initialValue: .text("г. Москва, ул. Ленина, д. 1, офис 25")
     )
     .frame(width: 560)
 }
 
 #Preview("Поле выбора") {
-    DocumentDataFieldPreviewContainer(key: .paymentMethod) { formModel in
-        formModel.setChoiceSelection("invoice", for: .paymentMethod)
-    }
+    DocumentDataFieldPreviewContainer(
+        key: .paymentMethod,
+        initialValue: .choice(optionID: "invoice")
+    )
     .frame(width: 560)
 }
 
 @MainActor
 private struct DocumentDataFieldPreviewContainer: View {
     private let descriptor: PlaceholderDescriptor
-    @State private var formModel: PlaceholderFormModel
+    private let issue: FieldIssue?
+    @State private var value: PlaceholderFieldValue
     @FocusState private var focusedKey: PlaceholderKey?
     
     init(
         key: PlaceholderKey,
-        initialValues: [PlaceholderKey: String] = [:],
-        configure: (PlaceholderFormModel) -> Void = { _ in }
+        initialValue: PlaceholderFieldValue = .empty,
+        issue: FieldIssue? = nil
     ) {
         let registry = DefaultPlaceholderRegistry()
         guard let descriptor = registry.descriptor(for: key) else {
@@ -207,36 +288,20 @@ private struct DocumentDataFieldPreviewContainer: View {
         }
         
         self.descriptor = descriptor
-        let model = PlaceholderFormModel(registry: registry, initialValues: initialValues)
-        configure(model)
-        _formModel = State(initialValue: model)
+        self.issue = issue
+        _value = State(initialValue: initialValue)
     }
     
     var body: some View {
         Form {
             DocumentDataFieldView(
                 descriptor: descriptor,
-                formModel: formModel,
-                errorColor: issueColor,
-                errorText: issue?.text,
+                value: $value,
+                issue: issue,
                 focusedKey: $focusedKey
             )
         }
         .formStyle(.grouped)
         .padding()
-    }
-    
-    private var issue: FieldIssue? {
-        formModel.issue(for: descriptor.key)
-    }
-    
-    private var issueColor: Color {
-        guard let issue else { return .clear }
-        switch issue.severity {
-            case .error:
-                return .red
-            case .warning:
-                return .orange
-        }
     }
 }
