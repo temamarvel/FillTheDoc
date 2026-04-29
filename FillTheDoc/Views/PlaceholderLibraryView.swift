@@ -68,6 +68,7 @@ struct PlaceholderLibraryView: View {
                 || descriptor.description.lowercased().contains(query)
                 || (descriptor.valueSourceLabel?.lowercased().contains(query) ?? false)
                 || (descriptor.inputKindLabel?.lowercased().contains(query) ?? false)
+                || (descriptor.textEditorStyleLabel?.lowercased().contains(query) ?? false)
             }
             .map {
                 PlaceholderLibraryItem(
@@ -284,6 +285,10 @@ struct PlaceholderLibraryRowView: View {
                     
                     if let inputKindLabel = item.descriptor.inputKindLabel {
                         MetadataBadgeView(text: inputKindLabel, color: .teal)
+                    }
+                    
+                    if let textEditorStyleLabel = item.descriptor.textEditorStyleLabel {
+                        MetadataBadgeView(text: textEditorStyleLabel, color: .mint)
                     }
                     
                     if item.descriptor.isUserDefined {

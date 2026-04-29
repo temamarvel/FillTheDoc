@@ -5,7 +5,7 @@ nonisolated struct CustomPlaceholdersFile: Codable, Hashable, Sendable {
     var placeholders: [CustomPlaceholderDefinition]
     
     init(
-        schemaVersion: Int = 1,
+        schemaVersion: Int = 2,
         placeholders: [CustomPlaceholderDefinition]
     ) {
         self.schemaVersion = schemaVersion
@@ -16,13 +16,38 @@ nonisolated struct CustomPlaceholdersFile: Codable, Hashable, Sendable {
 nonisolated struct PersistedTextInputConfiguration: Codable, Hashable, Sendable {
     var placeholder: String
     var isRequired: Bool
+    var editorStyle: TextEditorStyle
     
     init(
         placeholder: String = "",
-        isRequired: Bool = false
+        isRequired: Bool = false,
+        editorStyle: TextEditorStyle = .singleLine
     ) {
         self.placeholder = placeholder
         self.isRequired = isRequired
+        self.editorStyle = editorStyle
+    }
+}
+
+extension PersistedTextInputConfiguration {
+    private enum CodingKeys: String, CodingKey {
+        case placeholder
+        case isRequired
+        case editorStyle
+    }
+    
+    nonisolated init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.placeholder = try container.decodeIfPresent(String.self, forKey: .placeholder) ?? ""
+        self.isRequired = try container.decodeIfPresent(Bool.self, forKey: .isRequired) ?? false
+        self.editorStyle = try container.decodeIfPresent(TextEditorStyle.self, forKey: .editorStyle) ?? .singleLine
+    }
+    
+    nonisolated func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(placeholder, forKey: .placeholder)
+        try container.encode(isRequired, forKey: .isRequired)
+        try container.encode(editorStyle, forKey: .editorStyle)
     }
 }
 
@@ -50,7 +75,6 @@ nonisolated struct PersistedChoiceInputConfiguration: Codable, Hashable, Sendabl
 
 nonisolated enum PersistedPlaceholderInputKind: Hashable, Sendable {
     case text(PersistedTextInputConfiguration)
-    case multilineText(PersistedTextInputConfiguration)
     case choice(PersistedChoiceInputConfiguration)
 }
 
@@ -75,7 +99,13 @@ extension PersistedPlaceholderInputKind: Codable {
                 self = .text(configuration)
             case .multilineText:
                 let configuration = try container.decode(PersistedTextInputConfiguration.self, forKey: .configuration)
-                self = .multilineText(configuration)
+                self = .text(
+                    PersistedTextInputConfiguration(
+                        placeholder: configuration.placeholder,
+                        isRequired: configuration.isRequired,
+                        editorStyle: .multiline()
+                    )
+                )
             case .choice:
                 let configuration = try container.decode(PersistedChoiceInputConfiguration.self, forKey: .configuration)
                 self = .choice(configuration)
@@ -87,9 +117,6 @@ extension PersistedPlaceholderInputKind: Codable {
         switch self {
             case .text(let configuration):
                 try container.encode(Kind.text, forKey: .type)
-                try container.encode(configuration, forKey: .configuration)
-            case .multilineText(let configuration):
-                try container.encode(Kind.multilineText, forKey: .type)
                 try container.encode(configuration, forKey: .configuration)
             case .choice(let configuration):
                 try container.encode(Kind.choice, forKey: .type)
@@ -137,14 +164,8 @@ extension PersistedPlaceholderInputKind {
                 return .text(
                     TextInputConfiguration(
                         placeholder: configuration.placeholder,
-                        isRequired: configuration.isRequired
-                    )
-                )
-            case .multilineText(let configuration):
-                return .multilineText(
-                    TextInputConfiguration(
-                        placeholder: configuration.placeholder,
-                        isRequired: configuration.isRequired
+                        isRequired: configuration.isRequired,
+                        editorStyle: configuration.editorStyle
                     )
                 )
             case .choice(let configuration):
@@ -168,7 +189,7 @@ extension CustomPlaceholderDefinition {
         let validator: FieldValidator
         
         switch inputKind {
-            case .text(let configuration), .multilineText(let configuration):
+            case .text(let configuration):
                 isRequired = configuration.isRequired
                 if configuration.isRequired {
                     validator = Validators.nonEmpty

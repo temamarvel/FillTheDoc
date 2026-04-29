@@ -113,7 +113,7 @@ final class PlaceholderFormModel {
     func applyExtractedValues(_ extractedValues: [PlaceholderKey: String]) {
         for descriptor in editableDescriptors where descriptor.valueSource == .extracted {
             switch descriptor.inputKind {
-                case .some(.text), .some(.multilineText):
+                case .some(.text):
                     let value = extractedValues[descriptor.key] ?? ""
                     let fieldValue = normalize(.text(value), for: descriptor)
                     fieldStates[descriptor.key] = PlaceholderFieldState(
@@ -181,11 +181,14 @@ private extension PlaceholderFormModel {
         switch descriptor.inputKind {
             case .some(.text):
                 return .text(extractedText ?? "")
-            case .some(.multilineText):
-                return .text(extractedText ?? "")
             case .some(.choice(let configuration)):
-                if let defaultOptionID = configuration.defaultOptionID {
+                if let defaultOptionID = configuration.defaultOptionID,
+                   configuration.options.contains(where: { $0.id == defaultOptionID }) {
                     return .choice(optionID: defaultOptionID)
+                }
+                if !configuration.allowsEmptySelection,
+                   let firstOptionID = configuration.options.first?.id {
+                    return .choice(optionID: firstOptionID)
                 }
                 return .empty
             case .none:
@@ -197,8 +200,6 @@ private extension PlaceholderFormModel {
         switch (value, descriptor.inputKind) {
             case (.text(let text), .some(.text(let configuration))):
                 return .text(configuration.trimOnCommit ? descriptor.normalizer(text) : text)
-            case (.text(let text), .some(.multilineText(let configuration))):
-                return .text(configuration.trimOnCommit ? descriptor.normalizer(text) : text)
             case (.choice(let optionID), .some(.choice(let configuration))):
                 if configuration.options.contains(where: { $0.id == optionID }) {
                     return .choice(optionID: optionID)
@@ -207,11 +208,19 @@ private extension PlaceholderFormModel {
                    configuration.options.contains(where: { $0.id == defaultOptionID }) {
                     return .choice(optionID: defaultOptionID)
                 }
-                return configuration.allowsEmptySelection ? .empty : .empty
+                if !configuration.allowsEmptySelection,
+                   let firstOptionID = configuration.options.first?.id {
+                    return .choice(optionID: firstOptionID)
+                }
+                return .empty
             case (.empty, .some(.choice(let configuration))):
                 if let defaultOptionID = configuration.defaultOptionID,
                    configuration.options.contains(where: { $0.id == defaultOptionID }) {
                     return .choice(optionID: defaultOptionID)
+                }
+                if !configuration.allowsEmptySelection,
+                   let firstOptionID = configuration.options.first?.id {
+                    return .choice(optionID: firstOptionID)
                 }
                 return .empty
             case (.empty, _):
@@ -223,7 +232,7 @@ private extension PlaceholderFormModel {
     
     func validate(_ value: PlaceholderFieldValue, for descriptor: PlaceholderDescriptor) -> FieldIssue? {
         switch (value, descriptor.inputKind) {
-            case (.text(let text), .some(.text)), (.text(let text), .some(.multilineText)):
+            case (.text(let text), .some(.text)):
                 return descriptor.validator(text)
             case (.choice(let optionID), .some(.choice(let configuration))):
                 if configuration.options.contains(where: { $0.id == optionID }) {
@@ -235,7 +244,7 @@ private extension PlaceholderFormModel {
                     return nil
                 }
                 return .error("Поле обязательно для выбора.")
-            case (.empty, .some(.text)), (.empty, .some(.multilineText)):
+            case (.empty, .some(.text)):
                 return descriptor.validator("")
             case (_, nil):
                 return nil

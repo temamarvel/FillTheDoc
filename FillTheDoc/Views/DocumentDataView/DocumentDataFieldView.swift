@@ -27,13 +27,9 @@ struct DocumentDataFieldView: View {
     
     var body: some View {
         switch descriptor.inputKind {
-            case .some(.text):
-                fieldRow(alignment: .center) {
-                    textField(axis: .horizontal, multiline: false)
-                }
-            case .some(.multilineText):
-                fieldRow(alignment: .top) {
-                    textField(axis: .vertical, multiline: true)
+            case .some(.text(let configuration)):
+                fieldRow(alignment: verticalAlignment(for: configuration)) {
+                    textInput(configuration: configuration)
                 }
             case .some(.choice(let configuration)):
                 fieldRow(alignment: .center) {
@@ -66,27 +62,37 @@ private extension DocumentDataFieldView {
         }
     }
     
-    func textField(axis: Axis, multiline: Bool) -> some View {
-        Group {
-            if multiline {
+    func verticalAlignment(for configuration: TextInputConfiguration) -> VerticalAlignment {
+        switch configuration.editorStyle {
+            case .singleLine:
+                return .center
+            case .multiline:
+                return .top
+        }
+    }
+    
+    @ViewBuilder
+    func textInput(configuration: TextInputConfiguration) -> some View {
+        switch configuration.editorStyle {
+            case .singleLine:
                 TextField(
                     "",
                     text: textBinding,
-                    prompt: Text(descriptor.placeholder),
-                    axis: axis
-                )
-                .lineLimit(1...8)
-            } else {
-                TextField(
-                    "",
-                    text: textBinding,
-                    prompt: Text(descriptor.placeholder),
-                    axis: axis
+                    prompt: Text(configuration.placeholder),
+                    axis: .horizontal
                 )
                 .lineLimit(1)
-            }
+                .focused($focusedKey, equals: descriptor.key)
+            case .multiline(let minLines, let maxLines):
+                TextField(
+                    "",
+                    text: textBinding,
+                    prompt: Text(configuration.placeholder),
+                    axis: .vertical
+                )
+                .lineLimit(minLines...max(maxLines, minLines))
+                .focused($focusedKey, equals: descriptor.key)
         }
-        .focused($focusedKey, equals: descriptor.key)
     }
     
     @ViewBuilder

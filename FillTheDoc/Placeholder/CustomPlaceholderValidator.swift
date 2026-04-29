@@ -32,11 +32,19 @@ struct CustomPlaceholderValidator: Sendable {
     
     private func validateInputKind(_ inputKind: PersistedPlaceholderInputKind) -> [FieldIssue] {
         switch inputKind {
-            case .text, .multilineText:
-                return []
+            case .text(let configuration):
+                return validateText(configuration)
             case .choice(let configuration):
                 return validateChoice(configuration)
         }
+    }
+    
+    private func validateText(_ configuration: PersistedTextInputConfiguration) -> [FieldIssue] {
+        if case .multiline(let minLines, let maxLines) = configuration.editorStyle,
+           minLines < 1 || maxLines < minLines {
+            return [.error("Некорректная конфигурация многострочного текстового поля.")]
+        }
+        return []
     }
     
     private func validateChoice(_ configuration: PersistedChoiceInputConfiguration) -> [FieldIssue] {

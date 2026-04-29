@@ -16,14 +16,16 @@ struct PlaceholderValueResolver: Sendable {
         switch (value, definition.inputKind) {
             case (.text(let text), .some(.text)):
                 return definition.normalizer(text)
-            case (.text(let text), .some(.multilineText)):
-                return definition.normalizer(text)
             case (.choice(let optionID), .some(.choice(let configuration))):
                 return configuration.options.first(where: { $0.id == optionID })?.replacementValue ?? ""
             case (.empty, .some(.choice(let configuration))):
                 if let defaultOptionID = configuration.defaultOptionID,
                    let option = configuration.options.first(where: { $0.id == defaultOptionID }) {
                     return option.replacementValue
+                }
+                if !configuration.allowsEmptySelection,
+                   let firstOption = configuration.options.first {
+                    return firstOption.replacementValue
                 }
                 return ""
             case (.empty, _):

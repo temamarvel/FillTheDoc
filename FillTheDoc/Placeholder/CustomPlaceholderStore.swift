@@ -42,7 +42,7 @@ actor FileCustomPlaceholderStore: CustomPlaceholderStore {
         let data = try Data(contentsOf: fileURL)
         let file = try decoder.decode(CustomPlaceholdersFile.self, from: data)
         switch file.schemaVersion {
-            case 1:
+            case 1, 2:
                 return file.placeholders
             default:
                 throw CustomPlaceholderStoreError.unsupportedSchemaVersion(file.schemaVersion)
@@ -57,7 +57,7 @@ actor FileCustomPlaceholderStore: CustomPlaceholderStore {
         )
         
         let file = CustomPlaceholdersFile(
-            schemaVersion: 1,
+            schemaVersion: 2,
             placeholders: definitions
         )
         let data = try encoder.encode(file)

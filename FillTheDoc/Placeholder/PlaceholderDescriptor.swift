@@ -48,19 +48,81 @@ nonisolated enum PlaceholderValueSource: String, Codable, Hashable, Sendable {
 
 // MARK: - Input configuration
 
+nonisolated enum TextEditorStyle: Hashable, Codable, Sendable {
+    case singleLine
+    case multiline(minLines: Int = 1, maxLines: Int = 8)
+    
+    var label: String {
+        switch self {
+            case .singleLine:
+                return "Однострочное"
+            case .multiline:
+                return "Многострочное"
+        }
+    }
+    
+    var signatureFragment: String {
+        switch self {
+            case .singleLine:
+                return "singleLine"
+            case .multiline(let minLines, let maxLines):
+                return "multiline|\(minLines)|\(maxLines)"
+        }
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case type
+        case minLines
+        case maxLines
+    }
+    
+    private enum Kind: String, Codable {
+        case singleLine
+        case multiline
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let kind = try container.decodeIfPresent(Kind.self, forKey: .type) ?? .singleLine
+        switch kind {
+            case .singleLine:
+                self = .singleLine
+            case .multiline:
+                let minLines = try container.decodeIfPresent(Int.self, forKey: .minLines) ?? 1
+                let maxLines = try container.decodeIfPresent(Int.self, forKey: .maxLines) ?? 8
+                self = .multiline(minLines: minLines, maxLines: max(maxLines, minLines))
+        }
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+            case .singleLine:
+                try container.encode(Kind.singleLine, forKey: .type)
+            case .multiline(let minLines, let maxLines):
+                try container.encode(Kind.multiline, forKey: .type)
+                try container.encode(minLines, forKey: .minLines)
+                try container.encode(maxLines, forKey: .maxLines)
+        }
+    }
+}
+
 nonisolated struct TextInputConfiguration: Hashable, Codable, Sendable {
     var placeholder: String
     var isRequired: Bool
     var trimOnCommit: Bool
+    var editorStyle: TextEditorStyle
     
     init(
         placeholder: String = "",
         isRequired: Bool = false,
-        trimOnCommit: Bool = true
+        trimOnCommit: Bool = true,
+        editorStyle: TextEditorStyle = .singleLine
     ) {
         self.placeholder = placeholder
         self.isRequired = isRequired
         self.trimOnCommit = trimOnCommit
+        self.editorStyle = editorStyle
     }
 }
 
@@ -112,7 +174,6 @@ nonisolated struct ChoiceInputConfiguration: Hashable, Codable, Sendable {
 
 nonisolated enum PlaceholderInputKind: Hashable, Sendable {
     case text(TextInputConfiguration)
-    case multilineText(TextInputConfiguration)
     case choice(ChoiceInputConfiguration)
     
     var isChoice: Bool {
@@ -126,8 +187,6 @@ nonisolated enum PlaceholderInputKind: Hashable, Sendable {
         switch self {
             case .text:
                 return "Текст"
-            case .multilineText:
-                return "Многострочный текст"
             case .choice:
                 return "Выбор"
         }
@@ -135,7 +194,7 @@ nonisolated enum PlaceholderInputKind: Hashable, Sendable {
     
     var placeholderText: String {
         switch self {
-            case .text(let configuration), .multilineText(let configuration):
+            case .text(let configuration):
                 return configuration.placeholder
             case .choice:
                 return ""
@@ -144,19 +203,26 @@ nonisolated enum PlaceholderInputKind: Hashable, Sendable {
     
     var isRequired: Bool {
         switch self {
-            case .text(let configuration), .multilineText(let configuration):
+            case .text(let configuration):
                 return configuration.isRequired
             case .choice(let configuration):
                 return !configuration.allowsEmptySelection
         }
     }
     
+    var textEditorStyle: TextEditorStyle? {
+        guard case .text(let configuration) = self else { return nil }
+        return configuration.editorStyle
+    }
+    
+    var textEditorStyleLabel: String? {
+        textEditorStyle?.label
+    }
+    
     var signatureFragment: String {
         switch self {
             case .text(let configuration):
-                return "text|\(configuration.placeholder)|\(configuration.isRequired)|\(configuration.trimOnCommit)"
-            case .multilineText(let configuration):
-                return "multiline|\(configuration.placeholder)|\(configuration.isRequired)|\(configuration.trimOnCommit)"
+                return "text|\(configuration.placeholder)|\(configuration.isRequired)|\(configuration.trimOnCommit)|\(configuration.editorStyle.signatureFragment)"
             case .choice(let configuration):
                 let optionsLine = configuration.options
                     .map { "\($0.id):\($0.title):\($0.replacementValue)" }
@@ -232,6 +298,7 @@ struct PlaceholderDescriptor: Identifiable, Sendable {
     var isDerived: Bool { inputKind == nil }
     
     var inputKindLabel: String? { inputKind?.label }
+    var textEditorStyleLabel: String? { inputKind?.textEditorStyleLabel }
     var valueSourceLabel: String? { valueSource?.label }
     
     /// Строковая сигнатура помогает SwiftUI понять, что definition реально поменялся

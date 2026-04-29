@@ -262,7 +262,13 @@ private extension DefaultPlaceholderRegistry {
             section: .company,
             order: 100,
             valueSource: .extracted,
-            inputKind: .multilineText(.init(placeholder: "город, улица, дом", isRequired: false)),
+            inputKind: .text(
+                .init(
+                    placeholder: "город, улица, дом",
+                    isRequired: false,
+                    editorStyle: .multiline(minLines: 1, maxLines: 8)
+                )
+            ),
             exampleValue: "г. Москва, ул. Ленина, д. 1",
             isRequired: false,
             normalizer: { $0.trimmed },
@@ -305,7 +311,7 @@ private extension DefaultPlaceholderRegistry {
             exampleValue: "1",
             isRequired: true,
             normalizer: { $0.trimmed },
-            validator: {Validators.isInRange($0, 0...100)}
+            validator: { Validators.isInRange($0, 0...100) }
         ),
         .init(
             key: .minFee,
@@ -318,7 +324,7 @@ private extension DefaultPlaceholderRegistry {
             exampleValue: "10",
             isRequired: true,
             normalizer: { $0.trimmed },
-            validator: {Validators.isInRange($0, 10...1000)}
+            validator: { Validators.isInRange($0, 10...1000) }
         ),
         .init(
             key: .paymentMethod,
