@@ -134,9 +134,11 @@ struct CustomPlaceholderEditorView: View {
     
     @State private var order: Int
     @State private var isEnabled: Bool
+    @State private var previewValue: PlaceholderFieldValue
     
     @State private var saveErrorText: String?
     @State private var isSaving = false
+    @FocusState private var previewFocusedKey: PlaceholderKey?
     
     init(
         mode: Mode,
@@ -154,6 +156,7 @@ struct CustomPlaceholderEditorView: View {
         _descriptionText = State(initialValue: definition?.description ?? "")
         _order = State(initialValue: definition?.order ?? 500)
         _isEnabled = State(initialValue: definition?.isEnabled ?? true)
+        _previewValue = State(initialValue: .empty)
         
         switch definition?.inputKind {
             case .text(let configuration):
@@ -211,24 +214,16 @@ struct CustomPlaceholderEditorView: View {
         return title.isEmpty ? "Название поля" : title
     }
     
-    private var previewTextPlaceholder: String {
-        let placeholder = textPlaceholder.trimmingCharacters(in: .whitespacesAndNewlines)
-        return placeholder.isEmpty ? "Введите значение" : placeholder
+    private var previewKey: PlaceholderKey {
+        PlaceholderKey(rawValue: normalizedKeyText.isEmpty ? "placeholder_key" : normalizedKeyText)
     }
     
-    private var previewSelectedChoiceTitle: String {
-        if let defaultOptionID,
-           let option = choiceOptions.first(where: { $0.id == defaultOptionID }),
-           !option.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return option.title
-        }
-        
-        if let first = choiceOptions.first,
-           !first.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return first.title
-        }
-        
-        return "Выберите значение"
+    private var previewDescriptor: PlaceholderDescriptor {
+        makeDefinition(
+            key: previewKey,
+            title: previewTitle
+        )
+        .makeRuntimeDefinition()
     }
     
     var body: some View {
@@ -257,7 +252,7 @@ struct CustomPlaceholderEditorView: View {
             footerView
         }
         .frame(minWidth: 760, minHeight: 640)
-        .background(Color(nsColor: .windowBackgroundColor))
+        //.background(Color(nsColor: .windowBackgroundColor))
         .onChange(of: valueType) { _, newValue in
             saveErrorText = nil
             
@@ -514,14 +509,19 @@ private extension CustomPlaceholderEditorView {
                             .font(.caption.weight(.medium))
                             .foregroundStyle(.secondary)
                         
-                        VStack(alignment: .leading, spacing: 7) {
-                            Text(previewTitle)
-                                .font(.subheadline.weight(.medium))
+                        Form{
+                                DocumentDataFieldView(
+                                    descriptor: previewDescriptor,
+                                    value: $previewValue,
+                                    focusedKey: $previewFocusedKey
+                                )
+                                .id(previewDescriptor.signature)
+                        }.formStyle(.grouped)
                             
-                            previewControl
-                        }
                     }
+                    
                     .frame(maxWidth: .infinity)
+                    
                 }
                 
                 Divider()
@@ -533,48 +533,6 @@ private extension CustomPlaceholderEditorView {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }
-        }
-    }
-    
-    @ViewBuilder
-    var previewControl: some View {
-        switch valueType {
-            case .text:
-                Text(previewTextPlaceholder)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color(nsColor: .textBackgroundColor))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.primary.opacity(0.10), lineWidth: 1)
-                    )
-                
-            case .choice:
-                HStack {
-                    Text(previewSelectedChoiceTitle)
-                        .foregroundStyle(.primary)
-                    
-                    Spacer()
-                    
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(nsColor: .textBackgroundColor))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.primary.opacity(0.10), lineWidth: 1)
-                )
         }
     }
     
@@ -693,9 +651,12 @@ private extension CustomPlaceholderEditorView {
         }
     }
     
-    func makeDefinition() -> CustomPlaceholderDefinition {
-        let key = PlaceholderKey(rawValue: normalizedKeyText)
-        let title = titleText.trimmingCharacters(in: .whitespacesAndNewlines)
+    func makeDefinition(
+        key: PlaceholderKey? = nil,
+        title: String? = nil
+    ) -> CustomPlaceholderDefinition {
+        let key = key ?? PlaceholderKey(rawValue: normalizedKeyText)
+        let title = title ?? titleText.trimmingCharacters(in: .whitespacesAndNewlines)
         let description = descriptionText.trimmedNilIfEmpty
         
         let inputKind: PersistedPlaceholderInputKind
@@ -874,10 +835,10 @@ private extension CustomPlaceholderEditorView {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(nsColor: .windowBackgroundColor))
-        )
+//        .background(
+//            RoundedRectangle(cornerRadius: 12)
+//                .fill(Color(nsColor: .windowBackgroundColor))
+//        )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.primary.opacity(0.10), lineWidth: 1)
