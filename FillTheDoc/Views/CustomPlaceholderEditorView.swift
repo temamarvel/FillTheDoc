@@ -993,3 +993,106 @@ private extension CustomPlaceholderEditorView {
         )
     }
 }
+
+// MARK: - Preview
+
+#Preview("Create / Text") {
+    CustomPlaceholderEditorPreviewContainer(
+        mode: .create
+    )
+}
+
+#Preview("Create / Choice") {
+    CustomPlaceholderEditorPreviewContainer(
+        mode: .create,
+        initialDefinition: CustomPlaceholderDefinition(
+            key: PlaceholderKey(rawValue: "payment_method"),
+            title: "Способ оплаты",
+            description: "Выберите способ оплаты договора.",
+            inputKind: .choice(
+                PersistedChoiceInputConfiguration(
+                    options: [
+                        PlaceholderOption(
+                            id: "cash",
+                            title: "Наличные",
+                            replacementValue: "Наличные"
+                        ),
+                        PlaceholderOption(
+                            id: "invoice",
+                            title: "Безналичный расчёт",
+                            replacementValue: "Безналичный расчёт"
+                        )
+                    ],
+                    defaultOptionID: "invoice",
+                    allowsEmptySelection: true,
+                    emptyTitle: "Не выбрано",
+                    presentationStyle: .menu
+                )
+            ),
+            order: 100
+        )
+    )
+}
+
+#Preview("Edit") {
+    CustomPlaceholderEditorPreviewContainer(
+        mode: .edit(
+            CustomPlaceholderDefinition(
+                key: PlaceholderKey(rawValue: "delivery_address"),
+                title: "Адрес доставки",
+                description: "Адрес, который будет подставлен в договор.",
+                inputKind: .text(
+                    PersistedTextInputConfiguration(
+                        placeholder: "Введите адрес доставки",
+                        isRequired: true,
+                        editorStyle: .singleLine
+                    )
+                ),
+                order: 200
+            )
+        )
+    )
+}
+
+@MainActor
+private struct CustomPlaceholderEditorPreviewContainer: View {
+    let mode: CustomPlaceholderEditorView.Mode
+    let initialDefinition: CustomPlaceholderDefinition?
+    
+    init(
+        mode: CustomPlaceholderEditorView.Mode,
+        initialDefinition: CustomPlaceholderDefinition? = nil
+    ) {
+        self.mode = mode
+        self.initialDefinition = initialDefinition
+    }
+    
+    var body: some View {
+        CustomPlaceholderEditorView(
+            mode: resolvedMode,
+            existingKeys: existingKeys
+        ) { _ in
+            try await Task.sleep(for: .milliseconds(300))
+        }
+        .frame(width: 820, height: 720)
+    }
+    
+    private var resolvedMode: CustomPlaceholderEditorView.Mode {
+        if let initialDefinition {
+            return .edit(initialDefinition)
+        }
+        
+        return mode
+    }
+    
+    private var existingKeys: Set<PlaceholderKey> {
+        [
+            .companyName,
+            .address,
+            .email,
+            .phone,
+            .paymentMethod,
+            PlaceholderKey(rawValue: "delivery_address")
+        ]
+    }
+}
