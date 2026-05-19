@@ -6,38 +6,33 @@ nonisolated private struct ChoiceOptionDraft: Identifiable, Hashable {
     let id: String
     var title: String
     var replacementValue: String
-    var description: String?
     
     nonisolated init(
         id: String = UUID().uuidString,
         title: String = "",
-        replacementValue: String = "",
-        description: String? = nil
+        replacementValue: String = ""
     ) {
         self.id = id
         self.title = title
         self.replacementValue = replacementValue
-        self.description = description
     }
     
     nonisolated init(option: PlaceholderOption) {
         self.id = option.id
         self.title = option.title
         self.replacementValue = option.replacementValue
-        self.description = option.description
     }
     
     nonisolated var placeholderOption: PlaceholderOption {
         PlaceholderOption(
             id: id,
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
-            replacementValue: replacementValue.trimmingCharacters(in: .whitespacesAndNewlines),
-            description: description?.trimmedNilIfEmpty
+            replacementValue: replacementValue.trimmingCharacters(in: .whitespacesAndNewlines)
         )
     }
 }
 
-private enum CustomPlaceholderValueType: String, CaseIterable, Identifiable {
+private enum CustomPlaceholderEditorInputType: String, CaseIterable, Identifiable {
     case text
     case choice
     
@@ -45,74 +40,25 @@ private enum CustomPlaceholderValueType: String, CaseIterable, Identifiable {
     
     var title: String {
         switch self {
-            case .text:
-                return "Текст"
-            case .choice:
-                return "Выбор"
-        }
-    }
-    
-    var settingsTitle: String {
-        switch self {
-            case .text:
-                return "Текст"
-            case .choice:
-                return "Выбор"
+            case .text: return "Текст"
+            case .choice: return "Выбор"
         }
     }
 }
 
-private enum CustomPlaceholderTextEditorStyle: String, CaseIterable, Identifiable {
-    case singleLine
-    case multiline
-    
-    var id: String { rawValue }
-    
-    var title: String {
-        switch self {
-            case .singleLine:
-                return "Обычное поле"
-            case .multiline:
-                return "Многострочное поле"
-        }
-    }
-    
-    init(runtimeStyle: TextEditorStyle) {
-        switch runtimeStyle {
-            case .singleLine:
-                self = .singleLine
-            case .multiline:
-                self = .multiline
-        }
-    }
-    
-    func runtimeStyle(minLines: Int, maxLines: Int) -> TextEditorStyle {
-        switch self {
-            case .singleLine:
-                return .singleLine
-            case .multiline:
-                return .multiline(minLines: minLines, maxLines: maxLines)
-        }
-    }
-}
-
-// MARK: - Inline validation model
+// MARK: - Validation
 
 private struct InlineValidationState {
-    var keyError: String?
     var titleError: String?
-    var descriptionError: String?
+    var keyError: String?
     var choiceGeneralError: String?
-    var defaultOptionError: String?
     var choiceOptionErrors: [String: ChoiceOptionValidationError] = [:]
     
     var hasBlockingErrors: Bool {
-        keyError != nil
-        || titleError != nil
-        || descriptionError != nil
+        titleError != nil
+        || keyError != nil
         || choiceGeneralError != nil
-        || defaultOptionError != nil
-        || choiceOptionErrors.values.contains { $0.hasError }
+        || choiceOptionErrors.values.contains(where: \.hasError)
     }
 }
 
@@ -125,7 +71,7 @@ private struct ChoiceOptionValidationError {
     }
 }
 
-// MARK: - Main view
+// MARK: - CustomPlaceholderEditorView
 
 struct CustomPlaceholderEditorView: View {
     enum Mode {
@@ -135,14 +81,23 @@ struct CustomPlaceholderEditorView: View {
         var title: String {
             switch self {
                 case .create:
-                    return "Добавить пользовательский плейсхолдер"
+                    return "Новый плейсхолдер"
                 case .edit:
-                    return "Редактирование пользовательского плейсхолдера"
+                    return "Редактирование плейсхолдера"
             }
         }
         
         var subtitle: String {
-            "Вариант 1 — быстрое добавление"
+            "Основные поля сверху, настройки и предпросмотр ниже"
+        }
+        
+        var saveButtonTitle: String {
+            switch self {
+                case .create:
+                    return "Создать"
+                case .edit:
+                    return "Сохранить"
+            }
         }
         
         var existingDefinition: CustomPlaceholderDefinition? {
@@ -158,10 +113,6 @@ struct CustomPlaceholderEditorView: View {
             if case .edit = self { return true }
             return false
         }
-        
-        var saveButtonTitle: String {
-            isEditing ? "Сохранить" : "Создать"
-        }
     }
     
     let mode: Mode
@@ -170,27 +121,22 @@ struct CustomPlaceholderEditorView: View {
     
     @Environment(\.dismiss) private var dismiss
     
-    @State private var keyText: String
     @State private var titleText: String
+    @State private var keyText: String
     @State private var descriptionText: String
-    @State private var order: Int
-    @State private var valueType: CustomPlaceholderValueType
-    @State private var textEditorStyle: CustomPlaceholderTextEditorStyle
-    @State private var multilineMinLines: Int
-    @State private var multilineMaxLines: Int
+    @State private var valueType: CustomPlaceholderEditorInputType
+    
     @State private var textPlaceholder: String
     @State private var textRequired: Bool
+    
     @State private var choiceOptions: [ChoiceOptionDraft]
     @State private var defaultOptionID: String?
-    @State private var allowsEmptySelection: Bool
-    @State private var emptyTitle: String
-    @State private var presentationStyle: ChoicePresentationStyle
+    
+    @State private var order: Int
     @State private var isEnabled: Bool
     
     @State private var saveErrorText: String?
     @State private var isSaving = false
-    @State private var previewFieldValue: PlaceholderFieldValue = .empty
-    @FocusState private var previewFocusedKey: PlaceholderKey?
     
     init(
         mode: Mode,
@@ -203,8 +149,8 @@ struct CustomPlaceholderEditorView: View {
         
         let definition = mode.existingDefinition
         
-        _keyText = State(initialValue: definition?.key.rawValue ?? "")
         _titleText = State(initialValue: definition?.title ?? "")
+        _keyText = State(initialValue: definition?.key.rawValue ?? "")
         _descriptionText = State(initialValue: definition?.description ?? "")
         _order = State(initialValue: definition?.order ?? 500)
         _isEnabled = State(initialValue: definition?.isEnabled ?? true)
@@ -212,57 +158,36 @@ struct CustomPlaceholderEditorView: View {
         switch definition?.inputKind {
             case .text(let configuration):
                 _valueType = State(initialValue: .text)
-                _textEditorStyle = State(initialValue: .init(runtimeStyle: configuration.editorStyle))
-                switch configuration.editorStyle {
-                    case .singleLine:
-                        _multilineMinLines = State(initialValue: 1)
-                        _multilineMaxLines = State(initialValue: 8)
-                    case .multiline(let minLines, let maxLines):
-                        _multilineMinLines = State(initialValue: minLines)
-                        _multilineMaxLines = State(initialValue: maxLines)
-                }
                 _textPlaceholder = State(initialValue: configuration.placeholder)
                 _textRequired = State(initialValue: configuration.isRequired)
                 _choiceOptions = State(initialValue: Self.defaultChoiceOptions())
                 _defaultOptionID = State(initialValue: nil)
-                _allowsEmptySelection = State(initialValue: true)
-                _emptyTitle = State(initialValue: "Не выбрано")
-                _presentationStyle = State(initialValue: .menu)
                 
             case .choice(let configuration):
                 _valueType = State(initialValue: .choice)
-                _textEditorStyle = State(initialValue: .singleLine)
-                _multilineMinLines = State(initialValue: 1)
-                _multilineMaxLines = State(initialValue: 8)
                 _textPlaceholder = State(initialValue: "")
                 _textRequired = State(initialValue: false)
                 _choiceOptions = State(initialValue: configuration.options.map(ChoiceOptionDraft.init(option:)))
                 _defaultOptionID = State(initialValue: configuration.defaultOptionID)
-                _allowsEmptySelection = State(initialValue: configuration.allowsEmptySelection)
-                _emptyTitle = State(initialValue: configuration.emptyTitle)
-                _presentationStyle = State(initialValue: configuration.presentationStyle)
                 
             case nil:
                 _valueType = State(initialValue: .text)
-                _textEditorStyle = State(initialValue: .singleLine)
-                _multilineMinLines = State(initialValue: 1)
-                _multilineMaxLines = State(initialValue: 8)
                 _textPlaceholder = State(initialValue: "")
                 _textRequired = State(initialValue: false)
                 _choiceOptions = State(initialValue: Self.defaultChoiceOptions())
                 _defaultOptionID = State(initialValue: nil)
-                _allowsEmptySelection = State(initialValue: true)
-                _emptyTitle = State(initialValue: "Не выбрано")
-                _presentationStyle = State(initialValue: .menu)
         }
     }
-    
-    // MARK: - Derived state
     
     private var normalizedKeyText: String {
         keyText
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
+    }
+    
+    private var tokenPreview: String {
+        let key = normalizedKeyText.isEmpty ? "placeholder_key" : normalizedKeyText
+        return "<!\(key)!>"
     }
     
     private var existingKeysForValidation: Set<PlaceholderKey> {
@@ -281,134 +206,83 @@ struct CustomPlaceholderEditorView: View {
         !isSaving && !validation.hasBlockingErrors
     }
     
-    private var tokenPreview: String {
-        previewDescriptor.token
-    }
-    
-    private var previewDescriptor: PlaceholderDescriptor {
-        makePreviewDefinition().makeRuntimeDefinition()
-    }
-    
-    private var valueTypeDescription: String {
-        switch valueType {
-            case .text:
-                return "Текстовый плейсхолдер — это строковое значение. Отдельно можно выбрать обычное или многострочное поле ввода."
-            case .choice:
-                return "Плейсхолдер с выбором — пользователь выбирает вариант, а в документ подставляется связанное значение."
-        }
+    private var previewTitle: String {
+        let title = titleText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return title.isEmpty ? "Название поля" : title
     }
     
     private var previewTextPlaceholder: String {
-        let trimmed = textPlaceholder.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "Введите значение" : trimmed
+        let placeholder = textPlaceholder.trimmingCharacters(in: .whitespacesAndNewlines)
+        return placeholder.isEmpty ? "Введите значение" : placeholder
     }
     
-    private var previewEmptyTitle: String {
-        let trimmed = emptyTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "Не выбрано" : trimmed
+    private var previewSelectedChoiceTitle: String {
+        if let defaultOptionID,
+           let option = choiceOptions.first(where: { $0.id == defaultOptionID }),
+           !option.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return option.title
+        }
+        
+        if let first = choiceOptions.first,
+           !first.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return first.title
+        }
+        
+        return "Выберите значение"
     }
     
     var body: some View {
-        editorRoot
-            .frame(minWidth: 920, minHeight: 640)
-            .background(Color(nsColor: .windowBackgroundColor))
-            .onAppear(perform: syncPreviewFieldValue)
-            .onChange(of: previewDescriptor.signature) { _, _ in
-                syncPreviewFieldValue()
-            }
-            .onChange(of: valueType, handleValueTypeChange)
-            .onChange(of: keyText, clearSaveError)
-            .onChange(of: titleText, clearSaveError)
-            .onChange(of: descriptionText, clearSaveError)
-            .onChange(of: textEditorStyle, clearSaveError)
-            .onChange(of: multilineMinLines, clearSaveError)
-            .onChange(of: multilineMaxLines, clearSaveError)
-            .onChange(of: textPlaceholder, clearSaveError)
-            .onChange(of: textRequired, clearSaveError)
-            .onChange(of: choiceOptions, handleChoiceOptionsChange)
-            .onChange(of: defaultOptionID, clearSaveError)
-            .onChange(of: allowsEmptySelection, clearSaveError)
-            .onChange(of: emptyTitle, clearSaveError)
-            .onChange(of: presentationStyle, clearSaveError)
-            .onChange(of: isEnabled, clearSaveError)
-    }
-}
-
-private extension CustomPlaceholderEditorView {
-    var editorRoot: some View {
         VStack(spacing: 0) {
             headerView
+            
             Divider()
-            editorContent
-            saveErrorSection
+            
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    baseSection
+                    settingsSection
+                    previewSection
+                }
+                .padding(24)
+            }
+            
+            if let saveErrorText {
+                Divider()
+                errorBanner(text: saveErrorText)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+            }
+            
             Divider()
             footerView
         }
-    }
-    
-    var editorContent: some View {
-        HStack(spacing: 0) {
-            ScrollView {
-                leftPane
-                    .padding(24)
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
+        .frame(minWidth: 760, minHeight: 640)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .onChange(of: valueType) { _, newValue in
+            saveErrorText = nil
+            
+            if newValue == .choice {
+                normalizeDefaultOptionID()
+            } else {
+                defaultOptionID = nil
             }
-            
-            Divider()
-            
-            rightPreviewPane
-                .frame(maxHeight: .infinity, alignment: .top)
-                .background(Color(nsColor: .controlBackgroundColor).opacity(0.35))
         }
-    }
-    
-    @ViewBuilder
-    var saveErrorSection: some View {
-        if let saveErrorText {
-            Divider()
-            errorBanner(text: saveErrorText)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
+        .onChange(of: choiceOptions) { _, _ in
+            saveErrorText = nil
+            normalizeDefaultOptionID()
         }
-    }
-    
-    func handleValueTypeChange(
-        oldValue: CustomPlaceholderValueType,
-        newValue: CustomPlaceholderValueType
-    ) {
-        saveErrorText = nil
-        if newValue == .choice {
-            normalizeDefaultOptionID(for: choiceOptions)
-        }
-    }
-    
-    func handleChoiceOptionsChange(
-        oldValue: [ChoiceOptionDraft],
-        newValue: [ChoiceOptionDraft]
-    ) {
-        saveErrorText = nil
-        normalizeDefaultOptionID(for: newValue)
-    }
-    
-    func clearSaveError<T>(oldValue: T, newValue: T) {
-        saveErrorText = nil
-    }
-    
-    func normalizeDefaultOptionID(for options: [ChoiceOptionDraft]) {
-        guard let defaultOptionID else { return }
-        guard options.contains(where: { $0.id == defaultOptionID }) else {
-            self.defaultOptionID = nil
-            return
-        }
+        .onChange(of: titleText) { _, _ in saveErrorText = nil }
+        .onChange(of: keyText) { _, _ in saveErrorText = nil }
+        .onChange(of: textPlaceholder) { _, _ in saveErrorText = nil }
     }
 }
 
-// MARK: - Header / Layout
+// MARK: - Layout
 
 private extension CustomPlaceholderEditorView {
     var headerView: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 6) {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 5) {
                 Text(mode.title)
                     .font(.title2.weight(.semibold))
                 
@@ -423,98 +297,59 @@ private extension CustomPlaceholderEditorView {
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.secondary)
                     .frame(width: 28, height: 28)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
+            .help("Закрыть")
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 20)
     }
     
-    var leftPane: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            EditorSectionView(title: "1. Основное") {
-                basicSection
-            }
-            
-            EditorSectionView(title: "2. Тип значения") {
-                valueTypeSection
-            }
-            
-            EditorSectionView(title: "3. Настройки (\(valueType.settingsTitle))") {
-                inputSettingsSection
-            }
-        }
-    }
-    
-    var basicSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            labeledTextField(
-                title: "Название",
-                text: $titleText,
-                prompt: "Например: Условия доставки",
-                errorText: validation.titleError
-            )
-            
-            labeledTextField(
-                title: "Ключ",
-                text: $keyText,
-                prompt: "Например: delivery_terms",
-                helperText: "Ключ используется в шаблоне DOCX. Формат токена: \(tokenPreview)",
-                errorText: validation.keyError,
-                isDisabled: mode.isEditing
-            )
-            
-            descriptionEditor
-        }
-    }
-    
-    var descriptionEditor: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Описание")
-                .font(.subheadline.weight(.medium))
-            
-            multilineInput(
-                text: $descriptionText,
-                hasError: validation.descriptionError != nil
-            )
-            .frame(height: 88)
-            
-            HStack(alignment: .firstTextBaseline) {
-                if let descriptionError = validation.descriptionError {
-                    validationMessage(descriptionError, color: .red)
+    var baseSection: some View {
+        editorCard {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .top, spacing: 18) {
+                    labeledTextField(
+                        title: "Название",
+                        text: $titleText,
+                        prompt: "Например: Способ оплаты",
+                        helperText: "Отображаемое название плейсхолдера.",
+                        errorText: validation.titleError
+                    )
+                    
+                    labeledTextField(
+                        title: "Ключ",
+                        text: $keyText,
+                        prompt: "Например: payment_method",
+                        helperText: "Используется в шаблонах как \(tokenPreview)",
+                        errorText: validation.keyError,
+                        isDisabled: mode.isEditing
+                    )
                 }
                 
-                Spacer()
-                
-                Text("\(descriptionText.count)/255")
-                    .font(.caption2)
-                    .foregroundStyle(validation.descriptionError == nil ? .gray : .red)
-            }
-        }
-    }
-    
-    var valueTypeSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Picker("", selection: $valueType) {
-                ForEach(CustomPlaceholderValueType.allCases) { type in
-                    Text(type.title).tag(type)
+                Picker("", selection: $valueType) {
+                    ForEach(CustomPlaceholderEditorInputType.allCases) { type in
+                        Text(type.title).tag(type)
+                    }
                 }
-            }
-            .labelsHidden()
-            .pickerStyle(.segmented)
-            
-            Text(valueTypeDescription)
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                
+                Text(valueType == .text
+                     ? "Текст — пользователь вводит значение вручную."
+                     : "Выбор — пользователь выбирает вариант, а в документ подставляется связанное значение.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            }
         }
     }
     
     @ViewBuilder
-    var inputSettingsSection: some View {
+    var settingsSection: some View {
         switch valueType {
             case .text:
                 textSettingsSection
@@ -524,330 +359,249 @@ private extension CustomPlaceholderEditorView {
     }
     
     var textSettingsSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            labeledTextField(
-                title: "Плейсхолдер",
-                text: $textPlaceholder,
-                prompt: textEditorStyle == .multiline
-                ? "Например: Введите дополнительные условия"
-                : "Например: Введите номер договора",
-                helperText: "Это подсказка внутри поля ввода, а не DOCX-токен."
-            )
-            
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Вид текстового редактора")
-                    .font(.subheadline.weight(.medium))
+        editorCard {
+            VStack(alignment: .leading, spacing: 16) {
+                sectionHeader(
+                    title: "Настройки текстового поля",
+                    subtitle: "Настройте подсказку внутри поля и обязательность заполнения."
+                )
                 
-                Picker("", selection: $textEditorStyle) {
-                    ForEach(CustomPlaceholderTextEditorStyle.allCases) { style in
-                        Text(style.title).tag(style)
+                labeledTextField(
+                    title: "Плейсхолдер",
+                    text: $textPlaceholder,
+                    prompt: "Например: Введите номер договора",
+                    helperText: "Текст-подсказка, который пользователь увидит внутри поля."
+                )
+                
+                Divider()
+                
+                HStack(alignment: .center) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Обязательное поле")
+                            .font(.subheadline.weight(.medium))
+                        
+                        Text("Пользователь должен будет заполнить это поле.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-                }
-                .labelsHidden()
-                .pickerStyle(.segmented)
-                
-                Text("Определяет только способ ввода в UI. Тип значения остаётся текстовым.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Обязательное поле")
-                        .font(.subheadline.weight(.medium))
                     
-                    Text("Если включено, пользователь не сможет применить форму с пустым значением.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Spacer()
+                    
+                    Toggle("", isOn: $textRequired)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
                 }
-                
-                Spacer()
-                
-                Toggle("", isOn: $textRequired)
-                    .toggleStyle(.switch)
-                    .labelsHidden()
             }
         }
     }
     
     var choiceSettingsSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            choiceOptionsSection
-            Divider()
-            choiceDefaultSection
+        editorCard {
+            VStack(alignment: .leading, spacing: 16) {
+                sectionHeader(
+                    title: "Варианты выбора",
+                    subtitle: "Слева — что видит пользователь. Справа — что попадёт в DOCX."
+                )
+                
+                if let choiceGeneralError = validation.choiceGeneralError {
+                    validationMessage(choiceGeneralError, color: .red)
+                }
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        Text("")
+                            .frame(width: 26)
+                        
+                        Text("Отображаемое название")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        Text("Значение для подстановки")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        Text("")
+                            .frame(width: 28)
+                    }
+                    
+                    ForEach(choiceOptions.indices, id: \.self) { index in
+                        let optionID = choiceOptions[index].id
+                        let optionError = validation.choiceOptionErrors[optionID]
+                        
+                        ChoiceOptionRowView(
+                            index: index,
+                            option: $choiceOptions[index],
+                            titleError: optionError?.titleError,
+                            replacementValueError: optionError?.replacementValueError,
+                            canDelete: choiceOptions.count > 2,
+                            onDelete: {
+                                removeOption(id: optionID)
+                            }
+                        )
+                    }
+                }
+                
+                Button {
+                    choiceOptions.append(.init())
+                } label: {
+                    Label("Добавить вариант", systemImage: "plus")
+                }
+                .buttonStyle(.link)
+                
+                Divider()
+                
+                Picker(
+                    "Значение по умолчанию",
+                    selection: Binding<String?>(
+                        get: { defaultOptionID },
+                        set: { defaultOptionID = $0 }
+                    )
+                ) {
+                    Text("Без значения по умолчанию")
+                        .tag(String?.none)
+                    
+                    ForEach(choiceOptions) { option in
+                        Text(option.title.isEmpty ? "Без названия" : option.title)
+                            .tag(String?.some(option.id))
+                    }
+                }
+            }
         }
     }
     
-    var choiceOptionsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Варианты выбора")
-                    .font(.subheadline.weight(.medium))
+    var previewSection: some View {
+        editorCard {
+            VStack(alignment: .leading, spacing: 14) {
+                sectionHeader(
+                    title: "Предпросмотр",
+                    subtitle: "Так плейсхолдер будет выглядеть в шаблоне и в форме."
+                )
                 
-                Spacer()
+                HStack(alignment: .top, spacing: 28) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Токен в документе")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.secondary)
+                        
+                        HStack(spacing: 8) {
+                            Text(tokenPreview)
+                                .font(.system(.body, design: .monospaced))
+                                .foregroundStyle(.tint)
+                                .lineLimit(1)
+                            
+                            Spacer(minLength: 8)
+                            
+                            Image(systemName: "doc.on.doc")
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color(nsColor: .textBackgroundColor))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.primary.opacity(0.10), lineWidth: 1)
+                        )
+                    }
+                    .frame(maxWidth: .infinity)
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("В форме для пользователя")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.secondary)
+                        
+                        VStack(alignment: .leading, spacing: 7) {
+                            Text(previewTitle)
+                                .font(.subheadline.weight(.medium))
+                            
+                            previewControl
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
                 
-                Text("\(choiceOptions.count)")
+                Divider()
+                
+                Label(
+                    "Значение из формы будет автоматически подставлено в документ при заполнении.",
+                    systemImage: "info.circle"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    var previewControl: some View {
+        switch valueType {
+            case .text:
+                Text(previewTextPlaceholder)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color(nsColor: .textBackgroundColor))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.primary.opacity(0.10), lineWidth: 1)
+                    )
+                
+            case .choice:
+                HStack {
+                    Text(previewSelectedChoiceTitle)
+                        .foregroundStyle(.primary)
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color(nsColor: .textBackgroundColor))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.primary.opacity(0.10), lineWidth: 1)
+                )
+        }
+    }
+    
+    var footerView: some View {
+        HStack {
+            if validation.hasBlockingErrors {
+                Label("Исправьте ошибки перед сохранением", systemImage: "exclamationmark.circle")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             
-            if let choiceGeneralError = validation.choiceGeneralError {
-                validationMessage(choiceGeneralError, color: .red)
-            }
-            
-            ForEach(Array(choiceOptions.enumerated()), id: \.element.id) { index, option in
-                choiceOptionRow(option: option, index: index)
-            }
-            
-            Button {
-                choiceOptions.append(.init())
-            } label: {
-                Label("Добавить вариант", systemImage: "plus")
-            }
-            .buttonStyle(.link)
-        }
-    }
-    
-    var choiceDefaultSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Настройки выбора")
-                .font(.subheadline.weight(.medium))
-            
-            Picker(
-                "Значение по умолчанию",
-                selection: Binding<String?>(
-                    get: { defaultOptionID },
-                    set: { defaultOptionID = $0 }
-                )
-            ) {
-                Text("Без значения по умолчанию")
-                    .tag(String?.none)
-                
-                ForEach(choiceOptions) { option in
-                    Text(option.title.isEmpty ? "Без названия" : option.title)
-                        .tag(String?.some(option.id))
-                }
-            }
-            
-            if let defaultOptionError = validation.defaultOptionError {
-                validationMessage(defaultOptionError, color: .red)
-            }
-            
-            Toggle("Разрешить пустой выбор", isOn: $allowsEmptySelection)
-            
-            if allowsEmptySelection {
-                labeledTextField(
-                    title: "Заголовок пустого выбора",
-                    text: $emptyTitle,
-                    prompt: "Например: Не выбрано"
-                )
-            }
-            
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Стиль выбора")
-                    .font(.subheadline.weight(.medium))
-                
-                Picker("", selection: $presentationStyle) {
-                    Text("Меню").tag(ChoicePresentationStyle.menu)
-                    Text("Сегменты").tag(ChoicePresentationStyle.segmented)
-                }
-                .labelsHidden()
-                .pickerStyle(.segmented)
-            }
-        }
-    }
-    
-    private func choiceOptionRow(
-        option: ChoiceOptionDraft,
-        index: Int
-    ) -> some View {
-        let optionError = validation.choiceOptionErrors[option.id]
-        
-        return ChoiceOptionRowView(
-            index: index,
-            option: bindingForChoiceOption(id: option.id),
-            titleError: optionError?.titleError,
-            replacementValueError: optionError?.replacementValueError,
-            onDelete: {
-                removeOption(id: option.id)
-            }
-        )
-    }
-    
-    private func bindingForChoiceOption(id: String) -> Binding<ChoiceOptionDraft> {
-        Binding(
-            get: {
-                choiceOptions.first(where: { $0.id == id }) ?? ChoiceOptionDraft(id: id)
-            },
-            set: { newValue in
-                guard let index = choiceOptions.firstIndex(where: { $0.id == id }) else {
-                    return
-                }
-                choiceOptions[index] = newValue
-            }
-        )
-    }
-    
-    private func removeOption(id: String) {
-        choiceOptions.removeAll { $0.id == id }
-        if defaultOptionID == id {
-            defaultOptionID = nil
-        }
-    }
-    
-    // MARK: - Right pane
-    
-    private var rightPreviewPane: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Предпросмотр")
-                .font(.title3.weight(.semibold))
-            
-            Text("Так плейсхолдер будет выглядеть в форме")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            
-            previewCard {
-                tokenChip(tokenPreview)
-                
-                Divider()
-                    .padding(.vertical, 2)
-                
-                Form {
-                    DocumentDataFieldView(
-                        descriptor: previewDescriptor,
-                        value: $previewFieldValue,
-                        issue: nil,
-                        focusedKey: $previewFocusedKey
-                    )
-                }
-                .formStyle(.grouped)
-            }
-            
-            previewHintCard
-            
             Spacer()
-        }
-        .padding(24)
-    }
-    
-    func makePreviewDefinition() -> CustomPlaceholderDefinition {
-        let previewKey = PlaceholderKey(rawValue: normalizedKeyText.isEmpty ? "placeholder_key" : normalizedKeyText)
-        let previewTitle = titleText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let resolvedTitle = previewTitle.isEmpty ? "Название поля" : previewTitle
-        let previewDescription = descriptionText.trimmedNilIfEmpty
-        let persistedInputKind: PersistedPlaceholderInputKind
-        
-        switch valueType {
-            case .text:
-                persistedInputKind = .text(
-                    PersistedTextInputConfiguration(
-                        placeholder: previewTextPlaceholder,
-                        isRequired: textRequired,
-                        editorStyle: textEditorStyle.runtimeStyle(
-                            minLines: multilineMinLines,
-                            maxLines: multilineMaxLines
-                        )
-                    )
-                )
-            case .choice:
-                persistedInputKind = .choice(
-                    PersistedChoiceInputConfiguration(
-                        options: previewChoiceOptions,
-                        defaultOptionID: defaultOptionID,
-                        allowsEmptySelection: allowsEmptySelection,
-                        emptyTitle: previewEmptyTitle,
-                        presentationStyle: presentationStyle
-                    )
-                )
-        }
-        
-        return CustomPlaceholderDefinition(
-            key: previewKey,
-            title: resolvedTitle,
-            description: previewDescription,
-            inputKind: persistedInputKind,
-            order: order,
-            isEnabled: isEnabled,
-            createdAt: mode.existingDefinition?.createdAt ?? .distantPast,
-            updatedAt: mode.existingDefinition?.updatedAt ?? .distantPast
-        )
-    }
-    
-    var previewChoiceOptions: [PlaceholderOption] {
-        let options = choiceOptions.enumerated().map { index, option in
-            let title = option.title.trimmingCharacters(in: .whitespacesAndNewlines)
-            let resolvedTitle = title.isEmpty ? "Вариант \(index + 1)" : title
-            let replacementValue = option.replacementValue.trimmingCharacters(in: .whitespacesAndNewlines)
             
-            return PlaceholderOption(
-                id: option.id,
-                title: resolvedTitle,
-                replacementValue: replacementValue.isEmpty ? resolvedTitle : replacementValue,
-                description: option.description?.trimmedNilIfEmpty
-            )
-        }
-        
-        if options.isEmpty {
-            return [
-                PlaceholderOption(id: "preview_option_1", title: "Вариант 1", replacementValue: "Вариант 1"),
-                PlaceholderOption(id: "preview_option_2", title: "Вариант 2", replacementValue: "Вариант 2")
-            ]
-        }
-        
-        return options
-    }
-    
-    func syncPreviewFieldValue() {
-        previewFieldValue = normalizedPreviewFieldValue(
-            previewFieldValue,
-            for: previewDescriptor
-        )
-    }
-    
-    func normalizedPreviewFieldValue(
-        _ currentValue: PlaceholderFieldValue,
-        for descriptor: PlaceholderDescriptor
-    ) -> PlaceholderFieldValue {
-        switch descriptor.inputKind {
-            case .some(.text):
-                if case .text(let text) = currentValue {
-                    return .text(text)
-                }
-                return .text("")
-            case .some(.choice(let configuration)):
-                if case .choice(let optionID) = currentValue,
-                   configuration.options.contains(where: { $0.id == optionID }) {
-                    return .choice(optionID: optionID)
-                }
-                if let defaultOptionID = configuration.defaultOptionID,
-                   configuration.options.contains(where: { $0.id == defaultOptionID }) {
-                    return .choice(optionID: defaultOptionID)
-                }
-                if !configuration.allowsEmptySelection,
-                   let firstOptionID = configuration.options.first?.id {
-                    return .choice(optionID: firstOptionID)
-                }
-                return .empty
-            case .none:
-                return .empty
-        }
-    }
-    
-    var previewHintCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("DOCX-токен", systemImage: "doc.text")
-                .font(.caption.weight(.semibold))
+            Button("Отмена") {
+                dismiss()
+            }
+            .buttonStyle(.bordered)
             
-            Text("В шаблоне документа нужно использовать именно \(tokenPreview).")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            Button(mode.saveButtonTitle) {
+                save()
+            }
+            .buttonStyle(.borderedProminent)
+            .keyboardShortcut(.defaultAction)
+            .disabled(!canSave)
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.accentColor.opacity(0.08))
-        )
+        .padding(.horizontal, 24)
+        .padding(.vertical, 16)
     }
 }
 
@@ -860,20 +614,16 @@ private extension CustomPlaceholderEditorView {
         let rawKey = normalizedKeyText
         let title = titleText.trimmingCharacters(in: .whitespacesAndNewlines)
         
+        if title.isEmpty {
+            state.titleError = "Название не может быть пустым."
+        }
+        
         if rawKey.isEmpty {
             state.keyError = "Ключ не может быть пустым."
         } else if rawKey.range(of: #"^[a-z][a-z0-9_]*$"#, options: .regularExpression) == nil {
             state.keyError = "Только латинские буквы, цифры и _. Первый символ — буква."
         } else if existingKeysForValidation.contains(PlaceholderKey(rawValue: rawKey)) {
             state.keyError = "Плейсхолдер с таким ключом уже существует."
-        }
-        
-        if title.isEmpty {
-            state.titleError = "Название не может быть пустым."
-        }
-        
-        if descriptionText.count > 255 {
-            state.descriptionError = "Описание слишком длинное."
         }
         
         if valueType == .choice {
@@ -892,21 +642,16 @@ private extension CustomPlaceholderEditorView {
             var optionError = ChoiceOptionValidationError()
             
             if option.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                optionError.titleError = "Название варианта не может быть пустым."
+                optionError.titleError = "Введите название."
             }
             
             if option.replacementValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                optionError.replacementValueError = "Значение для документа не может быть пустым."
+                optionError.replacementValueError = "Введите значение."
             }
             
             if optionError.hasError {
                 state.choiceOptionErrors[option.id] = optionError
             }
-        }
-        
-        if let defaultOptionID,
-           !choiceOptions.contains(where: { $0.id == defaultOptionID }) {
-            state.defaultOptionError = "Значение по умолчанию должно существовать в списке вариантов."
         }
     }
     
@@ -934,6 +679,7 @@ private extension CustomPlaceholderEditorView {
         Task {
             do {
                 try await onSave(definition)
+                
                 await MainActor.run {
                     isSaving = false
                     dismiss()
@@ -948,45 +694,58 @@ private extension CustomPlaceholderEditorView {
     }
     
     func makeDefinition() -> CustomPlaceholderDefinition {
-        let trimmedKey = PlaceholderKey(rawValue: normalizedKeyText)
-        let trimmedTitle = titleText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedDescription = descriptionText.trimmedNilIfEmpty
-        let persistedInputKind: PersistedPlaceholderInputKind
+        let key = PlaceholderKey(rawValue: normalizedKeyText)
+        let title = titleText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let description = descriptionText.trimmedNilIfEmpty
+        
+        let inputKind: PersistedPlaceholderInputKind
         
         switch valueType {
             case .text:
-                persistedInputKind = .text(
+                inputKind = .text(
                     PersistedTextInputConfiguration(
                         placeholder: textPlaceholder.trimmingCharacters(in: .whitespacesAndNewlines),
                         isRequired: textRequired,
-                        editorStyle: textEditorStyle.runtimeStyle(
-                            minLines: multilineMinLines,
-                            maxLines: multilineMaxLines
-                        )
+                        editorStyle: .singleLine
                     )
                 )
+                
             case .choice:
-                persistedInputKind = .choice(
+                inputKind = .choice(
                     PersistedChoiceInputConfiguration(
                         options: choiceOptions.map(\.placeholderOption),
                         defaultOptionID: defaultOptionID,
-                        allowsEmptySelection: allowsEmptySelection,
-                        emptyTitle: emptyTitle,
-                        presentationStyle: presentationStyle
+                        allowsEmptySelection: true,
+                        emptyTitle: "Не выбрано",
+                        presentationStyle: .menu
                     )
                 )
         }
         
         return CustomPlaceholderDefinition(
-            key: trimmedKey,
-            title: trimmedTitle,
-            description: trimmedDescription,
-            inputKind: persistedInputKind,
+            key: key,
+            title: title,
+            description: description,
+            inputKind: inputKind,
             order: order,
             isEnabled: isEnabled,
             createdAt: mode.existingDefinition?.createdAt ?? Date(),
             updatedAt: Date()
         )
+    }
+    
+    func removeOption(id: String) {
+        choiceOptions.removeAll { $0.id == id }
+        
+        if defaultOptionID == id {
+            defaultOptionID = nil
+        }
+    }
+    
+    func normalizeDefaultOptionID() {
+        guard let defaultOptionID else { return }
+        guard !choiceOptions.contains(where: { $0.id == defaultOptionID }) else { return }
+        self.defaultOptionID = nil
     }
     
     static func defaultChoiceOptions() -> [ChoiceOptionDraft] {
@@ -1004,6 +763,7 @@ private struct ChoiceOptionRowView: View {
     @Binding var option: ChoiceOptionDraft
     let titleError: String?
     let replacementValueError: String?
+    let canDelete: Bool
     let onDelete: () -> Void
     
     private var hasError: Bool {
@@ -1011,67 +771,57 @@ private struct ChoiceOptionRowView: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 8) {
-                numberBadge
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "line.3.horizontal")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 26, height: 30)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                validatedTextField(
+                    "Например: Безналичный расчёт",
+                    text: $option.title,
+                    hasError: titleError != nil
+                )
                 
-                VStack(alignment: .leading, spacing: 8) {
-                    validatedTextField(
-                        "Название варианта",
-                        text: $option.title,
-                        hasError: titleError != nil
-                    )
-                    
-                    if let titleError {
-                        validationMessage(titleError, color: .red)
-                    }
-                    
-                    validatedTextField(
-                        "Значение для документа",
-                        text: $option.replacementValue,
-                        hasError: replacementValueError != nil
-                    )
-                    
-                    if let replacementValueError {
-                        validationMessage(replacementValueError, color: .red)
-                    }
+                if let titleError {
+                    validationMessage(titleError, color: .red)
                 }
+            }
+            .frame(maxWidth: .infinity)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                validatedTextField(
+                    "Например: beznalichnyy_raschet",
+                    text: $option.replacementValue,
+                    hasError: replacementValueError != nil
+                )
                 
-                Button(role: .destructive) {
-                    onDelete()
-                } label: {
-                    Image(systemName: "trash")
-                        .frame(width: 28, height: 28)
+                if let replacementValueError {
+                    validationMessage(replacementValueError, color: .red)
                 }
-                .buttonStyle(.borderless)
-                .help("Удалить вариант")
+            }
+            .frame(maxWidth: .infinity)
+            
+            Button(role: .destructive) {
+                onDelete()
+            } label: {
+                Image(systemName: "trash")
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(.borderless)
+            .disabled(!canDelete)
+            .help(canDelete ? "Удалить вариант" : "Минимум два варианта")
+        }
+        .padding(.vertical, 2)
+        .overlay(alignment: .leading) {
+            if hasError {
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.red.opacity(0.12))
+                    .frame(width: 3)
+                    .offset(x: -6)
             }
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color(nsColor: .textBackgroundColor))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(
-                    hasError ? Color.red.opacity(0.35) : Color.primary.opacity(0.08),
-                    lineWidth: 1
-                )
-        )
-    }
-    
-    private var numberBadge: some View {
-        ZStack {
-            Circle()
-                .fill(Color.accentColor.opacity(0.12))
-            
-            Text("\(index + 1)")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.tint)
-        }
-        .frame(width: 22, height: 22)
-        .padding(.top, 6)
     }
     
     private func validatedTextField(
@@ -1113,33 +863,41 @@ private struct ChoiceOptionRowView: View {
     }
 }
 
-// MARK: - EditorSectionView
-
-private struct EditorSectionView<Content: View>: View {
-    let title: String
-    let content: Content
-    
-    init(
-        title: String,
-        @ViewBuilder content: () -> Content
-    ) {
-        self.title = title
-        self.content = content()
-    }
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.headline)
-            
-            content
-        }
-    }
-}
-
 // MARK: - Small UI helpers
 
 private extension CustomPlaceholderEditorView {
+    func editorCard<Content: View>(
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            content()
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(nsColor: .windowBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.primary.opacity(0.10), lineWidth: 1)
+        )
+    }
+    
+    func sectionHeader(
+        title: String,
+        subtitle: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.headline)
+            
+            Text(subtitle)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+    
     func labeledTextField(
         title: String,
         text: Binding<String>,
@@ -1165,8 +923,10 @@ private extension CustomPlaceholderEditorView {
                 Text(helperText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .frame(maxWidth: .infinity)
     }
     
     func validatedTextField(
@@ -1177,14 +937,14 @@ private extension CustomPlaceholderEditorView {
     ) -> some View {
         TextField(prompt, text: text)
             .textFieldStyle(.plain)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
             .background(
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: 8)
                     .fill(Color(nsColor: .textBackgroundColor))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: 8)
                     .stroke(
                         hasError ? Color.red.opacity(0.65) : Color.primary.opacity(0.12),
                         lineWidth: 1
@@ -1192,37 +952,6 @@ private extension CustomPlaceholderEditorView {
             )
             .disabled(isDisabled)
             .opacity(isDisabled ? 0.65 : 1)
-    }
-    
-    func multilineInput(
-        text: Binding<String>,
-        hasError: Bool
-    ) -> some View {
-        ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(nsColor: .textBackgroundColor))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(
-                            hasError ? Color.red.opacity(0.65) : Color.primary.opacity(0.08),
-                            lineWidth: 1
-                        )
-                )
-            
-            if text.wrappedValue.isEmpty {
-                Text("Кратко опишите, для чего используется это поле")
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .allowsHitTesting(false)
-            }
-            
-            TextEditor(text: text)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 4)
-                .scrollContentBackground(.hidden)
-                .background(Color.clear)
-        }
     }
     
     func validationMessage(
@@ -1241,36 +970,6 @@ private extension CustomPlaceholderEditorView {
         }
     }
     
-    func previewCard<Content: View>(
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            content()
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(nsColor: .windowBackgroundColor))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-        )
-    }
-    
-    func tokenChip(_ text: String) -> some View {
-        Text(text)
-            .font(.system(.body, design: .monospaced))
-            .foregroundStyle(.tint)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.accentColor.opacity(0.10))
-            )
-    }
-    
     func errorBanner(text: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -1279,7 +978,7 @@ private extension CustomPlaceholderEditorView {
             Text(text)
                 .font(.callout)
                 .foregroundStyle(.red)
-                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
             
             Spacer()
         }
@@ -1293,30 +992,4 @@ private extension CustomPlaceholderEditorView {
                 .stroke(Color.red.opacity(0.20), lineWidth: 1)
         )
     }
-    
-    var footerView: some View {
-        HStack {
-            if validation.hasBlockingErrors {
-                Label("Исправьте ошибки перед сохранением", systemImage: "exclamationmark.circle")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            
-            Spacer()
-            
-            Button("Отмена") {
-                dismiss()
-            }
-            .buttonStyle(.bordered)
-            
-            Button(mode.saveButtonTitle) {
-                save()
-            }
-            .buttonStyle(.borderedProminent)
-            .keyboardShortcut(.defaultAction)
-            .disabled(!canSave)
-        }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 16)
-    }
-}    
+}
