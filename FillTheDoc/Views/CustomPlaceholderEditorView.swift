@@ -256,22 +256,15 @@ private extension CustomPlaceholderEditorView {
                 .font(.title3.weight(.semibold))
 
             Spacer()
-
-            Button(mode.saveButtonTitle) {
-                save()
-            }
-            .buttonStyle(.borderedProminent)
-            .keyboardShortcut(.defaultAction)
-            .disabled(!canSave)
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 18)
     }
 
     var baseSection: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        editorCard{
             sectionHeader("1. Основные параметры")
-
+            
             labeledTextField(
                 title: "Название плейсхолдера",
                 text: $titleText,
@@ -279,7 +272,7 @@ private extension CustomPlaceholderEditorView {
                 helper: .plain("Отображаемое имя в интерфейсе"),
                 errorText: validation.titleError
             )
-
+            
             labeledTextField(
                 title: "Ключ плейсхолдера",
                 text: $keyText,
@@ -292,7 +285,7 @@ private extension CustomPlaceholderEditorView {
     }
 
     var settingsSection: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        editorCard {
             sectionHeader("2. Настройки плейсхолдера")
 
             VStack(alignment: .leading, spacing: 8) {
@@ -533,6 +526,21 @@ private extension CustomPlaceholderEditorView {
         }
     }
 
+    func editorCard<Content: View>(
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            content()
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.primary.opacity(0.10), lineWidth: 1)
+        )
+    }
+    
+    
     func makeDefinition() -> CustomPlaceholderDefinition {
         let inputKind: PersistedPlaceholderInputKind
 
