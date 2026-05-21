@@ -90,11 +90,17 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
     }
     
     func normalizer(for key: PlaceholderKey) -> FieldNormalizer {
-        descriptor(for: key)?.normalizer ?? Self.defaultNormalizer
+        guard let descriptor = descriptor(for: key) else {
+            return Self.defaultNormalizer
+        }
+        return descriptor.normalizer
     }
     
     func validator(for key: PlaceholderKey) -> FieldValidator {
-        descriptor(for: key)?.validator ?? Self.defaultValidator
+        guard let descriptor = descriptor(for: key) else {
+            return Self.defaultValidator
+        }
+        return descriptor.validator
     }
     
     func resolve(_ key: PlaceholderKey, context: PlaceholderResolutionContext) -> String? {
