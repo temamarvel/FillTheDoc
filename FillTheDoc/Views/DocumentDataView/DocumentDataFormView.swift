@@ -18,7 +18,7 @@ import SwiftUI
 /// Иначе говоря, здесь проект делает переход от "AI suggestion" к
 /// "approved business data".
 struct DocumentDataFormView: View {
-    @State private var formModel: PlaceholderFormModel
+    @State private var viewModel: DocumentDataFormViewModel
     private let registry: PlaceholderRegistryProtocol
     private let companyValidator: CompanyDetailsValidator
     private let extractedValues: [PlaceholderKey: String]
@@ -42,7 +42,6 @@ struct DocumentDataFormView: View {
     }
     
     init(
-        companyDetails: CompanyDetails,
         extractedValues: [PlaceholderKey: String],
         registry: PlaceholderRegistryProtocol,
         onApply: @escaping ([PlaceholderKey: String], CompanyDetails) -> Void
@@ -50,8 +49,8 @@ struct DocumentDataFormView: View {
         self.registry = registry
         self.extractedValues = extractedValues
         
-        _formModel = State(
-            initialValue: PlaceholderFormModel(
+        _viewModel = State(
+            initialValue: DocumentDataFormViewModel(
                 registry: registry,
                 initialValues: extractedValues
             )
@@ -67,8 +66,8 @@ struct DocumentDataFormView: View {
                 sectionView(title: "Документ", section: .document)
                 sectionView(title: "Реквизиты компании", section: .company)
                 
-                let customDefs = formModel.descriptors(in: .custom)
-                if !customDefs.isEmpty {
+                let customDescriptors = viewModel.descriptors(in: .custom)
+                if !customDescriptors.isEmpty {
                     sectionView(title: "Пользовательские поля", section: .custom)
                 }
             }
@@ -81,18 +80,18 @@ struct DocumentDataFormView: View {
                 }
                 Spacer()
                 Button("Применить") {
-                    let companyValues = formModel.editableValues(in: .company)
+                    let companyValues = viewModel.editableValues(in: .company)
                     let company = CompanyDetailsAssembler.makeCompanyDetails(from: companyValues)
                     // На этом шаге строим уже не только DTO компании, но и полный placeholder-map,
                     // включая derived/system значения, чтобы дальнейший export pipeline
                     // больше не зависел от промежуточного состояния формы.
                     let resolved = TemplatePlaceholderResolver.resolve(
-                        formModel: formModel,
+                        formModel: viewModel,
                         registry: registry
                     )
                     onApply(resolved, company)
                 }
-                .disabled(formModel.hasErrors)
+                .disabled(viewModel.hasErrors)
                 .keyboardShortcut(.defaultAction)
             }
         }
@@ -102,22 +101,22 @@ struct DocumentDataFormView: View {
             scheduleReferenceValidation()
         }
         .onChange(of: registrySignature) { _, _ in
-            formModel.syncDefinitions(with: registry, extractedValues: extractedValuesSnapshot)
+            viewModel.syncDefinitions(with: registry, extractedValues: extractedValuesSnapshot)
         }
         .onChange(of: extractedValuesSnapshot) { _, newValue in
-            formModel.applyExtractedValues(newValue)
+            viewModel.applyExtractedValues(newValue)
         }
-        .animation(.easeInOut(duration: 0.15), value: formModel.fieldStates)
+        .animation(.easeInOut(duration: 0.15), value: viewModel.fieldStates)
     }
     
     @ViewBuilder
     private func sectionView(title: String, section: PlaceholderSection) -> some View {
         Section(title) {
-            ForEach(formModel.descriptors(in: section)) { descriptor in
+            ForEach(viewModel.descriptors(in: section)) { descriptor in
                 DocumentDataFieldView(
                     descriptor: descriptor,
                     value: fieldBinding(for: descriptor.key),
-                    issue: formModel.issue(for: descriptor.key),
+                    issue: viewModel.issue(for: descriptor.key),
                     focusedKey: $focusedKey
                 )
             }
@@ -126,8 +125,8 @@ struct DocumentDataFormView: View {
     
     private func fieldBinding(for key: PlaceholderKey) -> Binding<PlaceholderFieldValue> {
         Binding(
-            get: { formModel.fieldValue(for: key) },
-            set: { formModel.setFieldValue($0, for: key) }
+            get: { viewModel.fieldValue(for: key) },
+            set: { viewModel.setFieldValue($0, for: key) }
         )
     }
     
@@ -137,8 +136,8 @@ struct DocumentDataFormView: View {
         // Справочная валидация не запускается на каждую клавишу:
         // она дебаунсится и работает только когда есть ИНН/ОГРН для lookup.
         // Это снижает шум в UI и лишние сетевые запросы во время обычного ввода.
-        let ogrn = formModel.value(for: .ogrn).trimmedNilIfEmpty
-        let inn = formModel.value(for: .inn).trimmedNilIfEmpty
+        let ogrn = viewModel.value(for: .ogrn).trimmedNilIfEmpty
+        let inn = viewModel.value(for: .inn).trimmedNilIfEmpty
         let lookupKey = ogrn ?? inn
         guard let lookupKey, !lookupKey.isEmpty else { return }
         if lookupKey == lastLookupKey { return }
@@ -148,10 +147,10 @@ struct DocumentDataFormView: View {
             do {
                 try await Task.sleep(for: .milliseconds(300))
                 try Task.checkCancellation()
-                let companyValues = formModel.editableValues(in: .company)
-                let issues = await companyValidator.validateWithReference(values: companyValues)
+                let companyValues = viewModel.editableValues(in: .company)
+                let issues = await companyValidator.validate(values: companyValues)
                 try Task.checkCancellation()
-                formModel.applyExternalIssues(issues)
+                viewModel.applyExternalIssues(issues)
                 lastLookupKey = lookupKey
             } catch {}
         }
@@ -162,9 +161,9 @@ struct DocumentDataFormView: View {
         // если авто-проверка не сработала или хочется повторно свериться после серии правок.
         validationTask?.cancel()
         validationTask = Task {
-            let companyValues = formModel.editableValues(in: .company)
-            let issues = await companyValidator.validateWithReference(values: companyValues)
-            formModel.applyExternalIssues(issues)
+            let companyValues = viewModel.editableValues(in: .company)
+            let issues = await companyValidator.validate(values: companyValues)
+            viewModel.applyExternalIssues(issues)
         }
     }
 }

@@ -25,10 +25,7 @@ struct MainView: View {
     @State private var showLibrary: Bool = false
     
     init() {
-        //let apiKeyStore = APIKeyStore()
         let viewModel = MainViewModel()
-        
-        //_apiKeyStore = State(initialValue: apiKeyStore)
         _viewModel = State(initialValue: viewModel)
     }
     
@@ -59,7 +56,6 @@ struct MainView: View {
                 } else {
                     if let details = viewModel.details {
                         DocumentDataFormView(
-                            companyDetails: details,
                             extractedValues: viewModel.extractedPlaceholderValues,
                             registry: viewModel.placeholderRegistry
                         ) { resolvedValues, company in

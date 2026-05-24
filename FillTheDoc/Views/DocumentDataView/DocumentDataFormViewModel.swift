@@ -18,7 +18,7 @@ struct PlaceholderFieldState: Sendable, Equatable {
 /// - повторная extraction обновляет только extracted-поля и не сбрасывает manual выбор.
 @MainActor
 @Observable
-final class PlaceholderFormModel {
+final class DocumentDataFormViewModel {
     private(set) var registry: PlaceholderRegistryProtocol
     private var valueResolver: PlaceholderValueResolver
     
@@ -173,7 +173,7 @@ final class PlaceholderFormModel {
     }
 }
 
-private extension PlaceholderFormModel {
+private extension DocumentDataFormViewModel {
     nonisolated static func makeValueResolver(
         registry: PlaceholderRegistryProtocol
     ) -> PlaceholderValueResolver {

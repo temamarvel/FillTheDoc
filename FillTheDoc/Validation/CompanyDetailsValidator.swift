@@ -40,7 +40,7 @@ public actor CompanyDetailsValidator {
     // MARK: - Reference validation
     
     /// Принимает текущие значения полей, возвращает найденные issues от DaData.
-    func validateWithReference(values: [PlaceholderKey: String]) async -> [PlaceholderKey: FieldIssue] {
+    func validate(values: [PlaceholderKey: String]) async -> [PlaceholderKey: FieldIssue] {
         // lookup строится по ОГРН или ИНН — без одного из этих идентификаторов
         // внешняя сверка не имеет смысла.
         let ogrn = values[.ogrn]?.trimmedNilIfEmpty
@@ -70,7 +70,7 @@ public actor CompanyDetailsValidator {
         
         var issues: [PlaceholderKey: FieldIssue] = [:]
         for (key, value) in values {
-            if let issue = crossValidate(key: key, value: value, companyInfo: companyInfo) {
+            if let issue = compareWithReference(key: key, value: value, companyInfo: companyInfo) {
                 issues[key] = issue
             }
         }
@@ -79,7 +79,7 @@ public actor CompanyDetailsValidator {
     
     // MARK: - Cross validation with DaData
     
-    private func crossValidate(key: PlaceholderKey, value: String, companyInfo: DaDataCompanyInfo) -> FieldIssue? {
+    private func compareWithReference(key: PlaceholderKey, value: String, companyInfo: DaDataCompanyInfo) -> FieldIssue? {
         // Здесь проверяются только те поля, для которых у нас есть meaningful external reference.
         // Для остальных либо нет надёжного источника, либо такая сверка не даёт практической пользы.
         switch key {

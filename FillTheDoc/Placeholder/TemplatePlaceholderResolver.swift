@@ -17,7 +17,7 @@ enum TemplatePlaceholderResolver {
     /// - custom поля;
     /// - derived/system placeholders, вычисленные реестром.
     static func resolve(
-        formModel: PlaceholderFormModel,
+        formModel: DocumentDataFormViewModel,
         registry: PlaceholderRegistryProtocol,
         now: Date = .now
     ) -> [PlaceholderKey: String] {

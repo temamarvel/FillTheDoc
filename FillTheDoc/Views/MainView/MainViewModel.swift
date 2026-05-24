@@ -129,6 +129,7 @@ final class MainViewModel {
         apiKeyStore: APIKeyStore,
         updateStore: AppUpdateStore,
         placeholderRegistry: PlaceholderRegistryProtocol = PlaceholderRegistry(),
+        //TODO: looks like not so need to have CustomPlaceholderRepository
         customPlaceholderRepository: CustomPlaceholderRepository? = nil,
         scanner: DocxTemplateScanner,
         conditionalAssembler: DocxTemplateConditionalAssembler,
@@ -137,6 +138,7 @@ final class MainViewModel {
         extractorService: DocumentTextExtractorService
     ) {
         self.apiKeyStore = apiKeyStore
+        //TODO: rename update store to update service?
         self.updateStore = updateStore
         self.placeholderRegistry = placeholderRegistry
         self.customPlaceholderRepository = customPlaceholderRepository
@@ -215,7 +217,7 @@ final class MainViewModel {
         do {
             try await customPlaceholderRepository.load()
             let allDefinitions = await customPlaceholderRepository.all()
-            refreshPlaceholderRegistry(customDefinitions: allDefinitions)
+            refreshPlaceholderRegistry(customPlaceholderDescriptors: allDefinitions)
         } catch {
             print("Custom placeholder loading failed:", error)
         }
@@ -225,21 +227,21 @@ final class MainViewModel {
         guard let customPlaceholderRepository else { return }
         try await customPlaceholderRepository.add(definition)
         let allDefinitions = await customPlaceholderRepository.all()
-        refreshPlaceholderRegistry(customDefinitions: allDefinitions)
+        refreshPlaceholderRegistry(customPlaceholderDescriptors: allDefinitions)
     }
     
     func updateCustomPlaceholder(_ definition: PlaceholderDescriptor) async throws {
         guard let customPlaceholderRepository else { return }
         try await customPlaceholderRepository.update(definition)
         let allDefinitions = await customPlaceholderRepository.all()
-        refreshPlaceholderRegistry(customDefinitions: allDefinitions)
+        refreshPlaceholderRegistry(customPlaceholderDescriptors: allDefinitions)
     }
     
     func deleteCustomPlaceholder(key: PlaceholderKey) async throws {
         guard let customPlaceholderRepository else { return }
         try await customPlaceholderRepository.delete(key: key)
         let allDefinitions = await customPlaceholderRepository.all()
-        refreshPlaceholderRegistry(customDefinitions: allDefinitions)
+        refreshPlaceholderRegistry(customPlaceholderDescriptors: allDefinitions)
     }
     
     func handleExportResult(_ result: Result<URL, any Error>) {
@@ -450,13 +452,13 @@ final class MainViewModel {
         )
     }
     
-    private func refreshPlaceholderRegistry(customDefinitions: [PlaceholderDescriptor]) {
-        customPlaceholderDefinitions = customDefinitions.sorted { lhs, rhs in
+    private func refreshPlaceholderRegistry(customPlaceholderDescriptors: [PlaceholderDescriptor]) {
+        customPlaceholderDefinitions = customPlaceholderDescriptors.sorted { lhs, rhs in
             if lhs.order == rhs.order {
                 return lhs.key.rawValue < rhs.key.rawValue
             }
             return lhs.order < rhs.order
         }
-        placeholderRegistry = PlaceholderRegistry(customDefinitions: customDefinitions)
+        placeholderRegistry = PlaceholderRegistry(customDefinitions: customPlaceholderDescriptors)
     }
 }
