@@ -33,10 +33,6 @@ struct DocumentDataFormView: View {
     
     let onApply: ([PlaceholderKey: String], CompanyDetails) -> Void
     
-    private var extractedValuesSnapshot: [PlaceholderKey: String] {
-        extractedValues
-    }
-    
     private var registrySignature: [String] {
         registry.inputDescriptors.map(\.signature)
     }
@@ -101,10 +97,7 @@ struct DocumentDataFormView: View {
             scheduleReferenceValidation()
         }
         .onChange(of: registrySignature) { _, _ in
-            viewModel.syncDefinitions(with: registry, extractedValues: extractedValuesSnapshot)
-        }
-        .onChange(of: extractedValuesSnapshot) { _, newValue in
-            viewModel.applyExtractedValues(newValue)
+            viewModel.syncDefinitions(with: registry, extractedValues: extractedValues)
         }
         .animation(.easeInOut(duration: 0.15), value: viewModel.fieldStates)
     }

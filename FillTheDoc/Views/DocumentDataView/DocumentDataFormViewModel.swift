@@ -109,35 +109,6 @@ final class DocumentDataFormViewModel {
         }
         
         fieldStates = nextStates
-        applyExtractedValues(extractedValues)
-    }
-    
-    func applyExtractedValues(_ extractedValues: [PlaceholderKey: String]) {
-        for descriptor in editableDescriptors {
-            guard case .editable(source: .extracted, inputKind: let inputKind) = descriptor.kind else {
-                continue
-            }
-            
-            switch inputKind {
-                case .text:
-                    let value = extractedValues[descriptor.key] ?? ""
-                    let fieldValue = normalize(.text(value), for: descriptor)
-                    fieldStates[descriptor.key] = PlaceholderFieldState(
-                        value: fieldValue,
-                        issue: validate(fieldValue, for: descriptor)
-                    )
-                case .choice:
-                    assertionFailure("Choice placeholders must not be extracted.")
-            }
-        }
-        
-        for descriptor in editableDescriptors where fieldStates[descriptor.key] == nil {
-            let initial = initialValue(for: descriptor, extractedText: extractedValues[descriptor.key])
-            fieldStates[descriptor.key] = PlaceholderFieldState(
-                value: initial,
-                issue: validate(initial, for: descriptor)
-            )
-        }
     }
     
     // MARK: - Bulk
