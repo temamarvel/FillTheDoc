@@ -25,17 +25,9 @@ nonisolated struct PlaceholderValueResolver: Sendable {
             case (.text(let text), .editable(_, .text)):
                 return normalizerProvider(definition.key)(text)
             case (.choice(let optionID), .editable(_, .choice(let configuration))):
-                return configuration.options.first(where: { $0.id == optionID })?.replacementValue ?? ""
+                return configuration.replacementValue(for: optionID)
             case (.empty, .editable(_, .choice(let configuration))):
-                if let defaultOptionID = configuration.defaultOptionID,
-                   let option = configuration.options.first(where: { $0.id == defaultOptionID }) {
-                    return option.replacementValue
-                }
-                if !configuration.allowsEmptySelection,
-                   let firstOption = configuration.options.first {
-                    return firstOption.replacementValue
-                }
-                return ""
+                return configuration.replacementValue(for: nil)
             case (.empty, _):
                 return ""
             default:

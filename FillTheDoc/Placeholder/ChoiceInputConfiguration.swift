@@ -27,3 +27,45 @@ nonisolated struct ChoiceInputConfiguration: Hashable, Codable, Sendable {
         self.presentationStyle = presentationStyle
     }
 }
+nonisolated extension ChoiceInputConfiguration {
+    func option(withID id: String) -> PlaceholderOption? {
+        options.first { $0.id == id }
+    }
+    
+    var fallbackOption: PlaceholderOption? {
+        if let defaultOptionID,
+           let option = option(withID: defaultOptionID) {
+            return option
+        }
+        if !allowsEmptySelection {
+            return options.first
+        }
+        return nil
+    }
+    
+    func effectiveOptionID(for optionID: String?) -> String? {
+        if let optionID,
+           let option = option(withID: optionID) {
+            return option.id
+        }
+        return fallbackOption?.id
+    }
+    
+    func normalizedFieldValue(for optionID: String?) -> PlaceholderFieldValue {
+        if let optionID = effectiveOptionID(for: optionID) {
+            return .choice(optionID: optionID)
+        }
+        return .empty
+    }
+    
+    func replacementValue(for optionID: String?) -> String {
+        if let optionID,
+           let option = option(withID: optionID) {
+            return option.replacementValue
+        }
+        if optionID == nil {
+            return fallbackOption?.replacementValue ?? ""
+        }
+        return ""
+    }
+}

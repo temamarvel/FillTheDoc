@@ -196,18 +196,7 @@ private extension DocumentDataFieldView {
     func effectiveChoiceSelection(
         for configuration: ChoiceInputConfiguration
     ) -> String? {
-        if case .choice(let optionID) = value,
-           configuration.options.contains(where: { $0.id == optionID }) {
-            return optionID
-        }
-        if let defaultOptionID = configuration.defaultOptionID,
-           configuration.options.contains(where: { $0.id == defaultOptionID }) {
-            return defaultOptionID
-        }
-        if !configuration.allowsEmptySelection {
-            return configuration.options.first?.id
-        }
-        return nil
+        configuration.effectiveOptionID(for: value.choiceOptionID)
     }
     
     var errorText: String? {

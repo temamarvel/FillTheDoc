@@ -194,15 +194,7 @@ private extension PlaceholderFormModel {
             case .editable(_, .text):
                 return .text(extractedText ?? "")
             case .editable(_, .choice(let configuration)):
-                if let defaultOptionID = configuration.defaultOptionID,
-                   configuration.options.contains(where: { $0.id == defaultOptionID }) {
-                    return .choice(optionID: defaultOptionID)
-                }
-                if !configuration.allowsEmptySelection,
-                   let firstOptionID = configuration.options.first?.id {
-                    return .choice(optionID: firstOptionID)
-                }
-                return .empty
+                return configuration.normalizedFieldValue(for: nil)
             case .derived:
                 return .empty
         }
@@ -214,28 +206,9 @@ private extension PlaceholderFormModel {
                 let normalizer = registry.normalizer(for: descriptor.key)
                 return .text(configuration.trimOnCommit ? normalizer(text) : text)
             case (.choice(let optionID), .editable(_, .choice(let configuration))):
-                if configuration.options.contains(where: { $0.id == optionID }) {
-                    return .choice(optionID: optionID)
-                }
-                if let defaultOptionID = configuration.defaultOptionID,
-                   configuration.options.contains(where: { $0.id == defaultOptionID }) {
-                    return .choice(optionID: defaultOptionID)
-                }
-                if !configuration.allowsEmptySelection,
-                   let firstOptionID = configuration.options.first?.id {
-                    return .choice(optionID: firstOptionID)
-                }
-                return .empty
+                return configuration.normalizedFieldValue(for: optionID)
             case (.empty, .editable(_, .choice(let configuration))):
-                if let defaultOptionID = configuration.defaultOptionID,
-                   configuration.options.contains(where: { $0.id == defaultOptionID }) {
-                    return .choice(optionID: defaultOptionID)
-                }
-                if !configuration.allowsEmptySelection,
-                   let firstOptionID = configuration.options.first?.id {
-                    return .choice(optionID: firstOptionID)
-                }
-                return .empty
+                return configuration.normalizedFieldValue(for: nil)
             case (.empty, _):
                 return .empty
             default:
@@ -249,7 +222,7 @@ private extension PlaceholderFormModel {
                 let validator = registry.validator(for: descriptor.key)
                 return validator(text)
             case (.choice(let optionID), .editable(_, .choice(let configuration))):
-                if configuration.options.contains(where: { $0.id == optionID }) {
+                if configuration.option(withID: optionID) != nil {
                     return nil
                 }
                 return .error("Выбран неизвестный вариант.")
