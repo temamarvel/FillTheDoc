@@ -29,7 +29,7 @@ actor FileCustomPlaceholderStore: CustomPlaceholderStore {
         }
         
         let data = try Data(contentsOf: fileURL)
-        return try decoder.decode(CustomPlaceholdersFile.self, from: data).placeholders
+        return try decoder.decode([PlaceholderDescriptor].self, from: data)
     }
     
     func save(_ definitions: [PlaceholderDescriptor]) async throws {
@@ -39,9 +39,7 @@ actor FileCustomPlaceholderStore: CustomPlaceholderStore {
             withIntermediateDirectories: true
         )
         
-        let data = try encoder.encode(
-            CustomPlaceholdersFile(placeholders: definitions)
-        )
+        let data = try encoder.encode(definitions)
         try data.write(to: fileURL, options: [.atomic])
     }
 }

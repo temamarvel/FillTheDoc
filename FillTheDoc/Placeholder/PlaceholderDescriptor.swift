@@ -70,12 +70,8 @@ nonisolated struct PlaceholderDescriptor: Identifiable, Hashable, Codable, Senda
         exampleValue: String? = nil,
         isRequired: Bool
     ) {
-        if case .editable(let source, let inputKind) = kind,
-           inputKind.isChoice {
-            precondition(
-                source == .manual,
-                "Choice placeholders must be manual. They must not be extracted from LLM."
-            )
+        if case .editable(let source, let inputKind) = kind, inputKind.isChoice {
+            precondition(source == .manual, "Choice placeholders must be manual. They must not be extracted from LLM.")
         }
         
         self.key = key
