@@ -2,9 +2,9 @@ import Foundation
 
 /// Структурированная модель реквизитов компании/ИП.
 ///
-/// Это центральный DTO проекта на границе между несколькими слоями сразу:
-/// - extracted placeholder values собираются в эту структуру для core-системных полей;
-/// - форма подтверждения редактирует значения, совместимые с этой структурой;
+/// Это центральный core-DTO проекта на границе между несколькими слоями:
+/// - extracted placeholder values собираются в эту структуру только для системных полей компании;
+/// - форма подтверждения использует её как typed-представление core-реквизитов;
 /// - placeholder-domain вычисляет derived-поля уже из подтверждённого `CompanyDetails`.
 ///
 /// Важно понимать жизненный цикл этой модели:
@@ -18,9 +18,7 @@ import Foundation
 /// - удобным для JSON-декодирования;
 /// - понятным для формы;
 /// - достаточно стабильным как публичный внутренний контракт проекта.
-struct CompanyDetails: Decodable, LLMExtractable, Sendable {
-    typealias SchemaKeys = CompanyDetailsKeys
-    
+struct CompanyDetails: Decodable, Sendable {
     let companyName: String?
     let legalForm: LegalForm?
     let ceoFullName: String?
@@ -59,11 +57,7 @@ struct CompanyDetails: Decodable, LLMExtractable, Sendable {
         self.phone = phone
     }
     
-    enum CompanyDetailsKeys: String, CodingKey, CaseIterable {
-        // Ключи совпадают с placeholder-key naming, чтобы снижать количество маппингов
-        // между LLM JSON, формой, placeholder-domain и шаблоном.
-        // Это осознанный компромисс: naming становится более важной частью архитектуры,
-        // зато проект избегает нескольких хрупких слоёв преобразования одних и тех же полей.
+    enum CodingKeys: String, CodingKey {
         case companyName = "company_name"
         case legalForm = "legal_form"
         case ceoFullName = "ceo_full_name"
@@ -75,26 +69,10 @@ struct CompanyDetails: Decodable, LLMExtractable, Sendable {
         case email
         case address
         case phone
-        
-        nonisolated var placeholderKey: PlaceholderKey {
-            switch self {
-                case .companyName: return .companyName
-                case .legalForm: return .legalForm
-                case .ceoFullName: return .ceoFullName
-                case .ceoFullGenitiveName: return .ceoFullGenitiveName
-                case .ceoShortenName: return .ceoShortenName
-                case .ogrn: return .ogrn
-                case .inn: return .inn
-                case .kpp: return .kpp
-                case .email: return .email
-                case .address: return .address
-                case .phone: return .phone
-            }
-        }
     }
     
     init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CompanyDetailsKeys.self)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
         
         self.companyName = try container.decodeIfPresent(String.self, forKey: .companyName)?.trimmedNilIfEmpty
         self.ceoFullName = try container.decodeIfPresent(String.self, forKey: .ceoFullName)?.trimmedNilIfEmpty
@@ -151,35 +129,35 @@ extension CompanyDetails {
         return "\(legalForm.fullName) «\(name)»"
     }
     
-    /// Удобный доступ по schema-key для мостика между DTO и placeholder-domain.
-    ///
-    /// Этот subscript нужен в основном `CompanyDetailsAssembler`, чтобы не размазывать
-    /// логику маппинга по коду и не дублировать список полей вручную в нескольких местах.
-    nonisolated subscript(key: CompanyDetailsKeys) -> String? {
-        switch key {
-            case .companyName:
-                return companyName
-            case .legalForm:
-                return legalForm?.shortName
-            case .ceoFullName:
-                return ceoFullName
-            case .ceoFullGenitiveName:
-                return ceoFullGenitiveName
-            case .ceoShortenName:
-                return ceoShortenName
-            case .ogrn:
-                return ogrn
-            case .inn:
-                return inn
-            case .kpp:
-                return kpp
-            case .email:
-                return email
-            case .address:
-                return address
-            case .phone:
-                return phone
-        }
+    /// Читабельное debug-представление core DTO.
+    nonisolated func asDictionary() -> [String: Any] {
+        var dict: [String: Any] = [:]
+        
+        dict["company_name"] = companyName
+        dict["legal_form"] = legalForm?.shortName
+        dict["ceo_full_name"] = ceoFullName
+        dict["ceo_full_genitive_name"] = ceoFullGenitiveName
+        dict["ceo_shorten_name"] = ceoShortenName
+        dict["ogrn"] = ogrn
+        dict["inn"] = inn
+        dict["kpp"] = kpp
+        dict["email"] = email
+        dict["address"] = address
+        dict["phone"] = phone
+        
+        return dict
+    }
+    
+    nonisolated func toMultilineString() -> String {
+        let dict = asDictionary()
+        
+        return dict
+            .compactMap { key, value in
+                guard !(value is NSNull) else { return nil }
+                return "\(key): \(value)"
+            }
+            .sorted()
+            .joined(separator: "\n")
     }
 }
 

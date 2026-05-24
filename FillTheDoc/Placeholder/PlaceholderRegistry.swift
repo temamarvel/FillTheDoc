@@ -18,7 +18,6 @@ protocol PlaceholderRegistryProtocol: Sendable {
     nonisolated var extractedDescriptors: [PlaceholderDescriptor] { get }
     nonisolated var manualDescriptors: [PlaceholderDescriptor] { get }
     nonisolated var customDescriptors: [PlaceholderDescriptor] { get }
-    nonisolated var llmSchemaKeys: [PlaceholderKey] { get }
     
     nonisolated func descriptor(for key: PlaceholderKey) -> PlaceholderDescriptor?
     nonisolated func contains(_ key: PlaceholderKey) -> Bool
@@ -53,10 +52,6 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
     
     nonisolated var customDescriptors: [PlaceholderDescriptor] {
         inputDescriptors.filter(\.isUserDefined)
-    }
-    
-    nonisolated var llmSchemaKeys: [PlaceholderKey] {
-        extractedDescriptors.map(\.key)
     }
     
     nonisolated init(customDefinitions: [CustomPlaceholderDefinition] = []) {
