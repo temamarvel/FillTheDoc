@@ -35,6 +35,7 @@ struct PlaceholderKey: Hashable, Codable, Sendable, RawRepresentable, Expressibl
         // or match one of the fixed service keywords.
         if rawValue.contains(":") { return true }
         switch rawValue {
+                //TODO: do it with enum?
             case "switch_end", "case_end", "default_start", "default_end":
                 return true
             default:
@@ -42,5 +43,3 @@ struct PlaceholderKey: Hashable, Codable, Sendable, RawRepresentable, Expressibl
         }
     }
 }
-
-
