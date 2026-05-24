@@ -21,12 +21,12 @@ nonisolated struct PlaceholderValueResolver: Sendable {
         for value: PlaceholderFieldValue,
         definition: PlaceholderDescriptor
     ) -> String {
-        switch (value, definition.inputKind) {
-            case (.text(let text), .some(.text)):
+        switch (value, definition.kind) {
+            case (.text(let text), .editable(_, .text)):
                 return normalizerProvider(definition.key)(text)
-            case (.choice(let optionID), .some(.choice(let configuration))):
+            case (.choice(let optionID), .editable(_, .choice(let configuration))):
                 return configuration.options.first(where: { $0.id == optionID })?.replacementValue ?? ""
-            case (.empty, .some(.choice(let configuration))):
+            case (.empty, .editable(_, .choice(let configuration))):
                 if let defaultOptionID = configuration.defaultOptionID,
                    let option = configuration.options.first(where: { $0.id == defaultOptionID }) {
                     return option.replacementValue

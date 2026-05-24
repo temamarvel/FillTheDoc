@@ -43,11 +43,21 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
     }
     
     nonisolated var extractedDescriptors: [PlaceholderDescriptor] {
-        inputDescriptors.filter { $0.valueSource == .extracted }
+        inputDescriptors.filter {
+            if case .editable(source: .extracted, inputKind: _) = $0.kind {
+                return true
+            }
+            return false
+        }
     }
     
     nonisolated var manualDescriptors: [PlaceholderDescriptor] {
-        inputDescriptors.filter { $0.valueSource == .manual }
+        inputDescriptors.filter {
+            if case .editable(source: .manual, inputKind: _) = $0.kind {
+                return true
+            }
+            return false
+        }
     }
     
     nonisolated var customDescriptors: [PlaceholderDescriptor] {
@@ -138,21 +148,21 @@ private extension DefaultPlaceholderRegistry {
     ) -> PlaceholderBehavior {
         let validator: FieldValidator
         
-        switch descriptor.inputKind {
-            case .some(.text(let configuration)):
+        switch descriptor.kind {
+            case .editable(_, .text(let configuration)):
                 if configuration.isRequired {
                     validator = Validators.nonEmpty
                 } else {
                     validator = { _ in nil }
                 }
-            case .some(.choice(let configuration)):
+            case .editable(_, .choice(let configuration)):
                 validator = { value in
                     if configuration.allowsEmptySelection || !value.isEmpty {
                         return nil
                     }
                     return .error("Поле обязательно для выбора.")
                 }
-            case .none:
+            case .derived:
                 validator = { _ in nil }
         }
         
@@ -169,8 +179,10 @@ private extension DefaultPlaceholderRegistry {
             description: "Краткое наименование организации без указания правовой формы.",
             section: .company,
             order: 10,
-            valueSource: .extracted,
-            inputKind: .text(.init(placeholder: "ООО «Ромашка»", isRequired: true)),
+            kind: .editable(
+                source: .extracted,
+                inputKind: .text(.init(placeholder: "ООО «Ромашка»", isRequired: true))
+            ),
             exampleValue: "Ромашка",
             isRequired: true
         ),
@@ -180,8 +192,10 @@ private extension DefaultPlaceholderRegistry {
             description: "Аббревиатура правовой формы: ООО, АО, ИП и т.д.",
             section: .company,
             order: 20,
-            valueSource: .extracted,
-            inputKind: .text(.init(placeholder: "ООО / АО / ИП", isRequired: true)),
+            kind: .editable(
+                source: .extracted,
+                inputKind: .text(.init(placeholder: "ООО / АО / ИП", isRequired: true))
+            ),
             exampleValue: "ООО",
             isRequired: true
         ),
@@ -191,8 +205,10 @@ private extension DefaultPlaceholderRegistry {
             description: "Фамилия Имя Отчество руководителя в именительном падеже.",
             section: .company,
             order: 30,
-            valueSource: .extracted,
-            inputKind: .text(.init(placeholder: "Иванов Иван Иванович", isRequired: true)),
+            kind: .editable(
+                source: .extracted,
+                inputKind: .text(.init(placeholder: "Иванов Иван Иванович", isRequired: true))
+            ),
             exampleValue: "Иванов Иван Иванович",
             isRequired: true
         ),
@@ -202,8 +218,10 @@ private extension DefaultPlaceholderRegistry {
             description: "Фамилия Имя Отчество руководителя в родительном падеже.",
             section: .company,
             order: 40,
-            valueSource: .extracted,
-            inputKind: .text(.init(placeholder: "Иванова Ивана Ивановича", isRequired: true)),
+            kind: .editable(
+                source: .extracted,
+                inputKind: .text(.init(placeholder: "Иванова Ивана Ивановича", isRequired: true))
+            ),
             exampleValue: "Иванова Ивана Ивановича",
             isRequired: true
         ),
@@ -213,8 +231,10 @@ private extension DefaultPlaceholderRegistry {
             description: "Фамилия с инициалами руководителя.",
             section: .company,
             order: 50,
-            valueSource: .extracted,
-            inputKind: .text(.init(placeholder: "Иванов И.И.", isRequired: true)),
+            kind: .editable(
+                source: .extracted,
+                inputKind: .text(.init(placeholder: "Иванов И.И.", isRequired: true))
+            ),
             exampleValue: "Иванов И.И.",
             isRequired: true
         ),
@@ -224,8 +244,10 @@ private extension DefaultPlaceholderRegistry {
             description: "Основной государственный регистрационный номер. 13 цифр для юрлиц, 15 для ИП.",
             section: .company,
             order: 60,
-            valueSource: .extracted,
-            inputKind: .text(.init(placeholder: "13/15 цифр", isRequired: true)),
+            kind: .editable(
+                source: .extracted,
+                inputKind: .text(.init(placeholder: "13/15 цифр", isRequired: true))
+            ),
             exampleValue: "1187746707280",
             isRequired: true
         ),
@@ -235,8 +257,10 @@ private extension DefaultPlaceholderRegistry {
             description: "Идентификационный номер налогоплательщика. 10 цифр для юрлиц, 12 для ИП.",
             section: .company,
             order: 70,
-            valueSource: .extracted,
-            inputKind: .text(.init(placeholder: "10/12 цифр", isRequired: true)),
+            kind: .editable(
+                source: .extracted,
+                inputKind: .text(.init(placeholder: "10/12 цифр", isRequired: true))
+            ),
             exampleValue: "9731007287",
             isRequired: true
         ),
@@ -246,8 +270,10 @@ private extension DefaultPlaceholderRegistry {
             description: "Код причины постановки на учёт. 9 цифр. Только для юрлиц.",
             section: .company,
             order: 80,
-            valueSource: .extracted,
-            inputKind: .text(.init(placeholder: "9 цифр", isRequired: false)),
+            kind: .editable(
+                source: .extracted,
+                inputKind: .text(.init(placeholder: "9 цифр", isRequired: false))
+            ),
             exampleValue: "773101001",
             isRequired: false
         ),
@@ -257,8 +283,10 @@ private extension DefaultPlaceholderRegistry {
             description: "Электронная почта организации.",
             section: .company,
             order: 90,
-            valueSource: .extracted,
-            inputKind: .text(.init(placeholder: "example@domain.com", isRequired: false)),
+            kind: .editable(
+                source: .extracted,
+                inputKind: .text(.init(placeholder: "example@domain.com", isRequired: false))
+            ),
             exampleValue: "info@romashka.ru",
             isRequired: false
         ),
@@ -268,12 +296,14 @@ private extension DefaultPlaceholderRegistry {
             description: "Юридический или фактический адрес.",
             section: .company,
             order: 100,
-            valueSource: .extracted,
-            inputKind: .text(
-                .init(
-                    placeholder: "город, улица, дом",
-                    isRequired: false,
-                    editorStyle: .multiline(minLines: 1, maxLines: 8)
+            kind: .editable(
+                source: .extracted,
+                inputKind: .text(
+                    .init(
+                        placeholder: "город, улица, дом",
+                        isRequired: false,
+                        editorStyle: .multiline(minLines: 1, maxLines: 8)
+                    )
                 )
             ),
             exampleValue: "г. Москва, ул. Ленина, д. 1",
@@ -285,8 +315,10 @@ private extension DefaultPlaceholderRegistry {
             description: "Контактный телефон в международном формате.",
             section: .company,
             order: 110,
-            valueSource: .extracted,
-            inputKind: .text(.init(placeholder: "+79991234567", isRequired: false)),
+            kind: .editable(
+                source: .extracted,
+                inputKind: .text(.init(placeholder: "+79991234567", isRequired: false))
+            ),
             exampleValue: "+79991234567",
             isRequired: false
         ),
@@ -296,8 +328,10 @@ private extension DefaultPlaceholderRegistry {
             description: "Номер договора или иного документа.",
             section: .document,
             order: 120,
-            valueSource: .manual,
-            inputKind: .text(.init(placeholder: "yyyy-mm-#", isRequired: false)),
+            kind: .editable(
+                source: .manual,
+                inputKind: .text(.init(placeholder: "yyyy-mm-#", isRequired: false))
+            ),
             exampleValue: "2024-01-001",
             isRequired: false
         ),
@@ -307,8 +341,10 @@ private extension DefaultPlaceholderRegistry {
             description: "Размер комиссионного вознаграждения в процентах.",
             section: .document,
             order: 130,
-            valueSource: .manual,
-            inputKind: .text(.init(placeholder: "1", isRequired: true)),
+            kind: .editable(
+                source: .manual,
+                inputKind: .text(.init(placeholder: "1", isRequired: true))
+            ),
             exampleValue: "1",
             isRequired: true
         ),
@@ -318,8 +354,10 @@ private extension DefaultPlaceholderRegistry {
             description: "Минимальный размер комиссионного вознаграждения в рублях.",
             section: .document,
             order: 140,
-            valueSource: .manual,
-            inputKind: .text(.init(placeholder: "10", isRequired: true)),
+            kind: .editable(
+                source: .manual,
+                inputKind: .text(.init(placeholder: "10", isRequired: true))
+            ),
             exampleValue: "10",
             isRequired: true
         ),
@@ -329,17 +367,19 @@ private extension DefaultPlaceholderRegistry {
             description: "Выбирается пользователем вручную и не участвует в LLM extraction.",
             section: .document,
             order: 150,
-            valueSource: .manual,
-            inputKind: .choice(
-                .init(
-                    options: [
-                        .init(id: "invoice", title: "счет", replacementValue: "счет"),
-                        .init(id: "sbp", title: "сбп", replacementValue: "сбп")
-                    ],
-                    defaultOptionID: nil,
-                    allowsEmptySelection: false,
-                    emptyTitle: "Не выбрано",
-                    presentationStyle: .segmented
+            kind: .editable(
+                source: .manual,
+                inputKind: .choice(
+                    .init(
+                        options: [
+                            .init(id: "invoice", title: "счет", replacementValue: "счет"),
+                            .init(id: "sbp", title: "сбп", replacementValue: "сбп")
+                        ],
+                        defaultOptionID: nil,
+                        allowsEmptySelection: false,
+                        emptyTitle: "Не выбрано",
+                        presentationStyle: .segmented
+                    )
                 )
             ),
             exampleValue: "счет",
@@ -351,6 +391,7 @@ private extension DefaultPlaceholderRegistry {
             description: "Текущая дата в формате «dd» MMMM yyyy г.",
             section: .computed,
             order: 210,
+            kind: .derived,
             exampleValue: "«22» апреля 2026 г.",
             isRequired: false
         ),
@@ -360,6 +401,7 @@ private extension DefaultPlaceholderRegistry {
             description: "Текущая дата в формате dd.MM.yyyy.",
             section: .computed,
             order: 220,
+            kind: .derived,
             exampleValue: "22.04.2026",
             isRequired: false
         ),
@@ -369,6 +411,7 @@ private extension DefaultPlaceholderRegistry {
             description: "«Генеральный директор» для юрлиц или «Индивидуальный предприниматель» для ИП.",
             section: .computed,
             order: 230,
+            kind: .derived,
             exampleValue: "Генеральный директор",
             isRequired: false
         ),
@@ -378,6 +421,7 @@ private extension DefaultPlaceholderRegistry {
             description: "Наименование компании с правовой формой в краткой форме, например ООО «Ромашка».",
             section: .computed,
             order: 240,
+            kind: .derived,
             exampleValue: "ООО «Ромашка»",
             isRequired: false
         ),
@@ -387,6 +431,7 @@ private extension DefaultPlaceholderRegistry {
             description: "Наименование компании с расшифровкой правовой формы, например Общество с ограниченной ответственностью «Ромашка».",
             section: .computed,
             order: 250,
+            kind: .derived,
             exampleValue: "Общество с ограниченной ответственностью «Ромашка»",
             isRequired: false
         ),
@@ -396,6 +441,7 @@ private extension DefaultPlaceholderRegistry {
             description: "Документ, на основании которого действует руководитель: Устав для юрлиц или выписка ЕГРИП для ИП.",
             section: .computed,
             order: 260,
+            kind: .derived,
             exampleValue: "Устава",
             isRequired: false
         ),

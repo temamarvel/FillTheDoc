@@ -8,10 +8,10 @@
 
 // MARK: - PlaceholderValueSource
 
-/// Источник значения для полей, которые пользователь может редактировать.
+/// Источник значения для плейсхолдеров с `PlaceholderKind.editable`.
 ///
-/// `derived`-плейсхолдеры в эту модель не входят: они не редактируются и
-/// вычисляются отдельными resolver'ами внутри registry.
+/// Для вычисляемых (`PlaceholderKind.derived`) плейсхолдеров источник не задаётся:
+/// они не редактируются и вычисляются отдельными resolver'ами внутри registry.
 nonisolated enum PlaceholderValueSource: String, Codable, Hashable, Sendable {
     /// Значение приходит из LLM extraction и затем может быть отредактировано человеком.
     case extracted

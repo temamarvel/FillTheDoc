@@ -193,22 +193,22 @@ struct CustomPlaceholderEditorView: View {
         _descriptionText = State(initialValue: definition?.description ?? "")
         _order = State(initialValue: definition?.order ?? 500)
         
-        switch definition?.inputKind {
-            case .text(let configuration):
+        switch definition?.kind {
+            case .editable(let source, .text(let configuration)):
                 _valueType = State(initialValue: .text)
                 _textPlaceholder = State(initialValue: configuration.placeholder)
                 _textRequired = State(initialValue: configuration.isRequired)
-                _textValueSource = State(initialValue: .init(valueSource: definition?.valueSource ?? .manual))
+                _textValueSource = State(initialValue: .init(valueSource: source))
                 _choiceOptions = State(initialValue: Self.defaultChoiceOptions())
                 
-            case .choice(let configuration):
+            case .editable(_, .choice(let configuration)):
                 _valueType = State(initialValue: .choice)
                 _textPlaceholder = State(initialValue: "")
                 _textRequired = State(initialValue: false)
                 _textValueSource = State(initialValue: .manual)
                 _choiceOptions = State(initialValue: configuration.options.map(ChoiceOptionDraft.init(option:)))
                 
-            case nil:
+            case .derived, nil:
                 _valueType = State(initialValue: .text)
                 _textPlaceholder = State(initialValue: "")
                 _textRequired = State(initialValue: false)
@@ -631,7 +631,6 @@ private extension CustomPlaceholderEditorView {
         )
     }
     
-    
     func makeDefinition() -> PlaceholderDescriptor {
         let inputKind: PlaceholderInputKind
         let valueSource: PlaceholderValueSource
@@ -667,8 +666,7 @@ private extension CustomPlaceholderEditorView {
             description: descriptionText.trimmed,
             section: .custom,
             order: order,
-            valueSource: valueSource,
-            inputKind: inputKind,
+            kind: .editable(source: valueSource, inputKind: inputKind),
             isUserDefined: true,
             exampleValue: nil,
             isRequired: inputKind.isRequired

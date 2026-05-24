@@ -26,16 +26,16 @@ struct DocumentDataFieldView: View {
     }
     
     var body: some View {
-        switch descriptor.inputKind {
-            case .some(.text(let configuration)):
+        switch descriptor.kind {
+            case .editable(_, .text(let configuration)):
                 fieldRow(alignment: verticalAlignment(for: configuration)) {
                     textInput(configuration: configuration)
                 }
-            case .some(.choice(let configuration)):
+            case .editable(_, .choice(let configuration)):
                 fieldRow(alignment: .center) {
                     choiceField(configuration: configuration)
                 }
-            case .none:
+            case .derived:
                 EmptyView()
         }
     }

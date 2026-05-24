@@ -113,19 +113,21 @@ final class PlaceholderFormModel {
     }
     
     func applyExtractedValues(_ extractedValues: [PlaceholderKey: String]) {
-        for descriptor in editableDescriptors where descriptor.valueSource == .extracted {
-            switch descriptor.inputKind {
-                case .some(.text):
+        for descriptor in editableDescriptors {
+            guard case .editable(source: .extracted, inputKind: let inputKind) = descriptor.kind else {
+                continue
+            }
+            
+            switch inputKind {
+                case .text:
                     let value = extractedValues[descriptor.key] ?? ""
                     let fieldValue = normalize(.text(value), for: descriptor)
                     fieldStates[descriptor.key] = PlaceholderFieldState(
                         value: fieldValue,
                         issue: validate(fieldValue, for: descriptor)
                     )
-                case .some(.choice):
+                case .choice:
                     assertionFailure("Choice placeholders must not be extracted.")
-                case .none:
-                    continue
             }
         }
         
@@ -188,10 +190,10 @@ private extension PlaceholderFormModel {
         for descriptor: PlaceholderDescriptor,
         extractedText: String? = nil
     ) -> PlaceholderFieldValue {
-        switch descriptor.inputKind {
-            case .some(.text):
+        switch descriptor.kind {
+            case .editable(_, .text):
                 return .text(extractedText ?? "")
-            case .some(.choice(let configuration)):
+            case .editable(_, .choice(let configuration)):
                 if let defaultOptionID = configuration.defaultOptionID,
                    configuration.options.contains(where: { $0.id == defaultOptionID }) {
                     return .choice(optionID: defaultOptionID)
@@ -201,17 +203,17 @@ private extension PlaceholderFormModel {
                     return .choice(optionID: firstOptionID)
                 }
                 return .empty
-            case .none:
+            case .derived:
                 return .empty
         }
     }
     
     func normalize(_ value: PlaceholderFieldValue, for descriptor: PlaceholderDescriptor) -> PlaceholderFieldValue {
-        switch (value, descriptor.inputKind) {
-            case (.text(let text), .some(.text(let configuration))):
+        switch (value, descriptor.kind) {
+            case (.text(let text), .editable(_, .text(let configuration))):
                 let normalizer = registry.normalizer(for: descriptor.key)
                 return .text(configuration.trimOnCommit ? normalizer(text) : text)
-            case (.choice(let optionID), .some(.choice(let configuration))):
+            case (.choice(let optionID), .editable(_, .choice(let configuration))):
                 if configuration.options.contains(where: { $0.id == optionID }) {
                     return .choice(optionID: optionID)
                 }
@@ -224,7 +226,7 @@ private extension PlaceholderFormModel {
                     return .choice(optionID: firstOptionID)
                 }
                 return .empty
-            case (.empty, .some(.choice(let configuration))):
+            case (.empty, .editable(_, .choice(let configuration))):
                 if let defaultOptionID = configuration.defaultOptionID,
                    configuration.options.contains(where: { $0.id == defaultOptionID }) {
                     return .choice(optionID: defaultOptionID)
@@ -242,24 +244,24 @@ private extension PlaceholderFormModel {
     }
     
     func validate(_ value: PlaceholderFieldValue, for descriptor: PlaceholderDescriptor) -> FieldIssue? {
-        switch (value, descriptor.inputKind) {
-            case (.text(let text), .some(.text)):
+        switch (value, descriptor.kind) {
+            case (.text(let text), .editable(_, .text)):
                 let validator = registry.validator(for: descriptor.key)
                 return validator(text)
-            case (.choice(let optionID), .some(.choice(let configuration))):
+            case (.choice(let optionID), .editable(_, .choice(let configuration))):
                 if configuration.options.contains(where: { $0.id == optionID }) {
                     return nil
                 }
                 return .error("Выбран неизвестный вариант.")
-            case (.empty, .some(.choice(let configuration))):
+            case (.empty, .editable(_, .choice(let configuration))):
                 if configuration.allowsEmptySelection {
                     return nil
                 }
                 return .error("Поле обязательно для выбора.")
-            case (.empty, .some(.text)):
+            case (.empty, .editable(_, .text)):
                 let validator = registry.validator(for: descriptor.key)
                 return validator("")
-            case (_, nil):
+            case (_, .derived):
                 return nil
             default:
                 return .error("Некорректное значение поля.")

@@ -55,8 +55,7 @@ actor FileCustomPlaceholderStore: CustomPlaceholderStore {
                         description: placeholder.description ?? "",
                         section: .custom,
                         order: placeholder.order,
-                        valueSource: .manual,
-                        inputKind: placeholder.inputKind,
+                        kind: .editable(source: .manual, inputKind: placeholder.inputKind),
                         isUserDefined: true,
                         exampleValue: nil,
                         isRequired: placeholder.inputKind.isRequired

@@ -184,20 +184,17 @@ struct PlaceholderLibraryView: View {
             }
         }
         .frame(minWidth: 640, minHeight: 520)
-        .sheet(item: $editorSheet) { sheet in
-            switch sheet {
-                case .create:
-                    CustomPlaceholderEditorView(
-                        mode: .create,
-                        existingKeys: existingKeys,
-                        onSave: onCreateCustom
-                    )
-                case .edit(let definition):
-                    CustomPlaceholderEditorView(
-                        mode: .edit(definition),
-                        existingKeys: existingKeys,
-                        onSave: onUpdateCustom
-                    )
+        .overlay {
+            if let sheet = editorSheet {
+                ZStack {
+                    Color.black.opacity(0.18)
+                        .ignoresSafeArea()
+                    
+                    editorView(for: sheet)
+                        .shadow(color: .black.opacity(0.18), radius: 24, y: 12)
+                }
+                .transition(.opacity)
+                .zIndex(1)
             }
         }
         .alert(
@@ -243,9 +240,31 @@ struct PlaceholderLibraryView: View {
         } message: { definition in
             Text("Плейсхолдер <!\(definition.key.rawValue)!> будет удалён из runtime registry и из JSON-хранилища.")
         }
+        .animation(.easeInOut(duration: 0.18), value: editorSheet?.id)
     }
 }
 
+private extension PlaceholderLibraryView {
+    @ViewBuilder
+    func editorView(for sheet: PlaceholderEditorSheet) -> some View {
+        switch sheet {
+            case .create:
+                CustomPlaceholderEditorView(
+                    mode: .create,
+                    existingKeys: existingKeys,
+                    onSave: onCreateCustom,
+                    onDismiss: { editorSheet = nil }
+                )
+            case .edit(let definition):
+                CustomPlaceholderEditorView(
+                    mode: .edit(definition),
+                    existingKeys: existingKeys,
+                    onSave: onUpdateCustom,
+                    onDismiss: { editorSheet = nil }
+                )
+        }
+    }
+}
 // MARK: - SectionHeaderView
 
 private struct SectionHeaderView: View {
@@ -320,7 +339,7 @@ struct PlaceholderLibraryRowView: View {
                     }
                 }
                 
-                if case .some(.choice(let configuration)) = item.descriptor.inputKind {
+                if case .editable(_, .choice(let configuration)) = item.descriptor.kind {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Варианты выбора")
                             .font(.caption.weight(.medium))
