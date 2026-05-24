@@ -126,7 +126,6 @@ struct CustomPlaceholderEditorView: View {
     @State private var choiceOptions: [ChoiceOptionDraft]
     
     @State private var order: Int
-    @State private var isEnabled: Bool
     
     @State private var saveErrorText: String?
     @State private var isSaving = false
@@ -146,7 +145,6 @@ struct CustomPlaceholderEditorView: View {
         _keyText = State(initialValue: definition?.key.rawValue ?? "")
         _descriptionText = State(initialValue: definition?.description ?? "")
         _order = State(initialValue: definition?.order ?? 500)
-        _isEnabled = State(initialValue: definition?.isEnabled ?? true)
         
         switch definition?.inputKind {
             case .text(let configuration):
@@ -542,21 +540,22 @@ private extension CustomPlaceholderEditorView {
     
     
     func makeDefinition() -> CustomPlaceholderDefinition {
-        let inputKind: PersistedPlaceholderInputKind
+        let inputKind: PlaceholderInputKind
         
         switch valueType {
             case .text:
                 inputKind = .text(
-                    PersistedTextInputConfiguration(
+                    TextInputConfiguration(
                         placeholder: textPlaceholder.trimmingCharacters(in: .whitespacesAndNewlines),
                         isRequired: textRequired,
+                        trimOnCommit: true,
                         editorStyle: .singleLine
                     )
                 )
                 
             case .choice:
                 inputKind = .choice(
-                    PersistedChoiceInputConfiguration(
+                    ChoiceInputConfiguration(
                         options: choiceOptions.map(\.placeholderOption),
                         defaultOptionID: nil,
                         allowsEmptySelection: true,
@@ -569,12 +568,14 @@ private extension CustomPlaceholderEditorView {
         return CustomPlaceholderDefinition(
             key: PlaceholderKey(rawValue: normalizedKeyText),
             title: titleText.trimmingCharacters(in: .whitespacesAndNewlines),
-            description: descriptionText.trimmedNilIfEmpty,
-            inputKind: inputKind,
+            description: descriptionText.trimmed,
+            section: .custom,
             order: order,
-            isEnabled: isEnabled,
-            createdAt: mode.existingDefinition?.createdAt ?? Date(),
-            updatedAt: Date()
+            valueSource: .manual,
+            inputKind: inputKind,
+            isUserDefined: true,
+            exampleValue: nil,
+            isRequired: inputKind.isRequired
         )
     }
     
@@ -840,7 +841,7 @@ private extension CustomPlaceholderEditorView {
 // MARK: - Local generation helpers
 
 private extension String {
-    var generatedLatinIdentifier: String {
+    nonisolated var generatedLatinIdentifier: String {
         let source = trimmingCharacters(in: .whitespacesAndNewlines)
         guard !source.isEmpty else { return "" }
         

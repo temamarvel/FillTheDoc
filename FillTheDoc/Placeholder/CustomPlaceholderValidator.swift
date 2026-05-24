@@ -30,7 +30,11 @@ struct CustomPlaceholderValidator: Sendable {
         return issues
     }
     
-    private func validateInputKind(_ inputKind: PersistedPlaceholderInputKind) -> [FieldIssue] {
+    private func validateInputKind(_ inputKind: PlaceholderInputKind?) -> [FieldIssue] {
+        guard let inputKind else {
+            return [.error("Пользовательский плейсхолдер должен поддерживать ввод значения.")]
+        }
+        
         switch inputKind {
             case .text(let configuration):
                 return validateText(configuration)
@@ -39,7 +43,7 @@ struct CustomPlaceholderValidator: Sendable {
         }
     }
     
-    private func validateText(_ configuration: PersistedTextInputConfiguration) -> [FieldIssue] {
+    private func validateText(_ configuration: TextInputConfiguration) -> [FieldIssue] {
         if case .multiline(let minLines, let maxLines) = configuration.editorStyle,
            minLines < 1 || maxLines < minLines {
             return [.error("Некорректная конфигурация многострочного текстового поля.")]
@@ -47,7 +51,7 @@ struct CustomPlaceholderValidator: Sendable {
         return []
     }
     
-    private func validateChoice(_ configuration: PersistedChoiceInputConfiguration) -> [FieldIssue] {
+    private func validateChoice(_ configuration: ChoiceInputConfiguration) -> [FieldIssue] {
         var issues: [FieldIssue] = []
         
         if configuration.options.count < 2 {

@@ -1,8 +1,5 @@
 import Foundation
 
-typealias FieldNormalizer = @Sendable (String) -> String
-typealias FieldValidator = @Sendable (String) -> FieldIssue?
-
 // MARK: - PlaceholderSection
 
 /// UI- и каталог-ориентированная группировка плейсхолдеров.
@@ -10,7 +7,7 @@ typealias FieldValidator = @Sendable (String) -> FieldIssue?
 /// `section` не определяет, КАК считается значение, а только помогает
 /// показывать плейсхолдеры пользователю и группировать форму/библиотеку.
 /// Это presentation-классификация, а не вычислительная.
-nonisolated enum PlaceholderSection: String, Hashable, Sendable, CaseIterable {
+nonisolated enum PlaceholderSection: String, Codable, Hashable, Sendable, CaseIterable {
     case company
     case document
     case computed
@@ -124,6 +121,29 @@ nonisolated struct TextInputConfiguration: Hashable, Codable, Sendable {
         self.trimOnCommit = trimOnCommit
         self.editorStyle = editorStyle
     }
+    
+    private enum CodingKeys: String, CodingKey {
+        case placeholder
+        case isRequired
+        case trimOnCommit
+        case editorStyle
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.placeholder = try container.decodeIfPresent(String.self, forKey: .placeholder) ?? ""
+        self.isRequired = try container.decodeIfPresent(Bool.self, forKey: .isRequired) ?? false
+        self.trimOnCommit = try container.decodeIfPresent(Bool.self, forKey: .trimOnCommit) ?? true
+        self.editorStyle = try container.decodeIfPresent(TextEditorStyle.self, forKey: .editorStyle) ?? .singleLine
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(placeholder, forKey: .placeholder)
+        try container.encode(isRequired, forKey: .isRequired)
+        try container.encode(trimOnCommit, forKey: .trimOnCommit)
+        try container.encode(editorStyle, forKey: .editorStyle)
+    }
 }
 
 nonisolated enum ChoicePresentationStyle: String, Codable, Hashable, Sendable {
@@ -172,7 +192,7 @@ nonisolated struct ChoiceInputConfiguration: Hashable, Codable, Sendable {
     }
 }
 
-nonisolated enum PlaceholderInputKind: Hashable, Sendable {
+nonisolated enum PlaceholderInputKind: Hashable, Codable, Sendable {
     case text(TextInputConfiguration)
     case choice(ChoiceInputConfiguration)
     
@@ -230,6 +250,51 @@ nonisolated enum PlaceholderInputKind: Hashable, Sendable {
                 return "choice|\(optionsLine)|\(configuration.defaultOptionID ?? "")|\(configuration.allowsEmptySelection)|\(configuration.emptyTitle)|\(configuration.presentationStyle.rawValue)"
         }
     }
+    
+    private enum CodingKeys: String, CodingKey {
+        case type
+        case configuration
+    }
+    
+    private enum Kind: String, Codable {
+        case text
+        case multilineText
+        case choice
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let kind = try container.decode(Kind.self, forKey: .type)
+        
+        switch kind {
+            case .text:
+                self = .text(try container.decode(TextInputConfiguration.self, forKey: .configuration))
+            case .multilineText:
+                let configuration = try container.decode(TextInputConfiguration.self, forKey: .configuration)
+                self = .text(
+                    TextInputConfiguration(
+                        placeholder: configuration.placeholder,
+                        isRequired: configuration.isRequired,
+                        trimOnCommit: configuration.trimOnCommit,
+                        editorStyle: configuration.editorStyle == .singleLine ? .multiline() : configuration.editorStyle
+                    )
+                )
+            case .choice:
+                self = .choice(try container.decode(ChoiceInputConfiguration.self, forKey: .configuration))
+        }
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+            case .text(let configuration):
+                try container.encode(Kind.text, forKey: .type)
+                try container.encode(configuration, forKey: .configuration)
+            case .choice(let configuration):
+                try container.encode(Kind.choice, forKey: .type)
+                try container.encode(configuration, forKey: .configuration)
+        }
+    }
 }
 
 // MARK: - PlaceholderFieldValue
@@ -258,9 +323,8 @@ nonisolated enum PlaceholderFieldValue: Hashable, Codable, Sendable {
 
 /// Каноническое описание плейсхолдера.
 ///
-/// Через `PlaceholderDescriptor` приложение документирует и исполняет всё, что относится
-/// к runtime-описанию плейсхолдера: отображаемое имя, описание, секцию, тип ввода,
-/// источник значения, правила нормализации/валидации и token для шаблона.
+/// Через `PlaceholderDescriptor` приложение документирует только стабильные данные о плейсхолдере:
+/// отображаемое имя, описание, секцию, тип ввода, источник значения и token для шаблона.
 ///
 /// Важно: descriptor по-прежнему не содержит САМО значение поля. Он только описывает,
 /// как это значение должно выглядеть и откуда берётся. Сами значения живут отдельно:
@@ -269,7 +333,7 @@ nonisolated enum PlaceholderFieldValue: Hashable, Codable, Sendable {
 ///
 /// Если `PlaceholderKey` — это identity поля, то `PlaceholderDescriptor` — его паспорт
 /// для UI, справочника плейсхолдеров и общей документации системы.
-struct PlaceholderDescriptor: Identifiable, Sendable {
+nonisolated struct PlaceholderDescriptor: Identifiable, Hashable, Codable, Sendable {
     var id: PlaceholderKey { key }
     
     let key: PlaceholderKey
@@ -282,8 +346,6 @@ struct PlaceholderDescriptor: Identifiable, Sendable {
     let isUserDefined: Bool
     let exampleValue: String?
     let isRequired: Bool
-    let normalizer: FieldNormalizer
-    let validator: FieldValidator
     
     /// Строка токена, которую пользователь вставляет в Word-шаблон, например `<!company_name!>`.
     var token: String { "<!\(key.rawValue)!>" }
@@ -328,9 +390,7 @@ struct PlaceholderDescriptor: Identifiable, Sendable {
         inputKind: PlaceholderInputKind? = nil,
         isUserDefined: Bool = false,
         exampleValue: String? = nil,
-        isRequired: Bool,
-        normalizer: @escaping FieldNormalizer = { $0 },
-        validator: @escaping FieldValidator = { _ in nil }
+        isRequired: Bool
     ) {
         if let inputKind, inputKind.isChoice {
             precondition(
@@ -349,7 +409,5 @@ struct PlaceholderDescriptor: Identifiable, Sendable {
         self.isUserDefined = isUserDefined
         self.exampleValue = exampleValue
         self.isRequired = isRequired
-        self.normalizer = normalizer
-        self.validator = validator
     }
 }

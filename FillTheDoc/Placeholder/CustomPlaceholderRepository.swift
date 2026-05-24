@@ -35,10 +35,6 @@ actor CustomPlaceholderRepository {
         }
     }
     
-    func enabled() -> [CustomPlaceholderDefinition] {
-        all().filter(\.isEnabled)
-    }
-    
     func add(_ definition: CustomPlaceholderDefinition) async throws {
         guard !definitions.contains(where: { $0.key == definition.key }) else {
             throw CustomPlaceholderRepositoryError.duplicateKey(definition.key)
@@ -51,9 +47,7 @@ actor CustomPlaceholderRepository {
         guard let index = definitions.firstIndex(where: { $0.key == definition.key }) else {
             throw CustomPlaceholderRepositoryError.definitionNotFound(definition.key)
         }
-        var updated = definition
-        updated.updatedAt = Date()
-        definitions[index] = updated
+        definitions[index] = definition
         try await store.save(definitions)
     }
     

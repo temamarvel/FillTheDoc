@@ -13,104 +13,100 @@ import Foundation
 /// с `valueSource` и `inputKind`. Это позволяет безопасно добавлять choice-поля,
 /// не ломая ни LLM-схему, ни DOCX fill.
 protocol PlaceholderRegistryProtocol: Sendable {
-    var allDescriptors: [PlaceholderDescriptor] { get }
-    var inputDescriptors: [PlaceholderDescriptor] { get }
-    var extractedDescriptors: [PlaceholderDescriptor] { get }
-    var manualDescriptors: [PlaceholderDescriptor] { get }
-    var customDescriptors: [PlaceholderDescriptor] { get }
-    var llmSchemaKeys: [PlaceholderKey] { get }
+    nonisolated var allDescriptors: [PlaceholderDescriptor] { get }
+    nonisolated var inputDescriptors: [PlaceholderDescriptor] { get }
+    nonisolated var extractedDescriptors: [PlaceholderDescriptor] { get }
+    nonisolated var manualDescriptors: [PlaceholderDescriptor] { get }
+    nonisolated var customDescriptors: [PlaceholderDescriptor] { get }
+    nonisolated var llmSchemaKeys: [PlaceholderKey] { get }
     
-    func descriptor(for key: PlaceholderKey) -> PlaceholderDescriptor?
-    func contains(_ key: PlaceholderKey) -> Bool
-    func descriptors(in section: PlaceholderSection) -> [PlaceholderDescriptor]
-    func normalizer(for key: PlaceholderKey) -> FieldNormalizer
-    func validator(for key: PlaceholderKey) -> FieldValidator
-    func resolve(_ key: PlaceholderKey, context: PlaceholderResolutionContext) -> String?
-    func resolveAll(context: PlaceholderResolutionContext) -> [PlaceholderKey: String]
+    nonisolated func descriptor(for key: PlaceholderKey) -> PlaceholderDescriptor?
+    nonisolated func contains(_ key: PlaceholderKey) -> Bool
+    nonisolated func descriptors(in section: PlaceholderSection) -> [PlaceholderDescriptor]
+    nonisolated func normalizer(for key: PlaceholderKey) -> FieldNormalizer
+    nonisolated func validator(for key: PlaceholderKey) -> FieldValidator
+    nonisolated func resolve(_ key: PlaceholderKey, context: PlaceholderResolutionContext) -> String?
+    nonisolated func resolveAll(context: PlaceholderResolutionContext) -> [PlaceholderKey: String]
 }
 
 // MARK: - Default implementation
 
 final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked Sendable {
-    let allDescriptors: [PlaceholderDescriptor]
+    nonisolated let allDescriptors: [PlaceholderDescriptor]
     
-    private let index: [PlaceholderKey: PlaceholderDescriptor]
-    private let resolvers: [PlaceholderKey: @Sendable (PlaceholderResolutionContext) -> String?]
+    nonisolated private let index: [PlaceholderKey: PlaceholderDescriptor]
+    nonisolated private let behaviors: [PlaceholderKey: PlaceholderBehavior]
     
-    var inputDescriptors: [PlaceholderDescriptor] {
+    nonisolated var inputDescriptors: [PlaceholderDescriptor] {
         allDescriptors
             .filter(\.acceptsUserInput)
             .sorted(by: Self.sortDescriptors)
     }
     
-    var extractedDescriptors: [PlaceholderDescriptor] {
+    nonisolated var extractedDescriptors: [PlaceholderDescriptor] {
         inputDescriptors.filter { $0.valueSource == .extracted }
     }
     
-    var manualDescriptors: [PlaceholderDescriptor] {
+    nonisolated var manualDescriptors: [PlaceholderDescriptor] {
         inputDescriptors.filter { $0.valueSource == .manual }
     }
     
-    var customDescriptors: [PlaceholderDescriptor] {
+    nonisolated var customDescriptors: [PlaceholderDescriptor] {
         inputDescriptors.filter(\.isUserDefined)
     }
     
-    var llmSchemaKeys: [PlaceholderKey] {
+    nonisolated var llmSchemaKeys: [PlaceholderKey] {
         extractedDescriptors.map(\.key)
     }
     
     nonisolated init(customDefinitions: [CustomPlaceholderDefinition] = []) {
-        let runtimeCustomDescriptors = customDefinitions
-            .filter(\.isEnabled)
-            .map { $0.makeRuntimeDefinition() }
-            .filter { customDescriptor in
-                !Self.builtInDescriptorIndex.keys.contains(customDescriptor.key)
-            }
+        let customDescriptors = customDefinitions
+            .filter(\.isUserDefined)
+            .filter { $0.section == .custom }
+            .filter { !Self.builtInDescriptorIndex.keys.contains($0.key) }
         
-        let all = (Self.builtInDescriptors + runtimeCustomDescriptors)
+        let all = (Self.builtInDescriptors + customDescriptors)
             .sorted(by: Self.sortDescriptors)
         
         self.allDescriptors = all
         self.index = Dictionary(uniqueKeysWithValues: all.map { ($0.key, $0) })
-        self.resolvers = Self.builtInResolvers
+        var behaviors = Self.builtInBehaviors
+        for descriptor in customDescriptors {
+            behaviors[descriptor.key] = Self.defaultCustomBehavior(for: descriptor)
+        }
+        self.behaviors = behaviors
     }
     
-    func descriptor(for key: PlaceholderKey) -> PlaceholderDescriptor? {
+    nonisolated func descriptor(for key: PlaceholderKey) -> PlaceholderDescriptor? {
         index[key]
     }
     
-    func contains(_ key: PlaceholderKey) -> Bool {
+    nonisolated func contains(_ key: PlaceholderKey) -> Bool {
         index[key] != nil
     }
     
-    func descriptors(in section: PlaceholderSection) -> [PlaceholderDescriptor] {
+    nonisolated func descriptors(in section: PlaceholderSection) -> [PlaceholderDescriptor] {
         allDescriptors
             .filter { $0.section == section }
             .sorted(by: Self.sortDescriptors)
     }
     
-    func normalizer(for key: PlaceholderKey) -> FieldNormalizer {
-        guard let descriptor = descriptor(for: key) else {
-            return Self.defaultNormalizer
-        }
-        return descriptor.normalizer
+    nonisolated func normalizer(for key: PlaceholderKey) -> FieldNormalizer {
+        behaviors[key]?.normalizer ?? Self.defaultBehavior.normalizer
     }
     
-    func validator(for key: PlaceholderKey) -> FieldValidator {
-        guard let descriptor = descriptor(for: key) else {
-            return Self.defaultValidator
-        }
-        return descriptor.validator
+    nonisolated func validator(for key: PlaceholderKey) -> FieldValidator {
+        behaviors[key]?.validator ?? Self.defaultBehavior.validator
     }
     
-    func resolve(_ key: PlaceholderKey, context: PlaceholderResolutionContext) -> String? {
-        if let resolver = resolvers[key] {
+    nonisolated func resolve(_ key: PlaceholderKey, context: PlaceholderResolutionContext) -> String? {
+        if let resolver = behaviors[key]?.resolver {
             return resolver(context)
         }
         return context.editableValues[key] ?? context.customValues[key]
     }
     
-    func resolveAll(context: PlaceholderResolutionContext) -> [PlaceholderKey: String] {
+    nonisolated func resolveAll(context: PlaceholderResolutionContext) -> [PlaceholderKey: String] {
         var result: [PlaceholderKey: String] = [:]
         
         for descriptor in allDescriptors {
@@ -130,8 +126,7 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
 // MARK: - Built-ins
 
 private extension DefaultPlaceholderRegistry {
-    nonisolated static let defaultNormalizer: FieldNormalizer = { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-    nonisolated static let defaultValidator: FieldValidator = { _ in nil }
+    nonisolated static let defaultBehavior = PlaceholderBehavior()
     
     nonisolated static func sortDescriptors(_ lhs: PlaceholderDescriptor, _ rhs: PlaceholderDescriptor) -> Bool {
         if lhs.section == rhs.section {
@@ -141,6 +136,35 @@ private extension DefaultPlaceholderRegistry {
             return lhs.order < rhs.order
         }
         return lhs.section.rawValue < rhs.section.rawValue
+    }
+    
+    nonisolated static func defaultCustomBehavior(
+        for descriptor: PlaceholderDescriptor
+    ) -> PlaceholderBehavior {
+        let validator: FieldValidator
+        
+        switch descriptor.inputKind {
+            case .some(.text(let configuration)):
+                if configuration.isRequired {
+                    validator = Validators.nonEmpty
+                } else {
+                    validator = { _ in nil }
+                }
+            case .some(.choice(let configuration)):
+                validator = { value in
+                    if configuration.allowsEmptySelection || !value.isEmpty {
+                        return nil
+                    }
+                    return .error("Поле обязательно для выбора.")
+                }
+            case .none:
+                validator = { _ in nil }
+        }
+        
+        return PlaceholderBehavior(
+            normalizer: { $0.trimmingCharacters(in: .whitespacesAndNewlines) },
+            validator: validator
+        )
     }
     
     nonisolated static let builtInDescriptors: [PlaceholderDescriptor] = [
@@ -153,9 +177,7 @@ private extension DefaultPlaceholderRegistry {
             valueSource: .extracted,
             inputKind: .text(.init(placeholder: "ООО «Ромашка»", isRequired: true)),
             exampleValue: "Ромашка",
-            isRequired: true,
-            normalizer: { $0.trimmed },
-            validator: Validators.nonEmpty
+            isRequired: true
         ),
         .init(
             key: .legalForm,
@@ -166,9 +188,7 @@ private extension DefaultPlaceholderRegistry {
             valueSource: .extracted,
             inputKind: .text(.init(placeholder: "ООО / АО / ИП", isRequired: true)),
             exampleValue: "ООО",
-            isRequired: true,
-            normalizer: { $0.trimmed.uppercased() },
-            validator: Validators.legalFormField
+            isRequired: true
         ),
         .init(
             key: .ceoFullName,
@@ -179,9 +199,7 @@ private extension DefaultPlaceholderRegistry {
             valueSource: .extracted,
             inputKind: .text(.init(placeholder: "Иванов Иван Иванович", isRequired: true)),
             exampleValue: "Иванов Иван Иванович",
-            isRequired: true,
-            normalizer: { $0.trimmed },
-            validator: Validators.fullName
+            isRequired: true
         ),
         .init(
             key: .ceoFullGenitiveName,
@@ -192,9 +210,7 @@ private extension DefaultPlaceholderRegistry {
             valueSource: .extracted,
             inputKind: .text(.init(placeholder: "Иванова Ивана Ивановича", isRequired: true)),
             exampleValue: "Иванова Ивана Ивановича",
-            isRequired: true,
-            normalizer: { $0.trimmed },
-            validator: Validators.fullName
+            isRequired: true
         ),
         .init(
             key: .ceoShortenName,
@@ -205,9 +221,7 @@ private extension DefaultPlaceholderRegistry {
             valueSource: .extracted,
             inputKind: .text(.init(placeholder: "Иванов И.И.", isRequired: true)),
             exampleValue: "Иванов И.И.",
-            isRequired: true,
-            normalizer: { $0.trimmed },
-            validator: Validators.shortenName
+            isRequired: true
         ),
         .init(
             key: .ogrn,
@@ -218,9 +232,7 @@ private extension DefaultPlaceholderRegistry {
             valueSource: .extracted,
             inputKind: .text(.init(placeholder: "13/15 цифр", isRequired: true)),
             exampleValue: "1187746707280",
-            isRequired: true,
-            normalizer: Normalizers.trimmedDigitsOnly,
-            validator: Validators.ogrn
+            isRequired: true
         ),
         .init(
             key: .inn,
@@ -231,9 +243,7 @@ private extension DefaultPlaceholderRegistry {
             valueSource: .extracted,
             inputKind: .text(.init(placeholder: "10/12 цифр", isRequired: true)),
             exampleValue: "9731007287",
-            isRequired: true,
-            normalizer: Normalizers.trimmedDigitsOnly,
-            validator: Validators.inn
+            isRequired: true
         ),
         .init(
             key: .kpp,
@@ -244,9 +254,7 @@ private extension DefaultPlaceholderRegistry {
             valueSource: .extracted,
             inputKind: .text(.init(placeholder: "9 цифр", isRequired: false)),
             exampleValue: "773101001",
-            isRequired: false,
-            normalizer: Normalizers.trimmedDigitsOnly,
-            validator: Validators.kpp
+            isRequired: false
         ),
         .init(
             key: .email,
@@ -257,9 +265,7 @@ private extension DefaultPlaceholderRegistry {
             valueSource: .extracted,
             inputKind: .text(.init(placeholder: "example@domain.com", isRequired: false)),
             exampleValue: "info@romashka.ru",
-            isRequired: false,
-            normalizer: { $0.trimmed },
-            validator: Validators.email
+            isRequired: false
         ),
         .init(
             key: .address,
@@ -276,9 +282,7 @@ private extension DefaultPlaceholderRegistry {
                 )
             ),
             exampleValue: "г. Москва, ул. Ленина, д. 1",
-            isRequired: false,
-            normalizer: { $0.trimmed },
-            validator: Validators.address
+            isRequired: false
         ),
         .init(
             key: .phone,
@@ -289,9 +293,7 @@ private extension DefaultPlaceholderRegistry {
             valueSource: .extracted,
             inputKind: .text(.init(placeholder: "+79991234567", isRequired: false)),
             exampleValue: "+79991234567",
-            isRequired: false,
-            normalizer: Normalizers.phone,
-            validator: Validators.phone
+            isRequired: false
         ),
         .init(
             key: .documentNumber,
@@ -302,9 +304,7 @@ private extension DefaultPlaceholderRegistry {
             valueSource: .manual,
             inputKind: .text(.init(placeholder: "yyyy-mm-#", isRequired: false)),
             exampleValue: "2024-01-001",
-            isRequired: false,
-            normalizer: { $0.trimmed },
-            validator: { _ in nil }
+            isRequired: false
         ),
         .init(
             key: .fee,
@@ -315,9 +315,7 @@ private extension DefaultPlaceholderRegistry {
             valueSource: .manual,
             inputKind: .text(.init(placeholder: "1", isRequired: true)),
             exampleValue: "1",
-            isRequired: true,
-            normalizer: { $0.trimmed },
-            validator: { Validators.isInRange($0, 0...100) }
+            isRequired: true
         ),
         .init(
             key: .minFee,
@@ -328,9 +326,7 @@ private extension DefaultPlaceholderRegistry {
             valueSource: .manual,
             inputKind: .text(.init(placeholder: "10", isRequired: true)),
             exampleValue: "10",
-            isRequired: true,
-            normalizer: { $0.trimmed },
-            validator: { Validators.isInRange($0, 10...1000) }
+            isRequired: true
         ),
         .init(
             key: .paymentMethod,
@@ -430,32 +426,99 @@ private extension DefaultPlaceholderRegistry {
         return formatter.string(from: date)
     }
     
-    nonisolated static let builtInResolvers: [PlaceholderKey: @Sendable (PlaceholderResolutionContext) -> String?] = [
-        .dateLong: { ctx in
-            formatDateLong(ctx.now, locale: ctx.locale)
-        },
-        .dateShort: { ctx in
-            formatDateShort(ctx.now, locale: ctx.locale)
-        },
-        .ceoRole: { ctx in
-            ctx.companyDetails.legalForm == .ip ? "Индивидуальный предприниматель" : "Генеральный директор"
-        },
-        .fullCompanyName: { ctx in
-            ctx.companyDetails.fullCompanyName
-        },
-        .fullCompanyNameExpanded: { ctx in
-            ctx.companyDetails.fullCompanyNameExpanded
-        },
-        .rules: { ctx in
-            ctx.companyDetails.legalForm == .ip
-            ? "Листа  записи в Едином государственном реестре индивидуальных предпринимателей (ЕГРИП)"
-            : "Устава"
-        },
+    nonisolated static let builtInBehaviors: [PlaceholderKey: PlaceholderBehavior] = [
+        .companyName: .init(
+            normalizer: { $0.trimmed },
+            validator: Validators.nonEmpty
+        ),
+        .legalForm: .init(
+            normalizer: { $0.trimmed.uppercased() },
+            validator: Validators.legalFormField
+        ),
+        .ceoFullName: .init(
+            normalizer: { $0.trimmed },
+            validator: Validators.fullName
+        ),
+        .ceoFullGenitiveName: .init(
+            normalizer: { $0.trimmed },
+            validator: Validators.fullName
+        ),
+        .ceoShortenName: .init(
+            normalizer: { $0.trimmed },
+            validator: Validators.shortenName
+        ),
+        .ogrn: .init(
+            normalizer: Normalizers.trimmedDigitsOnly,
+            validator: Validators.ogrn
+        ),
+        .inn: .init(
+            normalizer: Normalizers.trimmedDigitsOnly,
+            validator: Validators.inn
+        ),
+        .kpp: .init(
+            normalizer: Normalizers.trimmedDigitsOnly,
+            validator: Validators.kpp
+        ),
+        .email: .init(
+            normalizer: { $0.trimmed.lowercased() },
+            validator: Validators.email
+        ),
+        .address: .init(
+            normalizer: { $0.trimmed },
+            validator: Validators.address
+        ),
+        .phone: .init(
+            normalizer: Normalizers.phone,
+            validator: Validators.phone
+        ),
+        .documentNumber: .init(
+            normalizer: { $0.trimmed }
+        ),
+        .fee: .init(
+            normalizer: { $0.trimmed },
+            validator: { Validators.isInRange($0, 0...100) }
+        ),
+        .minFee: .init(
+            normalizer: { $0.trimmed },
+            validator: { Validators.isInRange($0, 10...1000) }
+        ),
+        .dateLong: .init(
+            resolver: { ctx in
+                formatDateLong(ctx.now, locale: ctx.locale)
+            }
+        ),
+        .dateShort: .init(
+            resolver: { ctx in
+                formatDateShort(ctx.now, locale: ctx.locale)
+            }
+        ),
+        .ceoRole: .init(
+            resolver: { ctx in
+                ctx.companyDetails.legalForm == .ip ? "Индивидуальный предприниматель" : "Генеральный директор"
+            }
+        ),
+        .fullCompanyName: .init(
+            resolver: { ctx in
+                ctx.companyDetails.fullCompanyName
+            }
+        ),
+        .fullCompanyNameExpanded: .init(
+            resolver: { ctx in
+                ctx.companyDetails.fullCompanyNameExpanded
+            }
+        ),
+        .rules: .init(
+            resolver: { ctx in
+                ctx.companyDetails.legalForm == .ip
+                ? "Листа  записи в Едином государственном реестре индивидуальных предпринимателей (ЕГРИП)"
+                : "Устава"
+            }
+        ),
     ]
 }
 
 // MARK: - Backward compatibility helpers
 
 extension PlaceholderRegistryProtocol {
-    var allPlaceholders: [PlaceholderDescriptor] { allDescriptors }
+    nonisolated var allPlaceholders: [PlaceholderDescriptor] { allDescriptors }
 }

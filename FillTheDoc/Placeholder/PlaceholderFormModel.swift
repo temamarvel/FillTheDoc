@@ -20,7 +20,7 @@ struct PlaceholderFieldState: Sendable, Equatable {
 @Observable
 final class PlaceholderFormModel {
     private(set) var registry: PlaceholderRegistryProtocol
-    private let valueResolver = PlaceholderValueResolver()
+    private var valueResolver: PlaceholderValueResolver
     
     private(set) var editableDescriptors: [PlaceholderDescriptor]
     private(set) var fieldStates: [PlaceholderKey: PlaceholderFieldState]
@@ -30,6 +30,7 @@ final class PlaceholderFormModel {
         initialValues: [PlaceholderKey: String] = [:]
     ) {
         self.registry = registry
+        self.valueResolver = Self.makeValueResolver(registry: registry)
         self.editableDescriptors = registry.inputDescriptors
         self.fieldStates = [:]
         syncDefinitions(with: registry, extractedValues: initialValues)
@@ -85,6 +86,7 @@ final class PlaceholderFormModel {
         extractedValues: [PlaceholderKey: String] = [:]
     ) {
         self.registry = registry
+        self.valueResolver = Self.makeValueResolver(registry: registry)
         self.editableDescriptors = registry.inputDescriptors
         
         let allowedKeys = Set(editableDescriptors.map(\.key))
@@ -170,6 +172,14 @@ final class PlaceholderFormModel {
 }
 
 private extension PlaceholderFormModel {
+    nonisolated static func makeValueResolver(
+        registry: PlaceholderRegistryProtocol
+    ) -> PlaceholderValueResolver {
+        PlaceholderValueResolver { key in
+            registry.normalizer(for: key)
+        }
+    }
+    
     func descriptor(for key: PlaceholderKey) -> PlaceholderDescriptor? {
         editableDescriptors.first { $0.key == key }
     }
@@ -199,7 +209,8 @@ private extension PlaceholderFormModel {
     func normalize(_ value: PlaceholderFieldValue, for descriptor: PlaceholderDescriptor) -> PlaceholderFieldValue {
         switch (value, descriptor.inputKind) {
             case (.text(let text), .some(.text(let configuration))):
-                return .text(configuration.trimOnCommit ? descriptor.normalizer(text) : text)
+                let normalizer = registry.normalizer(for: descriptor.key)
+                return .text(configuration.trimOnCommit ? normalizer(text) : text)
             case (.choice(let optionID), .some(.choice(let configuration))):
                 if configuration.options.contains(where: { $0.id == optionID }) {
                     return .choice(optionID: optionID)
@@ -233,7 +244,8 @@ private extension PlaceholderFormModel {
     func validate(_ value: PlaceholderFieldValue, for descriptor: PlaceholderDescriptor) -> FieldIssue? {
         switch (value, descriptor.inputKind) {
             case (.text(let text), .some(.text)):
-                return descriptor.validator(text)
+                let validator = registry.validator(for: descriptor.key)
+                return validator(text)
             case (.choice(let optionID), .some(.choice(let configuration))):
                 if configuration.options.contains(where: { $0.id == optionID }) {
                     return nil
@@ -245,7 +257,8 @@ private extension PlaceholderFormModel {
                 }
                 return .error("Поле обязательно для выбора.")
             case (.empty, .some(.text)):
-                return descriptor.validator("")
+                let validator = registry.validator(for: descriptor.key)
+                return validator("")
             case (_, nil):
                 return nil
             default:

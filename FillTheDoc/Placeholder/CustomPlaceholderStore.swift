@@ -40,12 +40,30 @@ actor FileCustomPlaceholderStore: CustomPlaceholderStore {
         }
         
         let data = try Data(contentsOf: fileURL)
-        let file = try decoder.decode(CustomPlaceholdersFile.self, from: data)
-        switch file.schemaVersion {
+        let schemaVersion = try decoder.decode(CustomPlaceholdersSchemaProbe.self, from: data).schemaVersion
+        
+        switch schemaVersion {
+            case 3:
+                return try decoder.decode(CustomPlaceholdersFile.self, from: data).placeholders
             case 1, 2:
-                return file.placeholders
+                let legacyFile = try decoder.decode(LegacyCustomPlaceholdersFile.self, from: data)
+                return legacyFile.placeholders.compactMap { placeholder in
+                    guard placeholder.isEnabled else { return nil }
+                    return PlaceholderDescriptor(
+                        key: placeholder.key,
+                        title: placeholder.title,
+                        description: placeholder.description ?? "",
+                        section: .custom,
+                        order: placeholder.order,
+                        valueSource: .manual,
+                        inputKind: placeholder.inputKind,
+                        isUserDefined: true,
+                        exampleValue: nil,
+                        isRequired: placeholder.inputKind.isRequired
+                    )
+                }
             default:
-                throw CustomPlaceholderStoreError.unsupportedSchemaVersion(file.schemaVersion)
+                throw CustomPlaceholderStoreError.unsupportedSchemaVersion(schemaVersion)
         }
     }
     
@@ -57,10 +75,47 @@ actor FileCustomPlaceholderStore: CustomPlaceholderStore {
         )
         
         let file = CustomPlaceholdersFile(
-            schemaVersion: 2,
+            schemaVersion: 3,
             placeholders: definitions
         )
         let data = try encoder.encode(file)
         try data.write(to: fileURL, options: [.atomic])
+    }
+}
+
+nonisolated private struct CustomPlaceholdersSchemaProbe: Decodable {
+    let schemaVersion: Int
+}
+
+nonisolated private struct LegacyCustomPlaceholdersFile: Decodable {
+    let schemaVersion: Int
+    let placeholders: [LegacyCustomPlaceholderDefinition]
+}
+
+nonisolated private struct LegacyCustomPlaceholderDefinition: Decodable {
+    let key: PlaceholderKey
+    let title: String
+    let description: String?
+    let inputKind: PlaceholderInputKind
+    let order: Int
+    let isEnabled: Bool
+    
+    private enum CodingKeys: String, CodingKey {
+        case key
+        case title
+        case description
+        case inputKind
+        case order
+        case isEnabled
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.key = try container.decode(PlaceholderKey.self, forKey: .key)
+        self.title = try container.decode(String.self, forKey: .title)
+        self.description = try container.decodeIfPresent(String.self, forKey: .description)
+        self.inputKind = try container.decode(PlaceholderInputKind.self, forKey: .inputKind)
+        self.order = try container.decodeIfPresent(Int.self, forKey: .order) ?? 500
+        self.isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
     }
 }

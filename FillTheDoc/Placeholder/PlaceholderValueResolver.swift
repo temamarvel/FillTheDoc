@@ -8,14 +8,22 @@ import Foundation
 /// - шаблонизатор работает только со строками.
 ///
 /// Благодаря этому `choice`-поля не размазывают special-case'ы по UI, export и scanner-слоям.
-struct PlaceholderValueResolver: Sendable {
+nonisolated struct PlaceholderValueResolver: Sendable {
+    let normalizerProvider: @Sendable (PlaceholderKey) -> FieldNormalizer
+    
+    nonisolated init(
+        normalizerProvider: @escaping @Sendable (PlaceholderKey) -> FieldNormalizer
+    ) {
+        self.normalizerProvider = normalizerProvider
+    }
+    
     func replacementValue(
         for value: PlaceholderFieldValue,
         definition: PlaceholderDescriptor
     ) -> String {
         switch (value, definition.inputKind) {
             case (.text(let text), .some(.text)):
-                return definition.normalizer(text)
+                return normalizerProvider(definition.key)(text)
             case (.choice(let optionID), .some(.choice(let configuration))):
                 return configuration.options.first(where: { $0.id == optionID })?.replacementValue ?? ""
             case (.empty, .some(.choice(let configuration))):
