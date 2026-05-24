@@ -8,12 +8,12 @@ struct ExtractedPlaceholderValues: Decodable, Sendable {
     }
     
     init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: DynamicCodingKey.self)
+        let container = try decoder.container(keyedBy: PlaceholderCodingKey.self)
         var result: [PlaceholderKey: String?] = [:]
         
         for key in container.allKeys {
             let value = try container.decodeIfPresent(String.self, forKey: key)
-            result[PlaceholderKey(rawValue: key.stringValue)] = value?.trimmedNilIfEmpty
+            result[key.placeholderKey] = value?.trimmedNilIfEmpty
         }
         
         self.values = result
@@ -24,17 +24,22 @@ struct ExtractedPlaceholderValues: Decodable, Sendable {
     }
 }
 
-struct DynamicCodingKey: CodingKey, Sendable {
+struct PlaceholderCodingKey: CodingKey, Sendable {
     let stringValue: String
     let intValue: Int?
+    let placeholderKey: PlaceholderKey
+    
+    private init(stringValue: String, intValue: Int?) {
+        self.stringValue = stringValue
+        self.intValue = intValue
+        self.placeholderKey = stringValue.placeholderKey
+    }
     
     init(stringValue: String) {
-        self.stringValue = stringValue
-        self.intValue = nil
+        self.init(stringValue: stringValue, intValue: nil)
     }
     
     init?(intValue: Int) {
-        self.stringValue = "\(intValue)"
-        self.intValue = intValue
+        self.init(stringValue: "\(intValue)", intValue: intValue)
     }
 }

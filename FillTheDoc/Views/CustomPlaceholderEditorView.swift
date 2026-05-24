@@ -155,6 +155,7 @@ struct CustomPlaceholderEditorView: View {
     let mode: Mode
     let existingKeys: Set<PlaceholderKey>
     let onSave: (CustomPlaceholderDefinition) async throws -> Void
+    let onDismiss: (() -> Void)?
     
     @Environment(\.dismiss) private var dismiss
     
@@ -177,11 +178,13 @@ struct CustomPlaceholderEditorView: View {
     init(
         mode: Mode,
         existingKeys: Set<PlaceholderKey>,
-        onSave: @escaping (CustomPlaceholderDefinition) async throws -> Void
+        onSave: @escaping (CustomPlaceholderDefinition) async throws -> Void,
+        onDismiss: (() -> Void)? = nil
     ) {
         self.mode = mode
         self.existingKeys = existingKeys
         self.onSave = onSave
+        self.onDismiss = onDismiss
         
         let definition = mode.existingDefinition
         
@@ -284,10 +287,18 @@ struct CustomPlaceholderEditorView: View {
 // MARK: - Layout
 
 private extension CustomPlaceholderEditorView {
+    func closeEditor() {
+        if let onDismiss {
+            onDismiss()
+        } else {
+            dismiss()
+        }
+    }
+    
     var headerView: some View {
         HStack(spacing: 12) {
             Button {
-                dismiss()
+                closeEditor()
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 13, weight: .semibold))
@@ -494,7 +505,7 @@ private extension CustomPlaceholderEditorView {
             Spacer()
             
             Button("Отмена") {
-                dismiss()
+                closeEditor()
             }
             .buttonStyle(.bordered)
             
@@ -527,7 +538,7 @@ private extension CustomPlaceholderEditorView {
             state.keyError = "Ключ не может быть пустым."
         } else if rawKey.range(of: #"^[a-z][a-z0-9_]*$"#, options: .regularExpression) == nil {
             state.keyError = "Только латинские буквы, цифры и _. Первый символ — буква."
-        } else if existingKeysForValidation.contains(PlaceholderKey(rawValue: rawKey)) {
+        } else if existingKeysForValidation.contains(rawKey.placeholderKey) {
             state.keyError = "Плейсхолдер с таким ключом уже существует."
         }
         
@@ -595,7 +606,7 @@ private extension CustomPlaceholderEditorView {
                 
                 await MainActor.run {
                     isSaving = false
-                    dismiss()
+                    closeEditor()
                 }
             } catch {
                 await MainActor.run {
@@ -651,7 +662,7 @@ private extension CustomPlaceholderEditorView {
         }
         
         return CustomPlaceholderDefinition(
-            key: PlaceholderKey(rawValue: normalizedKeyText),
+            key: normalizedKeyText.placeholderKey,
             title: titleText.trimmingCharacters(in: .whitespacesAndNewlines),
             description: descriptionText.trimmed,
             section: .custom,

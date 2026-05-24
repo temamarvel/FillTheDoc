@@ -75,6 +75,17 @@ extension PlaceholderKey {
     nonisolated static let rules: Self = "rules"
 }
 
+extension String {
+    /// Лёгкий мост из raw string в доменный `PlaceholderKey`.
+    ///
+    /// Используется там, где приложение уже работает с текстовыми ключами
+    /// (JSON keys, scanner output, пользовательский ввод), но хочет быстрее перейти
+    /// к type-safe placeholder-domain.
+    nonisolated var placeholderKey: PlaceholderKey {
+        PlaceholderKey(rawValue: self)
+    }
+}
+
 extension Dictionary where Key == PlaceholderKey, Value == String {
     /// Мостик из type-safe placeholder-domain в string-keyed формат,
     /// который ожидает нижележащий DOCX-template engine.

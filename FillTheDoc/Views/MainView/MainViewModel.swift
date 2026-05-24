@@ -69,6 +69,7 @@ final class MainViewModel {
     
     private(set) var isLoading: Bool = false
     var isDataApproved: Bool = false
+    var userFacingError: String?
     
     // MARK: - Task management
     
@@ -108,7 +109,7 @@ final class MainViewModel {
     }
     
     var templatePlaceholderKeys: Set<PlaceholderKey> {
-        Set(templatePlaceholders.map { PlaceholderKey(rawValue: $0) }.filter { !$0.isControlToken })
+        Set(templatePlaceholders.map(\.placeholderKey).filter { !$0.isControlToken })
     }
     
     var templateUsageReport: PlaceholderUsageReport {
@@ -179,6 +180,9 @@ final class MainViewModel {
         // Смена шаблона не инвалидирует сам LLM draft, но инвалидирует утверждение данных,
         // потому что новый шаблон может требовать другой набор placeholder'ов.
         isDataApproved = false
+        resolvedValues = nil
+        googleSheetsRow = nil
+        userFacingError = nil
         if let url = urls.first { templatePath = url.path }
         scanPlaceholders()
     }
@@ -191,6 +195,7 @@ final class MainViewModel {
         extractedPlaceholderValues = [:]
         resolvedValues = nil
         googleSheetsRow = nil
+        userFacingError = nil
         if let url = urls.first { detailsPath = url.path }
         extractDetails()
     }
@@ -201,6 +206,7 @@ final class MainViewModel {
         // после этой точки `details` и `resolvedValues` — подтверждённый оператором источник истины.
         details = company
         self.resolvedValues = resolvedValues
+        googleSheetsRow = nil
         isDataApproved = true
     }
     
@@ -272,6 +278,14 @@ final class MainViewModel {
     
     func extractDetails() {
         guard let detailsURL else { return }
+        guard apiKeyStore.hasKey else {
+            details = makeEmptyCompanyDetails()
+            extractedPlaceholderValues = [:]
+            userFacingError = "Сначала укажите API-ключ OpenAI. После этого можно повторить извлечение или заполнить форму вручную."
+            apiKeyStore.isPromptPresented = true
+            return
+        }
+        
         let extractorService = self.extractorService
         
         extractTask?.cancel()
@@ -282,7 +296,7 @@ final class MainViewModel {
             guard let self else { return }
             
             self.isLoading = true
-            defer { Task { @MainActor [weak self] in self?.isLoading = false } }
+            defer { self.isLoading = false }
             
             do {
                 // Первый этап: приводим произвольный входной файл
@@ -294,18 +308,33 @@ final class MainViewModel {
                 
                 // Второй этап: LLM строит структурированный `CompanyDetails`.
                 // Это всё ещё draft, а не окончательные данные для шаблона.
-                let extractedValues = try await self.callOpenAI(extractedDetails: extractedDetails)
-                try Task.checkCancellation()
-                
-                let stringValues = extractedValues.stringValues()
-                let companyDetails = CompanyDetailsAssembler.makeCompanyDetails(from: stringValues)
-                
-                guard generation == self.extractionGeneration else { return }
-                self.details = companyDetails
-                self.extractedPlaceholderValues = stringValues
-                print("DTO:", companyDetails.toMultilineString())
+                do {
+                    let extractedValues = try await self.callOpenAI(extractedDetails: extractedDetails)
+                    try Task.checkCancellation()
+                    
+                    let stringValues = extractedValues.stringValues()
+                    let companyDetails = CompanyDetailsAssembler.makeCompanyDetails(from: stringValues)
+                    
+                    guard generation == self.extractionGeneration else { return }
+                    self.details = companyDetails
+                    self.extractedPlaceholderValues = stringValues
+                    self.userFacingError = nil
+                    print("DTO:", companyDetails.toMultilineString())
+                } catch is CancellationError {
+                    throw CancellationError()
+                } catch {
+                    guard generation == self.extractionGeneration else { return }
+                    self.details = self.makeEmptyCompanyDetails()
+                    self.extractedPlaceholderValues = [:]
+                    self.userFacingError = "Не удалось извлечь реквизиты автоматически: \(error.localizedDescription)\nФорма открыта для ручного заполнения."
+                    print("OpenAI extraction failed:", error)
+                }
             } catch is CancellationError {
             } catch {
+                guard generation == self.extractionGeneration else { return }
+                self.details = self.makeEmptyCompanyDetails()
+                self.extractedPlaceholderValues = [:]
+                self.userFacingError = "Не удалось прочитать документ с реквизитами: \(error.localizedDescription)\nФорма открыта для ручного заполнения."
                 print("Extraction failed:", error)
             }
         }
@@ -403,6 +432,22 @@ final class MainViewModel {
         var isDir: ObjCBool = false
         let exists = FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
         return exists && !isDir.boolValue
+    }
+    
+    private func makeEmptyCompanyDetails() -> CompanyDetails {
+        CompanyDetails(
+            companyName: nil,
+            legalForm: nil,
+            ceoFullName: nil,
+            ceoFullGenitiveName: nil,
+            ceoShortenName: nil,
+            ogrn: nil,
+            inn: nil,
+            kpp: nil,
+            email: nil,
+            address: nil,
+            phone: nil
+        )
     }
     
     private func refreshPlaceholderRegistry(customDefinitions: [CustomPlaceholderDefinition]) {
