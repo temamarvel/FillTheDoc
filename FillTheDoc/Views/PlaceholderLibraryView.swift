@@ -6,12 +6,12 @@ struct PlaceholderLibraryItem: Identifiable {
     var id: PlaceholderKey { descriptor.key }
     let descriptor: PlaceholderDescriptor
     let isUsedInTemplate: Bool
-    let customDefinition: CustomPlaceholderDefinition?
+    let customDefinition: PlaceholderDescriptor?
 }
 
 private enum PlaceholderEditorSheet: Identifiable {
     case create
-    case edit(CustomPlaceholderDefinition)
+    case edit(PlaceholderDescriptor)
     
     var id: String {
         switch self {
@@ -34,22 +34,22 @@ private enum PlaceholderEditorSheet: Identifiable {
 /// - даёт UI для управления persisted custom placeholders.
 struct PlaceholderLibraryView: View {
     let placeholders: [PlaceholderDescriptor]
-    let customDefinitions: [CustomPlaceholderDefinition]
+    let customDefinitions: [PlaceholderDescriptor]
     let usedKeys: Set<PlaceholderKey>
     let unknownKeys: Set<PlaceholderKey>
-    let onCreateCustom: (CustomPlaceholderDefinition) async throws -> Void
-    let onUpdateCustom: (CustomPlaceholderDefinition) async throws -> Void
+    let onCreateCustom: (PlaceholderDescriptor) async throws -> Void
+    let onUpdateCustom: (PlaceholderDescriptor) async throws -> Void
     let onDeleteCustom: (PlaceholderKey) async throws -> Void
     
     @State private var searchText: String = ""
     @State private var showOnlyUsed: Bool = false
     @State private var editorSheet: PlaceholderEditorSheet?
     @State private var errorMessage: String?
-    @State private var deleteCandidate: CustomPlaceholderDefinition?
+    @State private var deleteCandidate: PlaceholderDescriptor?
     
     private var hasTemplate: Bool { !usedKeys.isEmpty || !unknownKeys.isEmpty }
     
-    private var customDefinitionsByKey: [PlaceholderKey: CustomPlaceholderDefinition] {
+    private var customDefinitionsByKey: [PlaceholderKey: PlaceholderDescriptor] {
         Dictionary(uniqueKeysWithValues: customDefinitions.map { ($0.key, $0) })
     }
     
@@ -265,8 +265,8 @@ private struct SectionHeaderView: View {
 
 struct PlaceholderLibraryRowView: View {
     let item: PlaceholderLibraryItem
-    let onEdit: (CustomPlaceholderDefinition) -> Void
-    let onDelete: (CustomPlaceholderDefinition) -> Void
+    let onEdit: (PlaceholderDescriptor) -> Void
+    let onDelete: (PlaceholderDescriptor) -> Void
     
     @State private var copied = false
     

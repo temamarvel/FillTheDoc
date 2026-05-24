@@ -63,7 +63,7 @@ final class MainViewModel {
     var resolvedValues: [PlaceholderKey: String]?
     private(set) var templatePlaceholders: [String] = []
     private(set) var googleSheetsRow: String?
-    private(set) var customPlaceholderDefinitions: [CustomPlaceholderDefinition] = []
+    private(set) var customPlaceholderDefinitions: [PlaceholderDescriptor] = []
     
     // MARK: - State (UI)
     
@@ -221,14 +221,14 @@ final class MainViewModel {
         }
     }
     
-    func addCustomPlaceholder(_ definition: CustomPlaceholderDefinition) async throws {
+    func addCustomPlaceholder(_ definition: PlaceholderDescriptor) async throws {
         guard let customPlaceholderRepository else { return }
         try await customPlaceholderRepository.add(definition)
         let allDefinitions = await customPlaceholderRepository.all()
         refreshPlaceholderRegistry(customDefinitions: allDefinitions)
     }
     
-    func updateCustomPlaceholder(_ definition: CustomPlaceholderDefinition) async throws {
+    func updateCustomPlaceholder(_ definition: PlaceholderDescriptor) async throws {
         guard let customPlaceholderRepository else { return }
         try await customPlaceholderRepository.update(definition)
         let allDefinitions = await customPlaceholderRepository.all()
@@ -450,7 +450,7 @@ final class MainViewModel {
         )
     }
     
-    private func refreshPlaceholderRegistry(customDefinitions: [CustomPlaceholderDefinition]) {
+    private func refreshPlaceholderRegistry(customDefinitions: [PlaceholderDescriptor]) {
         customPlaceholderDefinitions = customDefinitions.sorted { lhs, rhs in
             if lhs.order == rhs.order {
                 return lhs.key.rawValue < rhs.key.rawValue

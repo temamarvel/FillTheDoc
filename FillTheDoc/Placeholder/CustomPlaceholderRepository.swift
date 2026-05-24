@@ -16,7 +16,7 @@ enum CustomPlaceholderRepositoryError: LocalizedError {
 
 actor CustomPlaceholderRepository {
     private let store: CustomPlaceholderStore
-    private var definitions: [CustomPlaceholderDefinition] = []
+    private var definitions: [PlaceholderDescriptor] = []
     
     init(store: CustomPlaceholderStore) {
         self.store = store
@@ -26,7 +26,7 @@ actor CustomPlaceholderRepository {
         definitions = try await store.load()
     }
     
-    func all() -> [CustomPlaceholderDefinition] {
+    func all() -> [PlaceholderDescriptor] {
         definitions.sorted { lhs, rhs in
             if lhs.order == rhs.order {
                 return lhs.key.rawValue < rhs.key.rawValue
@@ -35,7 +35,7 @@ actor CustomPlaceholderRepository {
         }
     }
     
-    func add(_ definition: CustomPlaceholderDefinition) async throws {
+    func add(_ definition: PlaceholderDescriptor) async throws {
         guard !definitions.contains(where: { $0.key == definition.key }) else {
             throw CustomPlaceholderRepositoryError.duplicateKey(definition.key)
         }
@@ -43,7 +43,7 @@ actor CustomPlaceholderRepository {
         try await store.save(definitions)
     }
     
-    func update(_ definition: CustomPlaceholderDefinition) async throws {
+    func update(_ definition: PlaceholderDescriptor) async throws {
         guard let index = definitions.firstIndex(where: { $0.key == definition.key }) else {
             throw CustomPlaceholderRepositoryError.definitionNotFound(definition.key)
         }

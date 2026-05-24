@@ -54,7 +54,7 @@ final class DefaultPlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked 
         inputDescriptors.filter(\.isUserDefined)
     }
     
-    nonisolated init(customDefinitions: [CustomPlaceholderDefinition] = []) {
+    nonisolated init(customDefinitions: [PlaceholderDescriptor] = []) {
         let customDescriptors = customDefinitions
             .filter(\.isUserDefined)
             .filter { $0.section == .custom }

@@ -12,5 +12,3 @@ nonisolated struct CustomPlaceholdersFile: Codable, Hashable, Sendable {
         self.placeholders = placeholders
     }
 }
-
-typealias CustomPlaceholderDefinition = PlaceholderDescriptor

@@ -1,8 +1,8 @@
 import Foundation
 
 protocol CustomPlaceholderStore: Sendable {
-    func load() async throws -> [CustomPlaceholderDefinition]
-    func save(_ definitions: [CustomPlaceholderDefinition]) async throws
+    func load() async throws -> [PlaceholderDescriptor]
+    func save(_ definitions: [PlaceholderDescriptor]) async throws
 }
 
 enum CustomPlaceholderStoreError: LocalizedError {
@@ -34,7 +34,7 @@ actor FileCustomPlaceholderStore: CustomPlaceholderStore {
         self.decoder = decoder
     }
     
-    func load() async throws -> [CustomPlaceholderDefinition] {
+    func load() async throws -> [PlaceholderDescriptor] {
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
             return []
         }
@@ -67,7 +67,7 @@ actor FileCustomPlaceholderStore: CustomPlaceholderStore {
         }
     }
     
-    func save(_ definitions: [CustomPlaceholderDefinition]) async throws {
+    func save(_ definitions: [PlaceholderDescriptor]) async throws {
         let directoryURL = fileURL.deletingLastPathComponent()
         try FileManager.default.createDirectory(
             at: directoryURL,

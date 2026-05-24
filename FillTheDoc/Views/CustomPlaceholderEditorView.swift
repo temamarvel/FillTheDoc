@@ -117,7 +117,7 @@ private struct InlineValidationState {
 struct CustomPlaceholderEditorView: View {
     enum Mode {
         case create
-        case edit(CustomPlaceholderDefinition)
+        case edit(PlaceholderDescriptor)
         
         var title: String {
             switch self {
@@ -137,7 +137,7 @@ struct CustomPlaceholderEditorView: View {
             }
         }
         
-        var existingDefinition: CustomPlaceholderDefinition? {
+        var existingDefinition: PlaceholderDescriptor? {
             switch self {
                 case .create:
                     return nil
@@ -154,7 +154,7 @@ struct CustomPlaceholderEditorView: View {
     
     let mode: Mode
     let existingKeys: Set<PlaceholderKey>
-    let onSave: (CustomPlaceholderDefinition) async throws -> Void
+    let onSave: (PlaceholderDescriptor) async throws -> Void
     let onDismiss: (() -> Void)?
     
     @Environment(\.dismiss) private var dismiss
@@ -178,7 +178,7 @@ struct CustomPlaceholderEditorView: View {
     init(
         mode: Mode,
         existingKeys: Set<PlaceholderKey>,
-        onSave: @escaping (CustomPlaceholderDefinition) async throws -> Void,
+        onSave: @escaping (PlaceholderDescriptor) async throws -> Void,
         onDismiss: (() -> Void)? = nil
     ) {
         self.mode = mode
@@ -632,7 +632,7 @@ private extension CustomPlaceholderEditorView {
     }
     
     
-    func makeDefinition() -> CustomPlaceholderDefinition {
+    func makeDefinition() -> PlaceholderDescriptor {
         let inputKind: PlaceholderInputKind
         let valueSource: PlaceholderValueSource
         
@@ -661,7 +661,7 @@ private extension CustomPlaceholderEditorView {
                 )
         }
         
-        return CustomPlaceholderDefinition(
+        return PlaceholderDescriptor(
             key: normalizedKeyText.placeholderKey,
             title: titleText.trimmingCharacters(in: .whitespacesAndNewlines),
             description: descriptionText.trimmed,

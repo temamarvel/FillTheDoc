@@ -2,7 +2,7 @@ import Foundation
 
 struct CustomPlaceholderValidator: Sendable {
     func validate(
-        draft: CustomPlaceholderDefinition,
+        draft: PlaceholderDescriptor,
         existingKeys: Set<PlaceholderKey>
     ) -> [FieldIssue] {
         var issues: [FieldIssue] = []
