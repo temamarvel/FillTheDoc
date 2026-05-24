@@ -288,7 +288,7 @@ private struct DocumentDataFieldPreviewContainer: View {
         initialValue: PlaceholderFieldValue = .empty,
         issue: FieldIssue? = nil
     ) {
-        let registry = DefaultPlaceholderRegistry()
+        let registry = PlaceholderRegistry()
         guard let descriptor = registry.descriptor(for: key) else {
             preconditionFailure("Не найден descriptor для preview key: \(key.rawValue)")
         }

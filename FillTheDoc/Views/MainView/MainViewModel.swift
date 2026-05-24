@@ -101,7 +101,7 @@ final class MainViewModel {
     // MARK: - Placeholder Library computed
     
     var availablePlaceholders: [PlaceholderDescriptor] {
-        placeholderRegistry.allPlaceholders
+        placeholderRegistry.allDescriptors
     }
     
     var availablePlaceholderKeys: Set<PlaceholderKey> {
@@ -128,7 +128,7 @@ final class MainViewModel {
     init(
         apiKeyStore: APIKeyStore,
         updateStore: AppUpdateStore,
-        placeholderRegistry: PlaceholderRegistryProtocol = DefaultPlaceholderRegistry(),
+        placeholderRegistry: PlaceholderRegistryProtocol = PlaceholderRegistry(),
         customPlaceholderRepository: CustomPlaceholderRepository? = nil,
         scanner: DocxTemplateScanner,
         conditionalAssembler: DocxTemplateConditionalAssembler,
@@ -457,6 +457,6 @@ final class MainViewModel {
             }
             return lhs.order < rhs.order
         }
-        placeholderRegistry = DefaultPlaceholderRegistry(customDefinitions: customDefinitions)
+        placeholderRegistry = PlaceholderRegistry(customDefinitions: customDefinitions)
     }
 }

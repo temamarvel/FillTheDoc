@@ -16,18 +16,18 @@ enum CustomPlaceholderRepositoryError: LocalizedError {
 
 actor CustomPlaceholderRepository {
     private let store: CustomPlaceholderStore
-    private var definitions: [PlaceholderDescriptor] = []
+    private var descriptors: [PlaceholderDescriptor] = []
     
     init(store: CustomPlaceholderStore) {
         self.store = store
     }
     
     func load() async throws {
-        definitions = try await store.load()
+        descriptors = try await store.load()
     }
     
     func all() -> [PlaceholderDescriptor] {
-        definitions.sorted { lhs, rhs in
+        descriptors.sorted { lhs, rhs in
             if lhs.order == rhs.order {
                 return lhs.key.rawValue < rhs.key.rawValue
             }
@@ -36,27 +36,27 @@ actor CustomPlaceholderRepository {
     }
     
     func add(_ definition: PlaceholderDescriptor) async throws {
-        guard !definitions.contains(where: { $0.key == definition.key }) else {
+        guard !descriptors.contains(where: { $0.key == definition.key }) else {
             throw CustomPlaceholderRepositoryError.duplicateKey(definition.key)
         }
-        definitions.append(definition)
-        try await store.save(definitions)
+        descriptors.append(definition)
+        try await store.save(descriptors)
     }
     
     func update(_ definition: PlaceholderDescriptor) async throws {
-        guard let index = definitions.firstIndex(where: { $0.key == definition.key }) else {
+        guard let index = descriptors.firstIndex(where: { $0.key == definition.key }) else {
             throw CustomPlaceholderRepositoryError.definitionNotFound(definition.key)
         }
-        definitions[index] = definition
-        try await store.save(definitions)
+        descriptors[index] = definition
+        try await store.save(descriptors)
     }
     
     func delete(key: PlaceholderKey) async throws {
-        let oldCount = definitions.count
-        definitions.removeAll { $0.key == key }
-        guard definitions.count != oldCount else {
+        let oldCount = descriptors.count
+        descriptors.removeAll { $0.key == key }
+        guard descriptors.count != oldCount else {
             throw CustomPlaceholderRepositoryError.definitionNotFound(key)
         }
-        try await store.save(definitions)
+        try await store.save(descriptors)
     }
 }

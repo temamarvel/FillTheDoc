@@ -2,7 +2,7 @@ import Foundation
 
 protocol CustomPlaceholderStore: Sendable {
     func load() async throws -> [PlaceholderDescriptor]
-    func save(_ definitions: [PlaceholderDescriptor]) async throws
+    func save(_ descriptors: [PlaceholderDescriptor]) async throws
 }
 
 actor FileCustomPlaceholderStore: CustomPlaceholderStore {
