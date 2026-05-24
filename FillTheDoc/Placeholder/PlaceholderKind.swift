@@ -14,7 +14,7 @@
 ///   конкретный `inputKind` и понятный `valueSource`.
 /// - `derived` означает, что значение вычисляется системой resolver'ов и
 ///   пользователь его не редактирует.
-nonisolated enum PlaceholderKind: Hashable, Sendable {
+nonisolated enum PlaceholderKind: Hashable, Codable, Sendable {
     case editable(source: PlaceholderValueSource, inputKind: PlaceholderInputKind)
     case derived
     

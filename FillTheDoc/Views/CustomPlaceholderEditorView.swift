@@ -268,7 +268,6 @@ struct CustomPlaceholderEditorView: View {
             Divider()
             footerView
         }
-        .frame(minWidth: 760, minHeight: 620)
         .background(Color(nsColor: .windowBackgroundColor))
         .onChange(of: valueType) { _, _ in
             if valueType == .choice {

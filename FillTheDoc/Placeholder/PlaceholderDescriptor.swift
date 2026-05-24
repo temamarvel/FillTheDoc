@@ -1,13 +1,11 @@
 import Foundation
 
-
-
 // MARK: - PlaceholderDescriptor
 
 /// Каноническое описание плейсхолдера.
 ///
 /// Через `PlaceholderDescriptor` приложение документирует только стабильные данные о плейсхолдере:
-/// отображаемое имя, описание, секцию, тип ввода, источник значения и token для шаблона.
+/// отображаемое имя, описание, секцию, вид плейсхолдера и token для шаблона.
 ///
 /// Важно: descriptor по-прежнему не содержит САМО значение поля. Он только описывает,
 /// как это значение должно выглядеть и откуда берётся. Сами значения живут отдельно:
@@ -89,91 +87,5 @@ nonisolated struct PlaceholderDescriptor: Identifiable, Hashable, Codable, Senda
         self.isUserDefined = isUserDefined
         self.exampleValue = exampleValue
         self.isRequired = isRequired
-    }
-    
-    private enum CodingKeys: String, CodingKey {
-        case key
-        case title
-        case description
-        case section
-        case order
-        case valueSource
-        case inputKind
-        case isUserDefined
-        case exampleValue
-        case isRequired
-    }
-    
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let key = try container.decode(PlaceholderKey.self, forKey: .key)
-        let title = try container.decode(String.self, forKey: .title)
-        let description = try container.decode(String.self, forKey: .description)
-        let section = try container.decode(PlaceholderSection.self, forKey: .section)
-        let order = try container.decode(Int.self, forKey: .order)
-        let valueSource = try container.decodeIfPresent(PlaceholderValueSource.self, forKey: .valueSource)
-        let inputKind = try container.decodeIfPresent(PlaceholderInputKind.self, forKey: .inputKind)
-        let isUserDefined = try container.decodeIfPresent(Bool.self, forKey: .isUserDefined) ?? false
-        let exampleValue = try container.decodeIfPresent(String.self, forKey: .exampleValue)
-        let isRequired = try container.decodeIfPresent(Bool.self, forKey: .isRequired) ?? false
-        
-        self.init(
-            key: key,
-            title: title,
-            description: description,
-            section: section,
-            order: order,
-            kind: try Self.decodeKind(
-                valueSource: valueSource,
-                inputKind: inputKind,
-                codingPath: container.codingPath
-            ),
-            isUserDefined: isUserDefined,
-            exampleValue: exampleValue,
-            isRequired: isRequired
-        )
-    }
-    
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(key, forKey: .key)
-        try container.encode(title, forKey: .title)
-        try container.encode(description, forKey: .description)
-        try container.encode(section, forKey: .section)
-        try container.encode(order, forKey: .order)
-        try container.encode(isUserDefined, forKey: .isUserDefined)
-        try container.encodeIfPresent(exampleValue, forKey: .exampleValue)
-        try container.encode(isRequired, forKey: .isRequired)
-        try container.encodeIfPresent(kind.valueSource, forKey: .valueSource)
-        try container.encodeIfPresent(kind.inputKind, forKey: .inputKind)
-    }
-}
-
-private extension PlaceholderDescriptor {
-    nonisolated static func decodeKind(
-        valueSource: PlaceholderValueSource?,
-        inputKind: PlaceholderInputKind?,
-        codingPath: [CodingKey]
-    ) throws -> PlaceholderKind {
-        switch (valueSource, inputKind) {
-            case (.none, .none):
-                return .derived
-            case (.some(let source), .some(let inputKind)):
-                return .editable(source: source, inputKind: inputKind)
-            case (.none, .some):
-                throw DecodingError.dataCorrupted(
-                    .init(
-                        codingPath: codingPath + [CodingKeys.valueSource],
-                        debugDescription: "Editable placeholder is missing valueSource."
-                    )
-                )
-            case (.some, .none):
-                throw DecodingError.dataCorrupted(
-                    .init(
-                        codingPath: codingPath + [CodingKeys.inputKind],
-                        debugDescription: "Editable placeholder is missing inputKind."
-                    )
-                )
-        }
     }
 }
