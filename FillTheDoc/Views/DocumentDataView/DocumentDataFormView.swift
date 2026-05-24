@@ -10,7 +10,7 @@ import SwiftUI
 /// Экран ручного подтверждения и редактирования placeholder-данных.
 ///
 /// Это ключевая UX-граница проекта и самое важное место для понимания философии приложения:
-/// - LLM предлагает только черновик `CompanyDetails`;
+/// - LLM предлагает черновик extracted placeholder values, из которых собирается core `CompanyDetails`;
 /// - пользователь остаётся финальным владельцем данных;
 /// - только после нажатия «Применить» значения считаются подтверждёнными
 ///   и могут попасть в шаблон/экспорт.
@@ -21,6 +21,7 @@ struct DocumentDataFormView: View {
     @State private var formModel: PlaceholderFormModel
     private let registry: PlaceholderRegistryProtocol
     private let companyValidator: CompanyDetailsValidator
+    private let extractedValues: [PlaceholderKey: String]
     
     @State private var errorText = ""
     @State private var validationTask: Task<Void, Never>?
@@ -33,7 +34,7 @@ struct DocumentDataFormView: View {
     let onApply: ([PlaceholderKey: String], CompanyDetails) -> Void
     
     private var extractedValuesSnapshot: [PlaceholderKey: String] {
-        CompanyDetailsAssembler.initialValues(from: companyDetails)
+        extractedValues
     }
     
     private var registrySignature: [String] {
@@ -42,25 +43,23 @@ struct DocumentDataFormView: View {
     
     init(
         companyDetails: CompanyDetails,
+        extractedValues: [PlaceholderKey: String],
         registry: PlaceholderRegistryProtocol,
         onApply: @escaping ([PlaceholderKey: String], CompanyDetails) -> Void
     ) {
-        self.companyDetails = companyDetails
         self.registry = registry
-        let initialValues = CompanyDetailsAssembler.initialValues(from: companyDetails)
+        self.extractedValues = extractedValues
         
         _formModel = State(
             initialValue: PlaceholderFormModel(
                 registry: registry,
-                initialValues: initialValues
+                initialValues: extractedValues
             )
         )
         
         self.companyValidator = CompanyDetailsValidator()
         self.onApply = onApply
     }
-    
-    private let companyDetails: CompanyDetails
     
     var body: some View {
         VStack {

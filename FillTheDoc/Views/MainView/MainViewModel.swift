@@ -55,6 +55,7 @@ final class MainViewModel {
     // MARK: - State (data)
     
     private(set) var details: CompanyDetails?
+    private(set) var extractedPlaceholderValues: [PlaceholderKey: String] = [:]
     /// Итоговый словарь значений, который уже можно отдавать в DOCX-fill.
     ///
     /// Важно: он появляется только после пользовательского подтверждения формы,
@@ -187,6 +188,7 @@ final class MainViewModel {
         // При смене входного документа сбрасываем подтверждённые данные,
         // потому что они относятся к предыдущему файлу.
         details = nil
+        extractedPlaceholderValues = [:]
         resolvedValues = nil
         googleSheetsRow = nil
         if let url = urls.first { detailsPath = url.path }
@@ -292,11 +294,15 @@ final class MainViewModel {
                 
                 // Второй этап: LLM строит структурированный `CompanyDetails`.
                 // Это всё ещё draft, а не окончательные данные для шаблона.
-                let companyDetails = try await self.callOpenAI(extractedDetails: extractedDetails)
+                let extractedValues = try await self.callOpenAI(extractedDetails: extractedDetails)
                 try Task.checkCancellation()
+                
+                let stringValues = extractedValues.stringValues()
+                let companyDetails = CompanyDetailsAssembler.makeCompanyDetails(from: stringValues)
                 
                 guard generation == self.extractionGeneration else { return }
                 self.details = companyDetails
+                self.extractedPlaceholderValues = stringValues
                 print("DTO:", companyDetails.toMultilineString())
             } catch is CancellationError {
             } catch {
@@ -360,25 +366,19 @@ final class MainViewModel {
     
     // MARK: - Private
     
-    private func callOpenAI(extractedDetails: ExtractionResult) async throws -> CompanyDetails {
-        // View model знает, КОГДА вызвать модель, но детали контракта с ней хранит
-        // не здесь, а в `PromptBuilder` + `CompanyDetails`/`LLMExtractable`.
-        // Это позволяет менять prompt/схему независимо от orchestration-слоя.
-        assert(
-            Set(placeholderRegistry.llmSchemaKeys.map(\.rawValue)) == Set(CompanyDetails.llmSchemaKeys),
-            "LLM schema must stay aligned with extracted placeholder definitions. Manual/choice placeholders must not leak into prompt schema."
-        )
+    private func callOpenAI(extractedDetails: ExtractionResult) async throws -> ExtractedPlaceholderValues {
+        let schemaDescriptors = placeholderRegistry.extractedDescriptors
         let openAIClient = OpenAIClient(apiKey: apiKeyStore.apiKey ?? "", model: "gpt-4o-mini")
-        let system = PromptBuilder.system(for: CompanyDetails.self)
+        let system = PromptBuilder.system(schemaDescriptors: schemaDescriptors)
         let user = PromptBuilder.user(sourceText: extractedDetails.text)
         
-        let (companyDetails, _) = try await openAIClient.request(
+        let (result, _) = try await openAIClient.request(
             system: system,
             user: user,
-            as: CompanyDetails.self
+            as: ExtractedPlaceholderValues.self
         )
         
-        return companyDetails
+        return result
     }
     
     private func fakeOpenAICall(extractedDetails: ExtractionResult) async throws -> CompanyDetails {

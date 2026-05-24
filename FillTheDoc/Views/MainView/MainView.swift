@@ -60,6 +60,7 @@ struct MainView: View {
                     if let details = viewModel.details {
                         DocumentDataFormView(
                             companyDetails: details,
+                            extractedValues: viewModel.extractedPlaceholderValues,
                             registry: viewModel.placeholderRegistry
                         ) { resolvedValues, company in
                             viewModel.applyFormData(resolvedValues: resolvedValues, company: company)

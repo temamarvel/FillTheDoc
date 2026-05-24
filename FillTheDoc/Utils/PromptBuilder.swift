@@ -17,16 +17,27 @@
 ///
 /// Почему это важно держать отдельно:
 /// - `MainViewModel` должен знать только когда вызвать модель, но не правила prompt engineering;
-/// - схема ответа должна меняться синхронно с `LLMExtractable`, а не быть размазанной по UI-коду;
+/// - схема ответа должна строиться из `placeholderRegistry.extractedDescriptors`, а не быть размазанной по UI-коду;
 /// - так легче анализировать качество extraction и поддерживать проект при изменении модели.
 enum PromptBuilder {
-    
-    static func system<T: LLMExtractable>(for type: T.Type) -> String {
-        // Список ключей берётся из самой схемы типа, чтобы prompt и decoder жили
-        // от одного источника истины и не расходились при развитии модели данных.
-        let schemaKeysLine = type.llmSchemaKeysLine
+    static func system(schemaDescriptors: [PlaceholderDescriptor]) -> String {
+        let schemaKeysLine = schemaDescriptors
+            .map(\.key.rawValue)
+            .map { "\"\($0)\"" }
+            .joined(separator: ", ")
         
-        let base = """
+        let customRules = schemaDescriptors
+            .filter(\.isUserDefined)
+            .map { descriptor in
+                """
+                - \(descriptor.key.rawValue):
+                  \(descriptor.description.isEmpty ? descriptor.title : descriptor.description)
+                  Return string only if explicitly present. Otherwise return null.
+                """
+            }
+            .joined(separator: "\n")
+        
+        return """
         You are a precision information extraction engine for Russian legal entity and sole proprietor requisites.
         Return ONLY a single valid JSON object.
         
@@ -48,80 +59,12 @@ enum PromptBuilder {
         - Do not merge different entities into one field.
         - Return strings in UTF-8 plain text form.
         
-        Field-specific rules:
-        - company_name:
-          Extract only the company or entrepreneur name itself, without legal form, if they are clearly separable.
-          Example: if the source says "ООО «Ромашка»", return company_name = "Ромашка", legal_form = "ООО".
+        Built-in field rules:
+        \(builtInFieldRules)
         
-        - legal_form:
-          Allowed values only: "ООО", "ЗАО", "АО", "ИП", "ПАО".
-          Map full Russian names to the corresponding short form:
-          "Общество с ограниченной ответственностью" -> "ООО"
-          "Закрытое акционерное общество" -> "ЗАО"
-          "Акционерное общество" -> "АО"
-          "Индивидуальный предприниматель" -> "ИП"
-          "Публичное акционерное общество" -> "ПАО"
-          If the legal form is not one of these values, return null.
-        
-        - ceo_full_name:
-          Extract the full name of the head, signer, or entrepreneur only if explicitly present.
-          Prefer Russian full-name form such as "Иванов Иван Иванович".
-        
-        - ceo_full_genitive_name:
-          Return the full name in genitive case.
-          Use the same person as in ceo_full_name.
-          If this exact full-name form is present in the source, use it.
-          Otherwise, if ceo_full_name is present and can be safely converted with high confidence, derive it from ceo_full_name.
-          Otherwise return null.
-        
-        - ceo_shorten_name:
-          Return the shortened name in format " И.О. Фамилия".
-          If this exact shortened form is present in the source, use it.
-          Otherwise, if ceo_full_name is present and can be safely converted with high confidence, derive it from ceo_full_name.
-          Otherwise return null.
-        
-        - ogrn:
-          Return digits only.
-          Valid lengths:
-          - 13 digits for OGRN
-          - 15 digits for OGRNIP
-          If the extracted value does not match these lengths, return null.
-        
-        - inn:
-          Return digits only.
-          Valid lengths:
-          - 10 digits for legal entities
-          - 12 digits for sole proprietors
-          If the extracted value does not match these lengths, return null.
-        
-        - kpp:
-          Return digits only.
-          Must contain exactly 9 digits.
-          For sole proprietors (ИП), KPP is usually absent, so return null if missing.
-        
-        - email:
-          Extract only if an explicit email address is present.
-          Must be a syntactically valid email address.
-          Otherwise return null.
-        
-        - address:
-          Extract the most complete official address explicitly present in the text.
-          Do not invent missing address parts.
-        
-        - phone:
-          Extract only if explicitly present.
-          Preserve the phone number meaningfully.
-          Minor normalization is allowed:
-          remove redundant spaces, keep digits, parentheses, hyphens, and an optional leading plus.
-          If the phone value is unclear, return null.
-        
-        Consistency rules:
-        - If legal_form = "ИП", then company_name may contain the entrepreneur name if that is how the source identifies the entity.
-        - If the source contains both short and full legal form, normalize legal_form to the allowed short form only.
-        - company_name must not duplicate legal_form if they are clearly separable.
+        Custom field rules:
+        \(customRules.isEmpty ? "- No custom extracted fields." : customRules)
         """
-        
-        return base
     }
     
     static func user(sourceText: String) -> String {
@@ -141,4 +84,77 @@ enum PromptBuilder {
         ---
         """
     }
+    
+    private static let builtInFieldRules = """
+    - company_name:
+      Extract only the company or entrepreneur name itself, without legal form, if they are clearly separable.
+      Example: if the source says "ООО «Ромашка»", return company_name = "Ромашка", legal_form = "ООО".
+    
+    - legal_form:
+      Allowed values only: "ООО", "ЗАО", "АО", "ИП", "ПАО".
+      Map full Russian names to the corresponding short form:
+      "Общество с ограниченной ответственностью" -> "ООО"
+      "Закрытое акционерное общество" -> "ЗАО"
+      "Акционерное общество" -> "АО"
+      "Индивидуальный предприниматель" -> "ИП"
+      "Публичное акционерное общество" -> "ПАО"
+      If the legal form is not one of these values, return null.
+    
+    - ceo_full_name:
+      Extract the full name of the head, signer, or entrepreneur only if explicitly present.
+      Prefer Russian full-name form such as "Иванов Иван Иванович".
+    
+    - ceo_full_genitive_name:
+      Return the full name in genitive case.
+      Use the same person as in ceo_full_name.
+      If this exact full-name form is present in the source, use it.
+      Otherwise, if ceo_full_name is present and can be safely converted with high confidence, derive it from ceo_full_name.
+      Otherwise return null.
+    
+    - ceo_shorten_name:
+      Return the shortened name in format " И.О. Фамилия".
+      If this exact shortened form is present in the source, use it.
+      Otherwise, if ceo_full_name is present and can be safely converted with high confidence, derive it from ceo_full_name.
+      Otherwise return null.
+    
+    - ogrn:
+      Return digits only.
+      Valid lengths:
+      - 13 digits for OGRN
+      - 15 digits for OGRNIP
+      If the extracted value does not match these lengths, return null.
+    
+    - inn:
+      Return digits only.
+      Valid lengths:
+      - 10 digits for legal entities
+      - 12 digits for sole proprietors
+      If the extracted value does not match these lengths, return null.
+    
+    - kpp:
+      Return digits only.
+      Must contain exactly 9 digits.
+      For sole proprietors (ИП), KPP is usually absent, so return null if missing.
+    
+    - email:
+      Extract only if an explicit email address is present.
+      Must be a syntactically valid email address.
+      Otherwise return null.
+    
+    - address:
+      Extract the most complete official address explicitly present in the text.
+      Do not invent missing address parts.
+    
+    - phone:
+      Extract only if explicitly present.
+      Preserve the phone number meaningfully.
+      Minor normalization is allowed:
+      remove redundant spaces, keep digits, parentheses, hyphens, and an optional leading plus.
+      If the phone value is unclear, return null.
+    
+    Consistency rules:
+    - If legal_form = "ИП", then company_name may contain the entrepreneur name if that is how the source identifies the entity.
+    - If the source contains both short and full legal form, normalize legal_form to the allowed short form only.
+    - company_name must not duplicate legal_form if they are clearly separable.
+    """
 }

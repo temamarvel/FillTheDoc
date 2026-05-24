@@ -53,6 +53,49 @@ private enum CustomPlaceholderEditorInputType: String, CaseIterable, Identifiabl
     }
 }
 
+private enum CustomPlaceholderEditorValueSource: String, CaseIterable, Identifiable {
+    case manual
+    case extracted
+    
+    var id: String { rawValue }
+    
+    var title: String {
+        switch self {
+            case .manual:
+                return "Пользователь вводит вручную"
+            case .extracted:
+                return "Извлекать из документа с помощью ИИ"
+        }
+    }
+    
+    var helperText: String {
+        switch self {
+            case .manual:
+                return "Поле не будет заполняться моделью и всегда редактируется пользователем."
+            case .extracted:
+                return "Поле войдёт в LLM schema и будет пытаться извлекаться из исходного документа."
+        }
+    }
+    
+    var placeholderValueSource: PlaceholderValueSource {
+        switch self {
+            case .manual:
+                return .manual
+            case .extracted:
+                return .extracted
+        }
+    }
+    
+    init(valueSource: PlaceholderValueSource) {
+        switch valueSource {
+            case .manual:
+                self = .manual
+            case .extracted:
+                self = .extracted
+        }
+    }
+}
+
 // MARK: - Validation
 
 private struct InlineValidationState {
@@ -122,6 +165,7 @@ struct CustomPlaceholderEditorView: View {
     
     @State private var textPlaceholder: String
     @State private var textRequired: Bool
+    @State private var textValueSource: CustomPlaceholderEditorValueSource
     
     @State private var choiceOptions: [ChoiceOptionDraft]
     
@@ -151,18 +195,21 @@ struct CustomPlaceholderEditorView: View {
                 _valueType = State(initialValue: .text)
                 _textPlaceholder = State(initialValue: configuration.placeholder)
                 _textRequired = State(initialValue: configuration.isRequired)
+                _textValueSource = State(initialValue: .init(valueSource: definition?.valueSource ?? .manual))
                 _choiceOptions = State(initialValue: Self.defaultChoiceOptions())
                 
             case .choice(let configuration):
                 _valueType = State(initialValue: .choice)
                 _textPlaceholder = State(initialValue: "")
                 _textRequired = State(initialValue: false)
+                _textValueSource = State(initialValue: .manual)
                 _choiceOptions = State(initialValue: configuration.options.map(ChoiceOptionDraft.init(option:)))
                 
             case nil:
                 _valueType = State(initialValue: .text)
                 _textPlaceholder = State(initialValue: "")
                 _textRequired = State(initialValue: false)
+                _textValueSource = State(initialValue: .manual)
                 _choiceOptions = State(initialValue: Self.defaultChoiceOptions())
         }
     }
@@ -221,6 +268,9 @@ struct CustomPlaceholderEditorView: View {
         .frame(minWidth: 760, minHeight: 620)
         .background(Color(nsColor: .windowBackgroundColor))
         .onChange(of: valueType) { _, _ in
+            if valueType == .choice {
+                textValueSource = .manual
+            }
             saveErrorText = nil
         }
         .onChange(of: titleText) { _, _ in saveErrorText = nil }
@@ -312,14 +362,35 @@ private extension CustomPlaceholderEditorView {
     var textSettingsSection: some View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 8) {
+                Text("Источник значения")
+                    .font(.subheadline.weight(.medium))
+                
+                Picker("", selection: $textValueSource) {
+                    ForEach(CustomPlaceholderEditorValueSource.allCases) { source in
+                        Text(source.title)
+                            .tag(source)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                
+                Text(textValueSource.helperText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 6) {
-                    Text("Описание для экстракции (для LLM)")
+                    Text(textValueSource == .extracted ? "Описание для экстракции (для LLM)" : "Описание поля")
                         .font(.subheadline.weight(.medium))
                     
                     Image(systemName: "questionmark.circle")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .help("Опишите, какое значение нужно найти в исходных документах. Это описание можно использовать в промпте извлечения.")
+                        .help(textValueSource == .extracted
+                              ? "Опишите, какое значение нужно найти в исходных документах. Это описание попадёт в промпт извлечения."
+                              : "Краткое описание поля для интерфейса и библиотеки плейсхолдеров.")
                 }
                 
                 multilineTextEditor(
@@ -329,9 +400,11 @@ private extension CustomPlaceholderEditorView {
                 .frame(height: 118)
                 
                 HStack {
-                    Text("Описание помогает модели понять, какие данные искать.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text(textValueSource == .extracted
+                         ? "Описание помогает модели понять, какие данные искать."
+                         : "Описание используется в интерфейсе и справочнике плейсхолдеров.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                     
                     Spacer()
                     
@@ -354,6 +427,15 @@ private extension CustomPlaceholderEditorView {
     
     var choiceSettingsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Источник значения")
+                    .font(.subheadline.weight(.medium))
+                Text("Плейсхолдер с выбором всегда заполняется пользователем вручную.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            
             HStack(alignment: .firstTextBaseline) {
                 HStack(spacing: 6) {
                     Text("Варианты выбора")
@@ -541,9 +623,11 @@ private extension CustomPlaceholderEditorView {
     
     func makeDefinition() -> CustomPlaceholderDefinition {
         let inputKind: PlaceholderInputKind
+        let valueSource: PlaceholderValueSource
         
         switch valueType {
             case .text:
+                valueSource = textValueSource.placeholderValueSource
                 inputKind = .text(
                     TextInputConfiguration(
                         placeholder: textPlaceholder.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -554,6 +638,7 @@ private extension CustomPlaceholderEditorView {
                 )
                 
             case .choice:
+                valueSource = .manual
                 inputKind = .choice(
                     ChoiceInputConfiguration(
                         options: choiceOptions.map(\.placeholderOption),
@@ -571,7 +656,7 @@ private extension CustomPlaceholderEditorView {
             description: descriptionText.trimmed,
             section: .custom,
             order: order,
-            valueSource: .manual,
+            valueSource: valueSource,
             inputKind: inputKind,
             isUserDefined: true,
             exampleValue: nil,

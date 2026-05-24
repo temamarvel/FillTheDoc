@@ -26,6 +26,11 @@ struct CustomPlaceholderValidator: Sendable {
             issues.append(.error("Название плейсхолдера не может быть пустым."))
         }
         
+        if case .some(.choice) = draft.inputKind,
+           draft.valueSource == .extracted {
+            issues.append(.error("Плейсхолдер с выбором не может извлекаться моделью. Для него доступно только ручное заполнение."))
+        }
+        
         issues.append(contentsOf: validateInputKind(draft.inputKind))
         return issues
     }
