@@ -18,29 +18,6 @@ nonisolated enum PlaceholderKind: Hashable, Codable, Sendable {
     case editable(source: PlaceholderValueSource, inputKind: PlaceholderInputKind)
     case derived
     
-    var acceptsUserInput: Bool {
-        if case .editable = self {
-            return true
-        }
-        return false
-    }
-    
-    var isDerived: Bool { !acceptsUserInput }
-    
-    var valueSource: PlaceholderValueSource? {
-        guard case .editable(let source, _) = self else { return nil }
-        return source
-    }
-    
-    var inputKind: PlaceholderInputKind? {
-        guard case .editable(_, let inputKind) = self else { return nil }
-        return inputKind
-    }
-    
-    var inputKindLabel: String? { inputKind?.label }
-    var textEditorStyleLabel: String? { inputKind?.textEditorStyleLabel }
-    var valueSourceLabel: String? { valueSource?.label }
-    
     var signatureFragment: String {
         switch self {
             case .editable(let source, let inputKind):

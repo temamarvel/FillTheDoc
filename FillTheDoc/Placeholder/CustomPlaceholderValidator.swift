@@ -30,20 +30,18 @@ struct CustomPlaceholderValidator: Sendable {
             issues.append(.error("Плейсхолдер с выбором не может извлекаться моделью. Для него доступно только ручное заполнение."))
         }
         
-        issues.append(contentsOf: validateInputKind(draft.kind.inputKind))
+        issues.append(contentsOf: validateKind(draft.kind))
         return issues
     }
     
-    private func validateInputKind(_ inputKind: PlaceholderInputKind?) -> [FieldIssue] {
-        guard let inputKind else {
-            return [.error("Пользовательский плейсхолдер должен поддерживать ввод значения.")]
-        }
-        
-        switch inputKind {
-            case .text(let configuration):
+    private func validateKind(_ kind: PlaceholderKind) -> [FieldIssue] {
+        switch kind {
+            case .editable(_, .text(let configuration)):
                 return validateText(configuration)
-            case .choice(let configuration):
+            case .editable(_, .choice(let configuration)):
                 return validateChoice(configuration)
+            case .derived:
+                return [.error("Пользовательский плейсхолдер должен поддерживать ввод значения.")]
         }
     }
     

@@ -63,12 +63,9 @@ struct PlaceholderLibraryView: View {
             }
             .filter { descriptor in
                 guard !query.isEmpty else { return true }
-                return descriptor.title.lowercased().contains(query)
-                || descriptor.key.rawValue.lowercased().contains(query)
-                || descriptor.description.lowercased().contains(query)
-                || (descriptor.valueSourceLabel?.lowercased().contains(query) ?? false)
-                || (descriptor.inputKindLabel?.lowercased().contains(query) ?? false)
-                || (descriptor.textEditorStyleLabel?.lowercased().contains(query) ?? false)
+                return descriptor.searchableTextFragments.contains {
+                    $0.lowercased().contains(query)
+                }
             }
             .map {
                 PlaceholderLibraryItem(
@@ -339,7 +336,7 @@ struct PlaceholderLibraryRowView: View {
                     }
                 }
                 
-                if case .editable(_, .choice(let configuration)) = item.descriptor.kind {
+                if case .some(.choice(let configuration)) = item.descriptor.inputKind {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Варианты выбора")
                             .font(.caption.weight(.medium))

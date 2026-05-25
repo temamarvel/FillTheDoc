@@ -32,14 +32,40 @@ nonisolated struct PlaceholderDescriptor: Identifiable, Hashable, Codable, Senda
     var token: String { "<!\(key.rawValue)!>" }
     
     /// `true` для полей, которые пользователь видит и может редактировать в форме.
-    var acceptsUserInput: Bool { kind.acceptsUserInput }
+    var acceptsUserInput: Bool {
+        if case .editable = kind {
+            return true
+        }
+        return false
+    }
     
-    /// `true` для вычисляемых системных полей вроде `date_short`.
-    var isDerived: Bool { kind.isDerived }
+    var inputKindLabel: String? {
+        guard case .editable(_, let inputKind) = kind else { return nil }
+        return inputKind.label
+    }
     
-    var inputKindLabel: String? { kind.inputKindLabel }
-    var textEditorStyleLabel: String? { kind.textEditorStyleLabel }
-    var valueSourceLabel: String? { kind.valueSourceLabel }
+    var inputKind: PlaceholderInputKind? {
+        guard case .editable(_, let inputKind) = kind else { return nil }
+        return inputKind
+    }
+    
+    var textEditorStyleLabel: String? {
+        guard case .editable(_, .text(let configuration)) = kind else { return nil }
+        return configuration.editorStyle.label
+    }
+    
+    var valueSourceLabel: String? {
+        guard case .editable(let source, _) = kind else { return nil }
+        return source.label
+    }
+    
+    var metadataLabels: [String] {
+        [valueSourceLabel, inputKindLabel, textEditorStyleLabel].compactMap { $0 }
+    }
+    
+    var searchableTextFragments: [String] {
+        [title, key.rawValue, description] + metadataLabels
+    }
     
     /// Строковая сигнатура помогает SwiftUI понять, что definition реально поменялся
     /// и форму нужно синхронизировать с новым registry (например после редактирования custom placeholder).
@@ -68,7 +94,7 @@ nonisolated struct PlaceholderDescriptor: Identifiable, Hashable, Codable, Senda
         exampleValue: String? = nil,
         isRequired: Bool
     ) {
-        if case .editable(let source, let inputKind) = kind, inputKind.isChoice {
+        if case .editable(let source, .choice) = kind {
             precondition(source == .manual, "Choice placeholders must be manual. They must not be extracted from LLM.")
         }
         

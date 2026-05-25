@@ -10,13 +10,6 @@ nonisolated enum PlaceholderInputKind: Hashable, Codable, Sendable {
     case text(TextInputConfiguration)
     case choice(ChoiceInputConfiguration)
     
-    var isChoice: Bool {
-        if case .choice = self {
-            return true
-        }
-        return false
-    }
-    
     var label: String {
         switch self {
             case .text:
@@ -33,15 +26,6 @@ nonisolated enum PlaceholderInputKind: Hashable, Codable, Sendable {
             case .choice(let configuration):
                 return !configuration.allowsEmptySelection
         }
-    }
-    
-    var textEditorStyle: TextEditorStyle? {
-        guard case .text(let configuration) = self else { return nil }
-        return configuration.editorStyle
-    }
-    
-    var textEditorStyleLabel: String? {
-        textEditorStyle?.label
     }
     
     var signatureFragment: String {
