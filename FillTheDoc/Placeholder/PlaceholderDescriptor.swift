@@ -5,7 +5,8 @@ import Foundation
 /// Каноническое описание плейсхолдера.
 ///
 /// Через `PlaceholderDescriptor` приложение документирует только стабильные данные о плейсхолдере:
-/// отображаемое имя, описание, секцию, вид плейсхолдера и token для шаблона.
+/// отображаемое имя, описание, секцию, вид плейсхолдера, token для шаблона
+/// и пример итогового replacement value.
 ///
 /// Важно: descriptor по-прежнему не содержит САМО значение поля. Он только описывает,
 /// как это значение должно выглядеть и откуда берётся. Сами значения живут отдельно:
@@ -29,9 +30,6 @@ nonisolated struct PlaceholderDescriptor: Identifiable, Hashable, Codable, Senda
     
     /// Строка токена, которую пользователь вставляет в Word-шаблон, например `<!company_name!>`.
     var token: String { "<!\(key.rawValue)!>" }
-    
-    /// Удобный presentation helper для UI формы и библиотеки.
-    var placeholder: String { kind.inputKind?.placeholderText ?? "" }
     
     /// `true` для полей, которые пользователь видит и может редактировать в форме.
     var acceptsUserInput: Bool { kind.acceptsUserInput }

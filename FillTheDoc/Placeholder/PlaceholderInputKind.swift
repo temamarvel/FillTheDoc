@@ -26,15 +26,6 @@ nonisolated enum PlaceholderInputKind: Hashable, Codable, Sendable {
         }
     }
     
-    var placeholderText: String {
-        switch self {
-            case .text(let configuration):
-                return configuration.placeholder
-            case .choice:
-                return ""
-        }
-    }
-    
     var isRequired: Bool {
         switch self {
             case .text(let configuration):
@@ -56,7 +47,7 @@ nonisolated enum PlaceholderInputKind: Hashable, Codable, Sendable {
     var signatureFragment: String {
         switch self {
             case .text(let configuration):
-                return "text|\(configuration.placeholder)|\(configuration.isRequired)|\(configuration.trimOnCommit)|\(configuration.editorStyle.signatureFragment)"
+                return "text|\(configuration.isRequired)|\(configuration.trimOnCommit)|\(configuration.editorStyle.signatureFragment)"
             case .choice(let configuration):
                 let optionsLine = configuration.options
                     .map { "\($0.id):\($0.title):\($0.replacementValue)" }
@@ -87,7 +78,6 @@ nonisolated enum PlaceholderInputKind: Hashable, Codable, Sendable {
                 let configuration = try container.decode(TextInputConfiguration.self, forKey: .configuration)
                 self = .text(
                     TextInputConfiguration(
-                        placeholder: configuration.placeholder,
                         isRequired: configuration.isRequired,
                         trimOnCommit: configuration.trimOnCommit,
                         editorStyle: configuration.editorStyle == .singleLine ? .multiline() : configuration.editorStyle

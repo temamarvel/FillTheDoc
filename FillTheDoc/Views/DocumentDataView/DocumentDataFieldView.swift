@@ -78,7 +78,7 @@ private extension DocumentDataFieldView {
                 TextField(
                     "",
                     text: textBinding,
-                    prompt: Text(configuration.placeholder),
+                    prompt: Text(inputExampleValue),
                     axis: .horizontal
                 )
                 .lineLimit(1)
@@ -87,12 +87,16 @@ private extension DocumentDataFieldView {
                 TextField(
                     "",
                     text: textBinding,
-                    prompt: Text(configuration.placeholder),
+                    prompt: Text(inputExampleValue),
                     axis: .vertical
                 )
                 .lineLimit(minLines...max(maxLines, minLines))
                 .focused($focusedKey, equals: descriptor.key)
         }
+    }
+    
+    var inputExampleValue: String {
+        descriptor.exampleValue ?? ""
     }
     
     @ViewBuilder

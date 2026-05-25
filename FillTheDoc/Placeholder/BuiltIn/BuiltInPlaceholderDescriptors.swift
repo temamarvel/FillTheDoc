@@ -15,7 +15,7 @@ extension PlaceholderRegistry {
             order: 10,
             kind: .editable(
                 source: .extracted,
-                inputKind: .text(.init(placeholder: "ООО «Ромашка»", isRequired: true))
+                inputKind: .text(.init(isRequired: true))
             ),
             exampleValue: "Ромашка",
             isRequired: true
@@ -28,7 +28,7 @@ extension PlaceholderRegistry {
             order: 20,
             kind: .editable(
                 source: .extracted,
-                inputKind: .text(.init(placeholder: "ООО / АО / ИП", isRequired: true))
+                inputKind: .text(.init(isRequired: true))
             ),
             exampleValue: "ООО",
             isRequired: true
@@ -41,7 +41,7 @@ extension PlaceholderRegistry {
             order: 30,
             kind: .editable(
                 source: .extracted,
-                inputKind: .text(.init(placeholder: "Иванов Иван Иванович", isRequired: true))
+                inputKind: .text(.init(isRequired: true))
             ),
             exampleValue: "Иванов Иван Иванович",
             isRequired: true
@@ -54,7 +54,7 @@ extension PlaceholderRegistry {
             order: 40,
             kind: .editable(
                 source: .extracted,
-                inputKind: .text(.init(placeholder: "Иванова Ивана Ивановича", isRequired: true))
+                inputKind: .text(.init(isRequired: true))
             ),
             exampleValue: "Иванова Ивана Ивановича",
             isRequired: true
@@ -67,7 +67,7 @@ extension PlaceholderRegistry {
             order: 50,
             kind: .editable(
                 source: .extracted,
-                inputKind: .text(.init(placeholder: "Иванов И.И.", isRequired: true))
+                inputKind: .text(.init(isRequired: true))
             ),
             exampleValue: "Иванов И.И.",
             isRequired: true
@@ -80,7 +80,7 @@ extension PlaceholderRegistry {
             order: 60,
             kind: .editable(
                 source: .extracted,
-                inputKind: .text(.init(placeholder: "13/15 цифр", isRequired: true))
+                inputKind: .text(.init(isRequired: true))
             ),
             exampleValue: "1187746707280",
             isRequired: true
@@ -93,7 +93,7 @@ extension PlaceholderRegistry {
             order: 70,
             kind: .editable(
                 source: .extracted,
-                inputKind: .text(.init(placeholder: "10/12 цифр", isRequired: true))
+                inputKind: .text(.init(isRequired: true))
             ),
             exampleValue: "9731007287",
             isRequired: true
@@ -106,7 +106,7 @@ extension PlaceholderRegistry {
             order: 80,
             kind: .editable(
                 source: .extracted,
-                inputKind: .text(.init(placeholder: "9 цифр", isRequired: false))
+                inputKind: .text(.init(isRequired: false))
             ),
             exampleValue: "773101001",
             isRequired: false
@@ -119,7 +119,7 @@ extension PlaceholderRegistry {
             order: 90,
             kind: .editable(
                 source: .extracted,
-                inputKind: .text(.init(placeholder: "example@domain.com", isRequired: false))
+                inputKind: .text(.init(isRequired: false))
             ),
             exampleValue: "info@romashka.ru",
             isRequired: false
@@ -134,7 +134,6 @@ extension PlaceholderRegistry {
                 source: .extracted,
                 inputKind: .text(
                     .init(
-                        placeholder: "город, улица, дом",
                         isRequired: false,
                         editorStyle: .multiline(minLines: 1, maxLines: 8)
                     )
@@ -151,7 +150,7 @@ extension PlaceholderRegistry {
             order: 110,
             kind: .editable(
                 source: .extracted,
-                inputKind: .text(.init(placeholder: "+79991234567", isRequired: false))
+                inputKind: .text(.init(isRequired: false))
             ),
             exampleValue: "+79991234567",
             isRequired: false
@@ -164,7 +163,7 @@ extension PlaceholderRegistry {
             order: 120,
             kind: .editable(
                 source: .manual,
-                inputKind: .text(.init(placeholder: "yyyy-mm-#", isRequired: false))
+                inputKind: .text(.init(isRequired: false))
             ),
             exampleValue: "2024-01-001",
             isRequired: false
@@ -177,7 +176,7 @@ extension PlaceholderRegistry {
             order: 130,
             kind: .editable(
                 source: .manual,
-                inputKind: .text(.init(placeholder: "1", isRequired: true))
+                inputKind: .text(.init(isRequired: true))
             ),
             exampleValue: "1",
             isRequired: true
@@ -190,7 +189,7 @@ extension PlaceholderRegistry {
             order: 140,
             kind: .editable(
                 source: .manual,
-                inputKind: .text(.init(placeholder: "10", isRequired: true))
+                inputKind: .text(.init(isRequired: true))
             ),
             exampleValue: "10",
             isRequired: true

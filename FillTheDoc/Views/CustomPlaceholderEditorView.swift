@@ -164,7 +164,7 @@ struct CustomPlaceholderEditorView: View {
     @State private var descriptionText: String
     @State private var valueType: CustomPlaceholderEditorInputType
     
-    @State private var textPlaceholder: String
+    @State private var exampleValueText: String
     @State private var textRequired: Bool
     @State private var textValueSource: CustomPlaceholderEditorValueSource
     
@@ -196,21 +196,21 @@ struct CustomPlaceholderEditorView: View {
         switch definition?.kind {
             case .editable(let source, .text(let configuration)):
                 _valueType = State(initialValue: .text)
-                _textPlaceholder = State(initialValue: configuration.placeholder)
+                _exampleValueText = State(initialValue: definition?.exampleValue ?? "")
                 _textRequired = State(initialValue: configuration.isRequired)
                 _textValueSource = State(initialValue: .init(valueSource: source))
                 _choiceOptions = State(initialValue: Self.defaultChoiceOptions())
                 
             case .editable(_, .choice(let configuration)):
                 _valueType = State(initialValue: .choice)
-                _textPlaceholder = State(initialValue: "")
+                _exampleValueText = State(initialValue: definition?.exampleValue ?? "")
                 _textRequired = State(initialValue: false)
                 _textValueSource = State(initialValue: .manual)
                 _choiceOptions = State(initialValue: configuration.options.map(ChoiceOptionDraft.init(option:)))
                 
             case .derived, nil:
                 _valueType = State(initialValue: .text)
-                _textPlaceholder = State(initialValue: "")
+                _exampleValueText = State(initialValue: definition?.exampleValue ?? "")
                 _textRequired = State(initialValue: false)
                 _textValueSource = State(initialValue: .manual)
                 _choiceOptions = State(initialValue: Self.defaultChoiceOptions())
@@ -278,7 +278,7 @@ struct CustomPlaceholderEditorView: View {
         .onChange(of: titleText) { _, _ in saveErrorText = nil }
         .onChange(of: keyText) { _, _ in saveErrorText = nil }
         .onChange(of: descriptionText) { _, _ in saveErrorText = nil }
-        .onChange(of: textPlaceholder) { _, _ in saveErrorText = nil }
+        .onChange(of: exampleValueText) { _, _ in saveErrorText = nil }
         .onChange(of: choiceOptions) { _, _ in saveErrorText = nil }
     }
 }
@@ -366,6 +366,8 @@ private extension CustomPlaceholderEditorView {
                 case .choice:
                     choiceSettingsSection
             }
+            
+            exampleValueSection
         }
     }
     
@@ -424,14 +426,19 @@ private extension CustomPlaceholderEditorView {
                 }
             }
             
-            VStack(alignment: .leading, spacing: 8) {
-                labeledTextField(
-                    title: "Подсказка для ввода (необязательно)",
-                    text: $textPlaceholder,
-                    prompt: "Например: 123/2024-ОД или Д-45 от 12.03.2024",
-                    helper: .plain("Подсказка отображается пользователю в поле ввода")
-                )
-            }
+        }
+    }
+    
+    var exampleValueSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            labeledTextField(
+                title: "Пример значения (необязательно)",
+                text: $exampleValueText,
+                prompt: valueType == .text
+                ? "Например: 123/2024-ОД или Д-45 от 12.03.2024"
+                : "Например: счет",
+                helper: .plain(exampleValueHelperText)
+            )
         }
     }
     
@@ -517,6 +524,15 @@ private extension CustomPlaceholderEditorView {
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 16)
+    }
+    
+    var exampleValueHelperText: String {
+        switch valueType {
+            case .text:
+                return "Используется как пример итогового значения и отображается серым текстом в поле ввода."
+            case .choice:
+                return "Используется в библиотеке плейсхолдеров как пример итогового replacement value."
+        }
     }
 }
 
@@ -639,7 +655,6 @@ private extension CustomPlaceholderEditorView {
                 valueSource = textValueSource.placeholderValueSource
                 inputKind = .text(
                     TextInputConfiguration(
-                        placeholder: textPlaceholder.trimmingCharacters(in: .whitespacesAndNewlines),
                         isRequired: textRequired,
                         trimOnCommit: true,
                         editorStyle: .singleLine
@@ -667,7 +682,7 @@ private extension CustomPlaceholderEditorView {
             order: order,
             kind: .editable(source: valueSource, inputKind: inputKind),
             isUserDefined: true,
-            exampleValue: nil,
+            exampleValue: exampleValueText.trimmedNilIfEmpty,
             isRequired: inputKind.isRequired
         )
     }
