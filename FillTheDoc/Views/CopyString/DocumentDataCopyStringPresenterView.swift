@@ -1,5 +1,5 @@
 //
-//  CodeBlockView.swift
+//  DocumentDataCopyStringPresenterView.swift
 //  FillTheDoc
 //
 //  Created by Артем Денисов on 26.03.2026.
@@ -8,10 +8,11 @@
 
 import SwiftUI
 
+/// Показывает готовую TSV-строку в читаемом виде и позволяет быстро скопировать её повторно.
 struct DocumentDataCopyStringPresenterView: View {
     let content: String
     @State private var copied = false
-
+    
     var body: some View {
         ZStack(alignment: .topTrailing) {
             ScrollView([.horizontal, .vertical]) {
@@ -31,7 +32,7 @@ struct DocumentDataCopyStringPresenterView: View {
                     .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
             )
             .clipShape(RoundedRectangle(cornerRadius: 8))
-
+            
             // Кнопка копирования
             Button {
                 NSPasteboard.general.clearContents()

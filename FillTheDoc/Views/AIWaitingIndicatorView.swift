@@ -1,5 +1,5 @@
-//
-//  AIWaitingIndicator.swift
+ //
+//  AIWaitingIndicatorView.swift
 //  FillTheDoc
 //
 //  Created by Артем Денисов on 13.02.2026.
@@ -8,6 +8,7 @@
 import SwiftUI
 import Shimmer
 
+/// Небольшой branded-индикатор ожидания для долгих шагов extraction и AI-обработки.
 struct AIWaitingIndicatorView: View {
     var size: CGFloat = 100
     

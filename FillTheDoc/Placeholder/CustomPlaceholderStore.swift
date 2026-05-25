@@ -1,10 +1,18 @@
 import Foundation
 
+/// Контракт persistence-слоя для пользовательских плейсхолдеров.
+///
+/// Репозиторий работает поверх этого протокола, чтобы не зависеть напрямую
+/// от JSON-файла на диске и оставаться тестопригодным.
 protocol CustomPlaceholderStore: Sendable {
     func load() async throws -> [PlaceholderDescriptor]
-    func save(_ descriptors: [PlaceholderDescriptor]) async throws
+    func save(_ definitions: [PlaceholderDescriptor]) async throws
 }
 
+/// Файловая реализация `CustomPlaceholderStore`.
+///
+/// Хранит пользовательские placeholder-definition'ы в JSON, который лежит
+/// в `Application Support` и переживает перезапуски приложения.
 actor FileCustomPlaceholderStore: CustomPlaceholderStore {
     private let fileURL: URL
     private let encoder: JSONEncoder

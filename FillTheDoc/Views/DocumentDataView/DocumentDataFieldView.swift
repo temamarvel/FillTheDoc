@@ -1,5 +1,5 @@
 //
-//  DocumentDataRowView.swift
+//  DocumentDataFieldView.swift
 //  FillTheDoc
 //
 //  Created by Артем Денисов on 24.03.2026.
@@ -7,6 +7,10 @@
 
 import SwiftUI
 
+/// Универсальная строка одного editable-поля в форме подтверждения данных.
+///
+/// View не принимает архитектурных решений о нормализации или валидации,
+/// а только отображает `PlaceholderDescriptor`, текущее typed-значение и возможный issue.
 struct DocumentDataFieldView: View {
     let descriptor: PlaceholderDescriptor
     let issue: FieldIssue?

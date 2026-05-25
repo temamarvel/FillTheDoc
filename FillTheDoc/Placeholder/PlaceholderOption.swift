@@ -6,6 +6,11 @@
 //
 
 
+/// Один вариант выбора для `choice`-плейсхолдера.
+///
+/// Важно, что `id` и `replacementValue` разделены:
+/// UI и persistence работают со стабильным идентификатором,
+/// а в итоговый DOCX попадает именно replacement-строка.
 nonisolated struct PlaceholderOption: Identifiable, Hashable, Codable, Sendable {
     let id: String
     var title: String

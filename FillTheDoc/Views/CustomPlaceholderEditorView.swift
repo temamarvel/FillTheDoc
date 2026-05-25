@@ -2,6 +2,7 @@ import SwiftUI
 
 // MARK: - Draft models
 
+/// Локальный draft одного варианта выбора внутри редактора пользовательского плейсхолдера.
 nonisolated private struct ChoiceOptionDraft: Identifiable, Hashable {
     let id: String
     var title: String
@@ -32,6 +33,7 @@ nonisolated private struct ChoiceOptionDraft: Identifiable, Hashable {
     }
 }
 
+/// Внутренний тип ввода редактора: текстовое поле или ограниченный выбор.
 private enum CustomPlaceholderEditorInputType: String, CaseIterable, Identifiable {
     case text
     case choice
@@ -53,6 +55,7 @@ private enum CustomPlaceholderEditorInputType: String, CaseIterable, Identifiabl
     }
 }
 
+/// Внутреннее представление источника значения для создаваемого плейсхолдера.
 private enum CustomPlaceholderEditorValueSource: String, CaseIterable, Identifiable {
     case manual
     case extracted
@@ -98,6 +101,7 @@ private enum CustomPlaceholderEditorValueSource: String, CaseIterable, Identifia
 
 // MARK: - Validation
 
+/// Состояние inline-валидации редактора пользовательского плейсхолдера.
 private struct InlineValidationState {
     var titleError: String?
     var keyError: String?
@@ -114,7 +118,12 @@ private struct InlineValidationState {
 
 // MARK: - CustomPlaceholderEditorView
 
+/// Экран создания и редактирования пользовательских плейсхолдеров.
+///
+/// View собирает draft definition, валидирует его локально и по сохранению
+/// отдаёт готовый `PlaceholderDescriptor` во внешний persistence-flow.
 struct CustomPlaceholderEditorView: View {
+    /// Режим работы редактора: создание нового плейсхолдера или правка существующего.
     enum Mode {
         case create
         case edit(PlaceholderDescriptor)

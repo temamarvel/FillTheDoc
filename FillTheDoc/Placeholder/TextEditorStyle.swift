@@ -8,10 +8,12 @@
 
 // MARK: - Input configuration
 
+/// Предпочтительный визуальный режим текстового поля в форме.
 nonisolated enum TextEditorStyle: Hashable, Codable, Sendable {
     case singleLine
     case multiline(minLines: Int = 1, maxLines: Int = 8)
     
+    /// Человекочитаемое название режима для редактора пользовательских плейсхолдеров.
     var label: String {
         switch self {
             case .singleLine:
@@ -21,6 +23,7 @@ nonisolated enum TextEditorStyle: Hashable, Codable, Sendable {
         }
     }
     
+    /// Стабильный фрагмент сигнатуры для отслеживания изменений definition-модели.
     var signatureFragment: String {
         switch self {
             case .singleLine:

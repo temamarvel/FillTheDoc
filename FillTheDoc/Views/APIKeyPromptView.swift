@@ -8,6 +8,7 @@
 
 import SwiftUI
 
+/// Модальный prompt для первичного ввода OpenAI API key.
 struct APIKeyPromptView: View {
     let onSave: (String) -> Void
     

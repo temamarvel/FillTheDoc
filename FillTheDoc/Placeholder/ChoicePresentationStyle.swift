@@ -6,6 +6,7 @@
 //
 
 
+/// Предпочтительный способ отображения choice-поля в SwiftUI-форме.
 nonisolated enum ChoicePresentationStyle: String, Codable, Hashable, Sendable {
     case menu
     case segmented

@@ -6,6 +6,8 @@
 //
 
 extension PlaceholderRegistry {
+    /// Канонический каталог встроенных placeholder-definition'ов.
+    /// Это единый источник описаний для формы, библиотеки плейсхолдеров и LLM-схемы extraction.
     nonisolated static let builtInDescriptors: [PlaceholderDescriptor] = [
         .init(
             key: .companyName,
@@ -280,6 +282,7 @@ extension PlaceholderRegistry {
         ),
     ]
     
+    /// Индекс встроенных descriptor'ов по ключу для быстрых lookup-операций.
     nonisolated static let builtInDescriptorIndex: [PlaceholderKey: PlaceholderDescriptor] = Dictionary(
         uniqueKeysWithValues: builtInDescriptors.map { ($0.key, $0) }
     )

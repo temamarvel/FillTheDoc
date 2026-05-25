@@ -6,6 +6,10 @@
 //
 
 
+/// Конфигурация текстового editable-поля.
+///
+/// Здесь хранятся не runtime-значения, а definition-правила: обязательность,
+/// стратегия trim и preferred presentation в форме.
 nonisolated struct TextInputConfiguration: Hashable, Codable, Sendable {
     var isRequired: Bool
     var trimOnCommit: Bool

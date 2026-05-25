@@ -1,6 +1,11 @@
 import Foundation
 
+/// Валидирует draft пользовательского плейсхолдера до сохранения.
+///
+/// Это отдельный слой правил для редактора: он проверяет не runtime-значение поля,
+/// а корректность самой definition-модели — ключ, заголовок, тип ввода и конфигурацию опций.
 struct CustomPlaceholderValidator: Sendable {
+    /// Возвращает набор найденных проблем в definition draft.
     func validate(
         draft: PlaceholderDescriptor,
         existingKeys: Set<PlaceholderKey>

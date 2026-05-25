@@ -6,6 +6,7 @@
 //
 
 extension PlaceholderRegistry {
+    /// Runtime-policy для встроенных плейсхолдеров: normalizer, validator и resolver по ключу.
     nonisolated static let builtInBehaviors: [PlaceholderKey: PlaceholderBehavior] = [
         .companyName: .init(
             normalizer: { $0.trimmed },
