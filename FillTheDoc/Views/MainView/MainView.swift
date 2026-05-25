@@ -16,17 +16,16 @@ import UniformTypeIdentifiers
 /// - благодаря этому корневой экран остаётся читаемым и не размазывает архитектуру по layout-коду.
 ///
 /// Базовый flow для чтения кода:
-/// 1. Drop зоны передают URL'ы в `MainViewModel`.
+/// 1. Drop-зоны передают URL'ы в `MainViewModel`.
 /// 2. После LLM-извлечения появляется `DocumentDataFormView`.
 /// 3. После «Применить» форма отдаёт подтверждённые значения обратно в view model.
-/// 4. Кнопка `Заполнить шаблон` запускает export пайплайн.
+/// 4. Кнопка `Заполнить шаблон` запускает export-пайплайн.
 struct MainView: View {
     @State private var viewModel: MainViewModel
     @State private var showLibrary: Bool = false
     
     init() {
-        let viewModel = MainViewModel()
-        _viewModel = State(initialValue: viewModel)
+        _viewModel = State(initialValue: MainViewModel())
     }
     
     var body: some View {
@@ -51,19 +50,23 @@ struct MainView: View {
             }
             
             Group {
-                if let googleSheetsRow = viewModel.googleSheetsRow, !googleSheetsRow.isEmpty {
-                    DocumentDataCopyStringPresenterView(content: googleSheetsRow)
-                } else {
-                    if let details = viewModel.details {
+                if viewModel.details != nil {
+                    VStack(spacing: 12) {
                         DocumentDataFormView(
                             extractedValues: viewModel.extractedPlaceholderValues,
                             registry: viewModel.placeholderRegistry
                         ) { resolvedValues, company in
                             viewModel.applyFormData(resolvedValues: resolvedValues, company: company)
                         }
-                    } else {
-                        EmptyCompanyDetailsView()
+                        
+                        if let googleSheetsRow = viewModel.googleSheetsRow, !googleSheetsRow.isEmpty {
+                            DocumentDataCopyStringPresenterView(content: googleSheetsRow)
+                        }
                     }
+                } else if let googleSheetsRow = viewModel.googleSheetsRow, !googleSheetsRow.isEmpty {
+                    DocumentDataCopyStringPresenterView(content: googleSheetsRow)
+                } else {
+                    EmptyCompanyDetailsView()
                 }
             }
             
@@ -86,7 +89,7 @@ struct MainView: View {
                 Spacer()
             }
             
-            HStack{
+            HStack {
                 Spacer()
                 
                 Button {
@@ -155,6 +158,19 @@ struct MainView: View {
                 }
             )
         }
+        .alert(
+            "Ошибка",
+            isPresented: Binding(
+                get: { viewModel.userFacingError != nil },
+                set: { if !$0 { viewModel.userFacingError = nil } }
+            ),
+            actions: {
+                Button("OK", role: .cancel) {}
+            },
+            message: {
+                Text(viewModel.userFacingError ?? "")
+            }
+        )
         .overlay {
             if viewModel.isLoading {
                 AIWaitingIndicatorView()
