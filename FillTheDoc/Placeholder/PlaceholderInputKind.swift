@@ -63,7 +63,6 @@ nonisolated enum PlaceholderInputKind: Hashable, Codable, Sendable {
     
     private enum Kind: String, Codable {
         case text
-        case multilineText
         case choice
     }
     
@@ -74,15 +73,6 @@ nonisolated enum PlaceholderInputKind: Hashable, Codable, Sendable {
         switch kind {
             case .text:
                 self = .text(try container.decode(TextInputConfiguration.self, forKey: .configuration))
-            case .multilineText:
-                let configuration = try container.decode(TextInputConfiguration.self, forKey: .configuration)
-                self = .text(
-                    TextInputConfiguration(
-                        isRequired: configuration.isRequired,
-                        trimOnCommit: configuration.trimOnCommit,
-                        editorStyle: configuration.editorStyle == .singleLine ? .multiline() : configuration.editorStyle
-                    )
-                )
             case .choice:
                 self = .choice(try container.decode(ChoiceInputConfiguration.self, forKey: .configuration))
         }
