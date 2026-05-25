@@ -1,10 +1,10 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Generic DropZone карточка с опциональным "нижним" контентом (bottom).
-/// - Поддерживает drag&drop файлов (UTType.fileURL)
-/// - Показывает path (как текст) и валидность (иконка/цвет)
-/// - Может "расти по контенту" (heightToContent) или быть фиксированной по высоте
+/// Универсальная карточка drag&drop для выбора локального файла.
+/// - Принимает `UTType.fileURL`
+/// - Показывает заголовок, опциональный подзаголовок и текущий путь
+/// - Визуально отражает состояние выбора и наведение при drop
 struct DropZoneView: View {
     let title: String
     let subtitle: String?

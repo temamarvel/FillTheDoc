@@ -7,13 +7,14 @@
 
 import Foundation
 
-/// Централизованное место для всех валидаторов полей.
-/// Структурированы по типам: формат, диапазон, синтаксис, подобие.
+/// Централизованное место для прикладных валидаторов полей.
+/// Сгруппированы по типу проверок: формат, синтаксис, эвристики, сходство и удобные field-level адаптеры.
 enum Validators {
     
     // MARK: - Generic helpers
     
-    /// Валидатор, который пропускает пустые значения.
+    /// Обёртка для опциональных полей: пропускает пустое значение после trim,
+    /// иначе делегирует проверку вложенному валидатору.
     nonisolated static func optional(_ validate: @escaping (String) -> String?) -> (String) -> String? {
         { raw in
             let v = raw.trimmed
@@ -175,7 +176,9 @@ enum Validators {
         return t.isEmpty ? .error("Поле не может быть пустым") : nil
     }
     
-    /// Валидация ФИО: минимум 2 слова, только буквы и дефисы.
+    /// Мягкая валидация полного ФИО.
+    /// Требует непустое значение, предупреждает при слишком коротком наборе слов
+    /// и при символах, нетипичных для ФИО.
     nonisolated static func fullName(_ v: String) -> FieldIssue? {
         let t = v.trimmed
         guard !t.isEmpty else { return .error("Поле не может быть пустым") }
@@ -193,7 +196,7 @@ enum Validators {
         return nil
     }
     
-    /// Валидация краткого ФИО: формат «Фамилия И.О.» или «Фамилия И.».
+    /// Мягкая валидация краткого ФИО в формате `И.О. Фамилия` или `И. Фамилия`.
     nonisolated static func shortenName(_ v: String) -> FieldIssue? {
         let t = v.trimmed
         guard !t.isEmpty else { return .error("Поле не может быть пустым") }
@@ -210,7 +213,7 @@ enum Validators {
         return nil
     }
     
-    /// Валидация правовой формы (возвращает FieldValidationResult).
+    /// Адаптер правовой формы к общему контракту формы: возвращает `FieldIssue`.
     nonisolated static func legalFormField(_ v: String) -> FieldIssue? {
         let t = v.trimmed
         guard !t.isEmpty else { return .error("Поле не может быть пустым") }
@@ -237,7 +240,9 @@ enum Validators {
         return nil
     }
     
-    /// Валидация телефона: должен начинаться с + или 8, содержать 10-11 цифр.
+    /// Мягкая валидация телефона.
+    /// Проверяет разумную длину номера (10–15 цифр) и допустимые символы,
+    /// не навязывая жёсткий шаблон вроде обязательного `+7`.
     nonisolated static func phone(_ v: String) -> FieldIssue? {
         if v.isEmpty {
             return .warning("Телефон не введен")
@@ -262,7 +267,7 @@ enum Validators {
         return nil
     }
     
-    /// Валидация: число (включая дробное) в диапазоне 0–100
+    /// Проверяет, что строка содержит число (в том числе дробное) в переданном диапазоне.
     nonisolated static func isInRange(_ value: String, _ range: ClosedRange<Double>) -> FieldIssue? {
         let trimmed = value.trimmed
         
@@ -288,7 +293,7 @@ enum Validators {
             return .error("Некорректное число")
         }
         
-        // TODO: range must be different
+        // Конкретный допустимый диапазон задаётся вызывающей стороной для каждого поля.
         if number < range.lowerBound || number > range.upperBound {
             return .error("Значение должно быть от \(range.lowerBound) до \(range.upperBound)")
         }

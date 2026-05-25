@@ -1,5 +1,5 @@
 //
-//  ExtractedDTOFormView.swift
+//  DocumentDataFormView.swift
 //  FillTheDoc
 //
 //  Created by Артем Денисов on 21.02.2026.
@@ -161,35 +161,3 @@ struct DocumentDataFormView: View {
     }
 }
 
-//#Preview {
-//    PreviewWrapper()
-//}
-//
-//private struct PreviewWrapper: View {
-//    @State private var isApplied = false
-//    @State private var requisites = CompanyDetails(
-//        companyName: "ООО «Ромашка»",
-//        legalForm: LegalForm.parse("OOO"),
-//        ceoFullName: "Иванов Иван Иванович",
-//        ceoFullGenitiveName: "Иванова Ивана Ивановича",
-//        ceoShortenName: "Иванов И.И.",
-//        ogrn: "1234567890123",
-//        inn: "7701234567",
-//        kpp: "770101001",
-//        email: "info@romashka.ru",
-//        address: "ТЕСТ Адрес",
-//        phone: "+79991234567"
-//    )
-//
-//    var body: some View {
-//        DocumentDataFormView(
-//            companyDetails: requisites,
-//            metadata: CompanyDetails.fieldMetadata,
-//            keys: [.company(.companyName), .company(.legalForm), .company(.ceoFullName), .company(.ceoShortenName), .company(.ogrn), .company(.inn), .company(.kpp), .company(.email)]
-//        ) { _, _ in
-//            isApplied = true
-//        }
-//        .frame(width: 600, height: 700)
-//        .padding()
-//    }
-//}

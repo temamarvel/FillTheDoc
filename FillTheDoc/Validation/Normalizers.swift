@@ -7,8 +7,8 @@
 
 import Foundation
 
-/// Централизованное место для всех нормализаторов полей.
-/// Структурированы по уровню: базовые, комбинированные, специализированные.
+/// Централизованное место для нормализации строк перед валидацией, сравнением и extraction pipeline.
+/// Здесь собраны как полевые normalizer'ы, так и утилиты для приведения больших текстов документов.
 enum Normalizers {
     
     // MARK: - Combined normalizers
@@ -32,8 +32,8 @@ enum Normalizers {
         return cleaned
     }
     
-    /// Нормализирует правовую форму: приводит к верхнему регистру после обрезки.
-    /// Удаляет диакритику, кавычки, пунктуацию.
+    /// Нормализует правовую форму для tolerant-сопоставления:
+    /// приводит к нижнему регистру, убирает диакритику, кавычки и базовую пунктуацию.
     nonisolated static func legalForm(_ value: String) -> String {
         value
             .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
@@ -81,8 +81,8 @@ enum Normalizers {
         Set(forComparison(s).split(separator: " ").map(String.init).filter { !$0.isEmpty })
     }
     
-    /// Нормализирует большой текст для отображения: коллапсирует пустые строки, обрезает по символам.
-    /// Используется при извлечении текста из документов.
+    /// Нормализует большой текст документа перед передачей выше по pipeline:
+    /// выравнивает переводы строк, убирает лишние пустые блоки и ограничивает размер.
     nonisolated static func forDocumentDisplay(_ text: String, maxChars: Int) -> String {
         var s = text
         s = s.replacingOccurrences(of: "\r\n", with: "\n")
