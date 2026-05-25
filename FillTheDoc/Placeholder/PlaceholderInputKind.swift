@@ -55,38 +55,4 @@ nonisolated enum PlaceholderInputKind: Hashable, Codable, Sendable {
                 return "choice|\(optionsLine)|\(configuration.defaultOptionID ?? "")|\(configuration.allowsEmptySelection)|\(configuration.emptyTitle)|\(configuration.presentationStyle.rawValue)"
         }
     }
-    
-    private enum CodingKeys: String, CodingKey {
-        case type
-        case configuration
-    }
-    
-    private enum Kind: String, Codable {
-        case text
-        case choice
-    }
-    
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let kind = try container.decode(Kind.self, forKey: .type)
-        
-        switch kind {
-            case .text:
-                self = .text(try container.decode(TextInputConfiguration.self, forKey: .configuration))
-            case .choice:
-                self = .choice(try container.decode(ChoiceInputConfiguration.self, forKey: .configuration))
-        }
-    }
-    
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        switch self {
-            case .text(let configuration):
-                try container.encode(Kind.text, forKey: .type)
-                try container.encode(configuration, forKey: .configuration)
-            case .choice(let configuration):
-                try container.encode(Kind.choice, forKey: .type)
-                try container.encode(configuration, forKey: .configuration)
-        }
-    }
 }
