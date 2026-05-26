@@ -2,10 +2,9 @@ import Foundation
 
 /// Динамический контейнер ответа LLM для extracted placeholder-значений.
 ///
-/// В отличие от `CompanyDetails`, здесь сохраняется весь извлечённый набор ключей,
-/// который пришёл по JSON-схеме из `placeholderRegistry.extractedDescriptors`.
-/// Это позволяет сначала принять ответ модели как flexible map,
-/// а уже затем собрать из него core DTO и стартовые значения формы.
+/// Сохраняет извлечённые значения прямо в placeholder-domain без фиксированного DTO.
+/// Ключи приходят по JSON-схеме из `placeholderRegistry.extractedDescriptors`,
+/// а затем используются как черновик значений для формы подтверждения.
 struct ExtractedPlaceholderValues: Decodable, Sendable {
     let values: [PlaceholderKey: String?]
     

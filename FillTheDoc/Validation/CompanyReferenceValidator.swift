@@ -1,7 +1,7 @@
 import Foundation
 import DaDataAPIClient
 
-/// Справочная валидация company-реквизитов через DaData/ФНС.
+/// Справочная валидация реквизитов компании через DaData/ФНС.
 ///
 /// Это не основной источник истины и не жёсткий gate сценария.
 /// Сервис выдаёт в основном warning'и, чтобы помочь пользователю заметить
@@ -9,7 +9,7 @@ import DaDataAPIClient
 ///
 /// Ключевая идея: reference validation помогает оператору принять решение,
 /// но не «чинит» данные автоматически. Финальное слово остаётся за человеком.
-public actor CompanyDetailsValidator {
+public actor CompanyReferenceValidator {
     
     public struct Policy: Sendable {
         /// Ниже порога считаем, что название слишком непохоже на реестровое.

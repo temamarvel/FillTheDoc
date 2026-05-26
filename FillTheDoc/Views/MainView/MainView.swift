@@ -50,13 +50,13 @@ struct MainView: View {
             }
             
             Group {
-                if viewModel.details != nil {
+                if viewModel.isFormAvailable {
                     VStack(spacing: 12) {
                         DocumentDataFormView(
                             extractedValues: viewModel.extractedPlaceholderValues,
                             registry: viewModel.placeholderRegistry
-                        ) { resolvedValues, company in
-                            viewModel.applyFormData(resolvedValues: resolvedValues, company: company)
+                        ) { resolvedValues in
+                            viewModel.applyFormData(resolvedValues: resolvedValues)
                         }
                         
                         if let googleSheetsRow = viewModel.googleSheetsRow, !googleSheetsRow.isEmpty {
@@ -66,7 +66,7 @@ struct MainView: View {
                 } else if let googleSheetsRow = viewModel.googleSheetsRow, !googleSheetsRow.isEmpty {
                     DocumentDataCopyStringPresenterView(content: googleSheetsRow)
                 } else {
-                    EmptyCompanyDetailsView()
+                    EmptyDocumentDataView()
                 }
             }
             

@@ -1,5 +1,5 @@
 //
-//  EmptyCompanyDetailsView.swift
+//  EmptyDocumentDataView.swift
 //  FillTheDoc
 //
 //  Created by Артем Денисов on 15.03.2026.
@@ -8,9 +8,9 @@
 
 import SwiftUI
 
-/// Empty-state блок для центральной части экрана, пока данные компании ещё не загружены.
-struct EmptyCompanyDetailsView: View {
-    var title: String = "Нет извлечённых данных о компании"
+/// Empty-state блок для центральной части экрана, пока данные документа ещё не готовы к редактированию.
+struct EmptyDocumentDataView: View {
+    var title: String = "Нет данных для заполнения документа"
     var message: String = "Загрузите файл с реквизитами и выполните извлечение, чтобы здесь появилась форма для проверки и редактирования."
     
     var body: some View {
@@ -47,7 +47,7 @@ struct EmptyCompanyDetailsView: View {
 }
 
 #Preview {
-    EmptyCompanyDetailsView()
+    EmptyDocumentDataView()
         .frame(width: 640, height: 420)
         .padding()
 }

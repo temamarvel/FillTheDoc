@@ -1,4 +1,4 @@
-//
+
 //  BuiltInPlaceholderBehaviours.swift
 //  FillTheDoc
 //
@@ -75,23 +75,23 @@ extension PlaceholderRegistry {
         ),
         .ceoRole: .init(
             resolver: { ctx in
-                ctx.companyDetails.legalForm == .ip ? "Индивидуальный предприниматель" : "Генеральный директор"
+                ctx.isIndividualEntrepreneur ? "Индивидуальный предприниматель" : "Генеральный директор"
             }
         ),
         .fullCompanyName: .init(
             resolver: { ctx in
-                ctx.companyDetails.fullCompanyName
+                ctx.fullCompanyName
             }
         ),
         .fullCompanyNameExpanded: .init(
             resolver: { ctx in
-                ctx.companyDetails.fullCompanyNameExpanded
+                ctx.fullCompanyNameExpanded
             }
         ),
         .rules: .init(
             resolver: { ctx in
-                ctx.companyDetails.legalForm == .ip
-                ? "Листа  записи в Едином государственном реестре индивидуальных предпринимателей (ЕГРИП)"
+                ctx.isIndividualEntrepreneur
+                ? "Листа записи в Едином государственном реестре индивидуальных предпринимателей (ЕГРИП)"
                 : "Устава"
             }
         ),

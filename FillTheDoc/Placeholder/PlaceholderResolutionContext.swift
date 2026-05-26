@@ -2,7 +2,7 @@ import Foundation
 
 /// Единый контекст для вычисления значений всех плейсхолдеров.
 ///
-/// Это boundary object между формой/DTO и слоем резолва. Он собирает в одном месте
+/// Это boundary object между формой и слоем резолва. Он собирает в одном месте
 /// всё, что может понадобиться для вычисления placeholder'ов:
 /// - ручной ввод из формы;
 /// - custom values;
@@ -31,11 +31,51 @@ struct PlaceholderResolutionContext: Sendable {
         self.locale = locale
     }
     
-    /// Ленивая проекция editable values обратно в `CompanyDetails`.
-    ///
-    /// Это удобно для derived placeholder'ов: им не нужно вручную разбирать словарь
-    /// по ключам, они могут работать с привычной DTO-моделью.
-    nonisolated var companyDetails: CompanyDetails {
-        CompanyDetailsAssembler.makeCompanyDetails(from: editableValues)
+    nonisolated func value(for key: PlaceholderKey) -> String {
+        editableValues[key]?.trimmed ?? ""
+    }
+    
+    nonisolated var legalForm: LegalForm? {
+        editableValues[.legalForm].flatMap { LegalForm.parse($0) }
+    }
+    
+    nonisolated var companyName: String {
+        value(for: .companyName)
+    }
+    
+    nonisolated var fullCompanyName: String {
+        let name = companyName
+        guard let legalForm else {
+            return name
+        }
+        if legalForm == .ip {
+            return [legalForm.shortName, name]
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+        }
+        guard !name.isEmpty else {
+            return legalForm.shortName
+        }
+        return "\(legalForm.shortName) «\(name)»"
+    }
+    
+    nonisolated var fullCompanyNameExpanded: String {
+        let name = companyName
+        guard let legalForm else {
+            return name
+        }
+        if legalForm == .ip {
+            return [legalForm.fullName, name]
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+        }
+        guard !name.isEmpty else {
+            return legalForm.fullName
+        }
+        return "\(legalForm.fullName) «\(name)»"
+    }
+    
+    nonisolated var isIndividualEntrepreneur: Bool {
+        legalForm == .ip
     }
 }

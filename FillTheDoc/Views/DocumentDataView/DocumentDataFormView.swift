@@ -10,17 +10,17 @@ import SwiftUI
 /// Экран ручного подтверждения и редактирования placeholder-данных.
 ///
 /// Это ключевая UX-граница проекта и самое важное место для понимания философии приложения:
-/// - LLM предлагает черновик extracted placeholder values, из которых собирается core `CompanyDetails`;
+/// - LLM предлагает черновик placeholder values;
 /// - пользователь остаётся финальным владельцем данных;
-/// - только после нажатия «Применить» значения считаются подтверждёнными
-///   и могут попасть в шаблон/экспорт.
+/// - только после нажатия «Применить» форма отдаёт полный resolved placeholder-map,
+///   который затем попадает в шаблон и экспорт.
 ///
 /// Иначе говоря, здесь проект делает переход от "AI suggestion" к
 /// "approved business data".
 struct DocumentDataFormView: View {
     @State private var viewModel: DocumentDataFormViewModel
     private let registry: PlaceholderRegistryProtocol
-    private let companyValidator: CompanyDetailsValidator
+    private let companyValidator: CompanyReferenceValidator
     private let extractedValues: [PlaceholderKey: String]
     
     @State private var errorText = ""
@@ -31,7 +31,7 @@ struct DocumentDataFormView: View {
     
     @FocusState private var focusedKey: PlaceholderKey?
     
-    let onApply: ([PlaceholderKey: String], CompanyDetails) -> Void
+    let onApply: ([PlaceholderKey: String]) -> Void
     
     private var registrySignature: [String] {
         registry.inputDescriptors.map(\.signature)
@@ -40,7 +40,7 @@ struct DocumentDataFormView: View {
     init(
         extractedValues: [PlaceholderKey: String],
         registry: PlaceholderRegistryProtocol,
-        onApply: @escaping ([PlaceholderKey: String], CompanyDetails) -> Void
+        onApply: @escaping ([PlaceholderKey: String]) -> Void
     ) {
         self.registry = registry
         self.extractedValues = extractedValues
@@ -52,7 +52,7 @@ struct DocumentDataFormView: View {
             )
         )
         
-        self.companyValidator = CompanyDetailsValidator()
+        self.companyValidator = CompanyReferenceValidator()
         self.onApply = onApply
     }
     
@@ -76,16 +76,14 @@ struct DocumentDataFormView: View {
                 }
                 Spacer()
                 Button("Применить") {
-                    let companyValues = viewModel.editableValues(in: .company)
-                    let company = CompanyDetailsAssembler.makeCompanyDetails(from: companyValues)
-                    // На этом шаге строим уже не только DTO компании, но и полный placeholder-map,
+                    // На этом шаге строим полный placeholder-map,
                     // включая derived/system значения, чтобы дальнейший export pipeline
-                    // больше не зависел от промежуточного состояния формы.
+                    // работал напрямую от placeholder-domain.
                     let resolved = TemplatePlaceholderResolver.resolve(
                         formModel: viewModel,
                         registry: registry
                     )
-                    onApply(resolved, company)
+                    onApply(resolved)
                 }
                 .disabled(viewModel.hasErrors)
                 .keyboardShortcut(.defaultAction)

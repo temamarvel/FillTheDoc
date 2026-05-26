@@ -11,7 +11,7 @@ import DocxUtils
 /// `MainViewModel` связывает между собой почти все прикладные слои:
 /// - UI (`MainView`, форма редактирования, системный экспортёр);
 /// - extraction pipeline для входного документа с реквизитами;
-/// - вызов LLM и декодирование ответа в `CompanyDetails`;
+/// - вызов LLM и декодирование ответа в `ExtractedPlaceholderValues`;
 /// - placeholder-domain и построение итогового словаря значений;
 /// - заполнение DOCX-шаблона;
 /// - побочные действия вроде формирования строки для Google Sheets.
@@ -54,8 +54,8 @@ final class MainViewModel {
     
     // MARK: - State (data)
     
-    private(set) var details: CompanyDetails?
     private(set) var extractedPlaceholderValues: [PlaceholderKey: String] = [:]
+    private(set) var isFormAvailable: Bool = false
     /// Итоговый словарь значений, который уже можно отдавать в DOCX-fill.
     ///
     /// Важно: он появляется только после пользовательского подтверждения формы,
@@ -95,7 +95,7 @@ final class MainViewModel {
     var isDetailsValid: Bool { isExistingFile(detailsURL) }
     
     var canRun: Bool {
-        isTemplateValid && isDetailsValid && apiKeyStore.hasKey && isDataApproved
+        isTemplateValid && isDetailsValid && isDataApproved
     }
     
     // MARK: - Placeholder Library computed
@@ -129,7 +129,8 @@ final class MainViewModel {
         apiKeyStore: APIKeyStore,
         updateStore: AppUpdateStore,
         placeholderRegistry: PlaceholderRegistryProtocol = PlaceholderRegistry(),
-        //TODO: looks like not so need to have CustomPlaceholderRepository
+        // Репозиторий пользовательских плейсхолдеров опционален:
+        // приложение может работать и без persistence этого слоя.
         customPlaceholderRepository: CustomPlaceholderRepository? = nil,
         scanner: DocxTemplateScanner,
         conditionalAssembler: DocxTemplateConditionalAssembler,
@@ -138,7 +139,7 @@ final class MainViewModel {
         extractorService: DocumentTextExtractorService
     ) {
         self.apiKeyStore = apiKeyStore
-        //TODO: rename update store to update service?
+        // `AppUpdateStore` — UI-facing состояние вокруг отдельного update-service слоя.
         self.updateStore = updateStore
         self.placeholderRegistry = placeholderRegistry
         self.customPlaceholderRepository = customPlaceholderRepository
@@ -193,7 +194,7 @@ final class MainViewModel {
         isDataApproved = false
         // При смене входного документа сбрасываем подтверждённые данные,
         // потому что они относятся к предыдущему файлу.
-        details = nil
+        isFormAvailable = false
         extractedPlaceholderValues = [:]
         resolvedValues = nil
         googleSheetsRow = nil
@@ -202,11 +203,7 @@ final class MainViewModel {
         extractDetails()
     }
     
-    func applyFormData(resolvedValues: [PlaceholderKey: String], company: CompanyDetails) {
-        // Это ключевая смысловая граница проекта:
-        // до этой точки `details` — черновик после LLM,
-        // после этой точки `details` и `resolvedValues` — подтверждённый оператором источник истины.
-        details = company
+    func applyFormData(resolvedValues: [PlaceholderKey: String]) {
         self.resolvedValues = resolvedValues
         googleSheetsRow = nil
         isDataApproved = true
@@ -217,7 +214,7 @@ final class MainViewModel {
         do {
             try await customPlaceholderRepository.load()
             let allDefinitions = await customPlaceholderRepository.all()
-            refreshPlaceholderRegistry(customPlaceholderDescriptors: allDefinitions)
+            refreshPlaceholderRegistry(customDefinitions: allDefinitions)
         } catch {
             print("Custom placeholder loading failed:", error)
         }
@@ -227,21 +224,21 @@ final class MainViewModel {
         guard let customPlaceholderRepository else { return }
         try await customPlaceholderRepository.add(definition)
         let allDefinitions = await customPlaceholderRepository.all()
-        refreshPlaceholderRegistry(customPlaceholderDescriptors: allDefinitions)
+        refreshPlaceholderRegistry(customDefinitions: allDefinitions)
     }
     
     func updateCustomPlaceholder(_ definition: PlaceholderDescriptor) async throws {
         guard let customPlaceholderRepository else { return }
         try await customPlaceholderRepository.update(definition)
         let allDefinitions = await customPlaceholderRepository.all()
-        refreshPlaceholderRegistry(customPlaceholderDescriptors: allDefinitions)
+        refreshPlaceholderRegistry(customDefinitions: allDefinitions)
     }
     
     func deleteCustomPlaceholder(key: PlaceholderKey) async throws {
         guard let customPlaceholderRepository else { return }
         try await customPlaceholderRepository.delete(key: key)
         let allDefinitions = await customPlaceholderRepository.all()
-        refreshPlaceholderRegistry(customPlaceholderDescriptors: allDefinitions)
+        refreshPlaceholderRegistry(customDefinitions: allDefinitions)
     }
     
     func handleExportResult(_ result: Result<URL, any Error>) {
@@ -281,8 +278,8 @@ final class MainViewModel {
     func extractDetails() {
         guard let detailsURL else { return }
         guard apiKeyStore.hasKey else {
-            details = makeEmptyCompanyDetails()
             extractedPlaceholderValues = [:]
+            isFormAvailable = true
             userFacingError = "Сначала укажите API-ключ OpenAI. После этого можно повторить извлечение или заполнить форму вручную."
             apiKeyStore.isPromptPresented = true
             return
@@ -308,34 +305,33 @@ final class MainViewModel {
                 let extractedDetails = try await extractorService.extract(from: detailsURL)
                 try Task.checkCancellation()
                 
-                // Второй этап: LLM строит структурированный `CompanyDetails`.
+                // Второй этап: LLM строит черновик placeholder-значений.
                 // Это всё ещё draft, а не окончательные данные для шаблона.
                 do {
                     let extractedValues = try await self.callOpenAI(extractedDetails: extractedDetails)
                     try Task.checkCancellation()
                     
                     let stringValues = extractedValues.stringValues()
-                    let companyDetails = CompanyDetailsAssembler.makeCompanyDetails(from: stringValues)
                     
                     guard generation == self.extractionGeneration else { return }
-                    self.details = companyDetails
                     self.extractedPlaceholderValues = stringValues
+                    self.isFormAvailable = true
                     self.userFacingError = nil
-                    print("DTO:", companyDetails.toMultilineString())
+                    print("Extracted placeholder values:", stringValues.debugDescription)
                 } catch is CancellationError {
                     throw CancellationError()
                 } catch {
                     guard generation == self.extractionGeneration else { return }
-                    self.details = self.makeEmptyCompanyDetails()
                     self.extractedPlaceholderValues = [:]
+                    self.isFormAvailable = true
                     self.userFacingError = "Не удалось извлечь реквизиты автоматически: \(error.localizedDescription)\nФорма открыта для ручного заполнения."
                     print("OpenAI extraction failed:", error)
                 }
             } catch is CancellationError {
             } catch {
                 guard generation == self.extractionGeneration else { return }
-                self.details = self.makeEmptyCompanyDetails()
                 self.extractedPlaceholderValues = [:]
+                self.isFormAvailable = true
                 self.userFacingError = "Не удалось прочитать документ с реквизитами: \(error.localizedDescription)\nФорма открыта для ручного заполнения."
                 print("Extraction failed:", error)
             }
@@ -412,11 +408,6 @@ final class MainViewModel {
         return result
     }
     
-    private func fakeOpenAICall(extractedDetails: ExtractionResult) async throws -> CompanyDetails {
-        try await Task.sleep(nanoseconds: 1_000_000_000)
-        return CompanyDetails(companyName: "Тест компания", legalForm: LegalForm.parse("ЗАО"), ceoFullName: "Тест Тестович Тестов", ceoFullGenitiveName: "Теста Тестовича Тестова", ceoShortenName: "Тестов Т. Т.", ogrn: "1187746707280", inn: "9731007287", kpp: "773101001", email: "test_test@test.com", address: "город Москва, ул Горбунова, д. 2 стр. 3", phone: "+79991234567")
-    }
-    
     private func makeTempOutputURL(from templateURL: URL) -> URL {
         let base = templateURL.deletingPathExtension().lastPathComponent
         let name = "\(base)_out_\(UUID().uuidString).docx"
@@ -436,29 +427,13 @@ final class MainViewModel {
         return exists && !isDir.boolValue
     }
     
-    private func makeEmptyCompanyDetails() -> CompanyDetails {
-        CompanyDetails(
-            companyName: nil,
-            legalForm: nil,
-            ceoFullName: nil,
-            ceoFullGenitiveName: nil,
-            ceoShortenName: nil,
-            ogrn: nil,
-            inn: nil,
-            kpp: nil,
-            email: nil,
-            address: nil,
-            phone: nil
-        )
-    }
-    
-    private func refreshPlaceholderRegistry(customPlaceholderDescriptors: [PlaceholderDescriptor]) {
-        customPlaceholderDefinitions = customPlaceholderDescriptors.sorted { lhs, rhs in
+    private func refreshPlaceholderRegistry(customDefinitions: [PlaceholderDescriptor]) {
+        customPlaceholderDefinitions = customDefinitions.sorted { lhs, rhs in
             if lhs.order == rhs.order {
                 return lhs.key.rawValue < rhs.key.rawValue
             }
             return lhs.order < rhs.order
         }
-        placeholderRegistry = PlaceholderRegistry(customDefinitions: customPlaceholderDescriptors)
+        placeholderRegistry = PlaceholderRegistry(customDefinitions: customDefinitions)
     }
 }
