@@ -55,7 +55,8 @@ final class MainViewModel {
     // MARK: - State (data)
     
     private(set) var extractedPlaceholderValues: [PlaceholderKey: String] = [:]
-    private(set) var isFormAvailable: Bool = false
+    private(set) var documentDataFormViewModel: DocumentDataFormViewModel?
+    
     /// Итоговый словарь значений, который уже можно отдавать в DOCX-fill.
     ///
     /// Важно: он появляется только после пользовательского подтверждения формы,
@@ -93,6 +94,7 @@ final class MainViewModel {
     
     var isTemplateValid: Bool { isExistingFile(templateURL) }
     var isDetailsValid: Bool { isExistingFile(detailsURL) }
+    var isFormAvailable: Bool { documentDataFormViewModel != nil }
     
     var canRun: Bool {
         isTemplateValid && isDetailsValid && isDataApproved
@@ -180,33 +182,39 @@ final class MainViewModel {
     // MARK: - Actions
     
     func handleTemplateDrop(_ urls: [URL]) {
-        // Смена шаблона не инвалидирует сам LLM draft, но инвалидирует утверждение данных,
+        // Смена шаблона не инвалидирует сам draft формы, но инвалидирует approved snapshot,
         // потому что новый шаблон может требовать другой набор placeholder'ов.
-        isDataApproved = false
-        resolvedValues = nil
-        googleSheetsRow = nil
+        invalidateApprovedData()
         userFacingError = nil
         if let url = urls.first { templatePath = url.path }
         scanPlaceholders()
     }
     
     func handleDetailsDrop(_ urls: [URL]) {
-        isDataApproved = false
-        // При смене входного документа сбрасываем подтверждённые данные,
+        // При смене входного документа сбрасываем и форму, и утверждённые данные,
         // потому что они относятся к предыдущему файлу.
-        isFormAvailable = false
+        invalidateApprovedData()
         extractedPlaceholderValues = [:]
-        resolvedValues = nil
-        googleSheetsRow = nil
+        documentDataFormViewModel = nil
         userFacingError = nil
         if let url = urls.first { detailsPath = url.path }
         extractDetails()
     }
     
-    func applyFormData(resolvedValues: [PlaceholderKey: String]) {
-        self.resolvedValues = resolvedValues
+    func applyFormData() {
+        guard let formViewModel = documentDataFormViewModel else { return }
+        resolvedValues = TemplatePlaceholderResolver.resolve(
+            formModel: formViewModel,
+            registry: placeholderRegistry
+        )
         googleSheetsRow = nil
         isDataApproved = true
+    }
+    
+    func invalidateApprovedData() {
+        resolvedValues = nil
+        googleSheetsRow = nil
+        isDataApproved = false
     }
     
     func loadCustomPlaceholders() async {
@@ -279,7 +287,7 @@ final class MainViewModel {
         guard let detailsURL else { return }
         guard apiKeyStore.hasKey else {
             extractedPlaceholderValues = [:]
-            isFormAvailable = true
+            documentDataFormViewModel = makeDocumentDataFormViewModel(initialValues: [:])
             userFacingError = "Сначала укажите API-ключ OpenAI. После этого можно повторить извлечение или заполнить форму вручную."
             apiKeyStore.isPromptPresented = true
             return
@@ -315,7 +323,7 @@ final class MainViewModel {
                     
                     guard generation == self.extractionGeneration else { return }
                     self.extractedPlaceholderValues = stringValues
-                    self.isFormAvailable = true
+                    self.documentDataFormViewModel = self.makeDocumentDataFormViewModel(initialValues: stringValues)
                     self.userFacingError = nil
                     print("Extracted placeholder values:", stringValues.debugDescription)
                 } catch is CancellationError {
@@ -323,7 +331,7 @@ final class MainViewModel {
                 } catch {
                     guard generation == self.extractionGeneration else { return }
                     self.extractedPlaceholderValues = [:]
-                    self.isFormAvailable = true
+                    self.documentDataFormViewModel = self.makeDocumentDataFormViewModel(initialValues: [:])
                     self.userFacingError = "Не удалось извлечь реквизиты автоматически: \(error.localizedDescription)\nФорма открыта для ручного заполнения."
                     print("OpenAI extraction failed:", error)
                 }
@@ -331,7 +339,7 @@ final class MainViewModel {
             } catch {
                 guard generation == self.extractionGeneration else { return }
                 self.extractedPlaceholderValues = [:]
-                self.isFormAvailable = true
+                self.documentDataFormViewModel = self.makeDocumentDataFormViewModel(initialValues: [:])
                 self.userFacingError = "Не удалось прочитать документ с реквизитами: \(error.localizedDescription)\nФорма открыта для ручного заполнения."
                 print("Extraction failed:", error)
             }
@@ -408,6 +416,13 @@ final class MainViewModel {
         return result
     }
     
+    private func makeDocumentDataFormViewModel(initialValues: [PlaceholderKey: String]) -> DocumentDataFormViewModel {
+        DocumentDataFormViewModel(
+            registry: placeholderRegistry,
+            initialValues: initialValues
+        )
+    }
+    
     private func makeTempOutputURL(from templateURL: URL) -> URL {
         let base = templateURL.deletingPathExtension().lastPathComponent
         let name = "\(base)_out_\(UUID().uuidString).docx"
@@ -434,6 +449,16 @@ final class MainViewModel {
             }
             return lhs.order < rhs.order
         }
-        placeholderRegistry = PlaceholderRegistry(customDefinitions: customDefinitions)
+        
+        let nextRegistry = PlaceholderRegistry(customDefinitions: customDefinitions)
+        placeholderRegistry = nextRegistry
+        
+        if let documentDataFormViewModel {
+            documentDataFormViewModel.syncDefinitions(
+                with: nextRegistry,
+                extractedValues: extractedPlaceholderValues
+            )
+            invalidateApprovedData()
+        }
     }
 }

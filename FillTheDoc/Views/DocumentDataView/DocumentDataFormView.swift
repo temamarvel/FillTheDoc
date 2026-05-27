@@ -9,16 +9,13 @@ import SwiftUI
 
 /// Экран ручного подтверждения и редактирования placeholder-данных.
 ///
-/// Это ключевая UX-граница проекта и самое важное место для понимания философии приложения:
+/// Это ключевая UX-граница проекта:
 /// - LLM предлагает черновик placeholder values;
-/// - пользователь остаётся финальным владельцем данных;
-/// - только после нажатия «Применить» форма отдаёт полный resolved placeholder-map,
-///   который затем попадает в шаблон и экспорт.
-///
-/// Иначе говоря, здесь проект делает переход от "AI suggestion" к
-/// "approved business data".
+/// - пользователь редактирует и подтверждает данные;
+/// - по нажатию «Применить» view только сообщает о готовности сохранить snapshot;
+/// - вычисление итоговых значений для шаблона происходит вне UI.
 struct DocumentDataFormView: View {
-    @State private var viewModel: DocumentDataFormViewModel
+    let viewModel: DocumentDataFormViewModel
     private let registry: PlaceholderRegistryProtocol
     private let companyValidator: CompanyReferenceValidator
     private let extractedValues: [PlaceholderKey: String]
@@ -31,29 +28,26 @@ struct DocumentDataFormView: View {
     
     @FocusState private var focusedKey: PlaceholderKey?
     
-    let onApply: ([PlaceholderKey: String]) -> Void
+    let onApply: () -> Void
+    let onChange: () -> Void
     
     private var registrySignature: [String] {
         registry.inputDescriptors.map(\.signature)
     }
     
     init(
+        viewModel: DocumentDataFormViewModel,
         extractedValues: [PlaceholderKey: String],
         registry: PlaceholderRegistryProtocol,
-        onApply: @escaping ([PlaceholderKey: String]) -> Void
+        onApply: @escaping () -> Void,
+        onChange: @escaping () -> Void
     ) {
+        self.viewModel = viewModel
         self.registry = registry
         self.extractedValues = extractedValues
-        
-        _viewModel = State(
-            initialValue: DocumentDataFormViewModel(
-                registry: registry,
-                initialValues: extractedValues
-            )
-        )
-        
         self.companyValidator = CompanyReferenceValidator()
         self.onApply = onApply
+        self.onChange = onChange
     }
     
     var body: some View {
@@ -76,14 +70,7 @@ struct DocumentDataFormView: View {
                 }
                 Spacer()
                 Button("Применить") {
-                    // На этом шаге строим полный placeholder-map,
-                    // включая derived/system значения, чтобы дальнейший export pipeline
-                    // работал напрямую от placeholder-domain.
-                    let resolved = TemplatePlaceholderResolver.resolve(
-                        formModel: viewModel,
-                        registry: registry
-                    )
-                    onApply(resolved)
+                    onApply()
                 }
                 .disabled(viewModel.hasErrors)
                 .keyboardShortcut(.defaultAction)
@@ -117,7 +104,10 @@ struct DocumentDataFormView: View {
     private func fieldBinding(for key: PlaceholderKey) -> Binding<PlaceholderFieldValue> {
         Binding(
             get: { viewModel.fieldValue(for: key) },
-            set: { viewModel.setFieldValue($0, for: key) }
+            set: {
+                viewModel.setFieldValue($0, for: key)
+                onChange()
+            }
         )
     }
     
@@ -138,7 +128,7 @@ struct DocumentDataFormView: View {
             do {
                 try await Task.sleep(for: .milliseconds(300))
                 try Task.checkCancellation()
-                let companyValues = viewModel.editableValues(in: .company)
+                let companyValues = viewModel.sourceValues(in: .company)
                 let issues = await companyValidator.validate(values: companyValues)
                 try Task.checkCancellation()
                 viewModel.applyExternalIssues(issues)
@@ -152,10 +142,9 @@ struct DocumentDataFormView: View {
         // если авто-проверка не сработала или хочется повторно свериться после серии правок.
         validationTask?.cancel()
         validationTask = Task {
-            let companyValues = viewModel.editableValues(in: .company)
+            let companyValues = viewModel.sourceValues(in: .company)
             let issues = await companyValidator.validate(values: companyValues)
             viewModel.applyExternalIssues(issues)
         }
     }
 }
-

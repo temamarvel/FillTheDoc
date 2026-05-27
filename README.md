@@ -178,7 +178,6 @@ OpenAI API key не зашит в проект:
 - `PlaceholderDescriptor` — метаданные для UI и справочника плейсхолдеров;
 - `PlaceholderBehavior` — runtime-policy для normalizer/validator/resolver;
 - `PlaceholderRegistry` — единый реестр знаний о плейсхолдерах;
-- `PlaceholderResolutionContext` — контекст, из которого вычисляются значения;
 - `TemplatePlaceholderResolver` — сборщик итогового словаря значений;
 
 Почему это отдельный слой, а не логика во view model:
@@ -442,7 +441,7 @@ LLM заполняет extracted placeholder-map следующими полям
   - built-in descriptors,
   - built-in behaviors,
   - `PromptBuilder`,
-  - derived-резолверы и helper'ы `PlaceholderResolutionContext`,
+  - `BuiltInPlaceholderValueFactory` и `TemplatePlaceholderResolver`,
   - форму подтверждения и README;
 - пользовательские плейсхолдеры живут отдельно от built-in каталога и подмешиваются в runtime registry при загрузке.
 

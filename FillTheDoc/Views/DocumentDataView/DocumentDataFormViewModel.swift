@@ -8,9 +8,8 @@ struct PlaceholderFieldState: Sendable, Equatable {
 
 /// UI-модель формы редактирования плейсхолдеров.
 ///
-/// Главный architectural сдвиг этой версии: форма больше не хранит «всё как строки».
-/// Вместо этого она держит typed `PlaceholderFieldValue`, а строки для DOCX строятся
-/// отдельно через `PlaceholderValueResolver`.
+/// Форма хранит typed `PlaceholderFieldValue`, а строковое представление для шаблона
+/// строится отдельно как `sourceValues`.
 ///
 /// Это важно для choice-плейсхолдеров:
 /// - UI хранит стабильный `optionID`;
@@ -113,14 +112,14 @@ final class DocumentDataFormViewModel {
     
     // MARK: - Bulk
     
-    func editableValues() -> [PlaceholderKey: String] {
+    func sourceValues() -> [PlaceholderKey: String] {
         Dictionary(uniqueKeysWithValues: editableDescriptors.map { descriptor in
             let value = fieldStates[descriptor.key]?.value ?? initialValue(for: descriptor)
             return (descriptor.key, valueResolver.replacementValue(for: value, definition: descriptor))
         })
     }
     
-    func editableValues(in section: PlaceholderSection) -> [PlaceholderKey: String] {
+    func sourceValues(in section: PlaceholderSection) -> [PlaceholderKey: String] {
         Dictionary(uniqueKeysWithValues: descriptors(in: section).map { descriptor in
             let value = fieldStates[descriptor.key]?.value ?? initialValue(for: descriptor)
             return (descriptor.key, valueResolver.replacementValue(for: value, definition: descriptor))

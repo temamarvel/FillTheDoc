@@ -7,22 +7,21 @@ typealias FieldValidator = @Sendable (String) -> FieldIssue?
 
 /// Runtime-поведение конкретного плейсхолдера внутри registry.
 ///
-/// Этот type связывает identity плейсхолдера с тремя policy-решениями:
+/// После упрощения resolution registry отвечает только за policy input-полей:
 /// - как нормализовать ввод;
-/// - как валидировать editable значение;
-/// - как вычислять derived/system значение при резолве шаблона.
+/// - как валидировать editable значение.
+///
+/// Derived/system значения больше не вычисляются через замыкания в registry
+/// и собираются централизованно в `TemplatePlaceholderResolver`.
 nonisolated struct PlaceholderBehavior: Sendable {
     let normalizer: FieldNormalizer
     let validator: FieldValidator
-    let resolver: (@Sendable (PlaceholderResolutionContext) -> String?)?
     
     nonisolated init(
         normalizer: @escaping FieldNormalizer = { $0.trimmingCharacters(in: .whitespacesAndNewlines) },
-        validator: @escaping FieldValidator = { _ in nil },
-        resolver: (@Sendable (PlaceholderResolutionContext) -> String?)? = nil
+        validator: @escaping FieldValidator = { _ in nil }
     ) {
         self.normalizer = normalizer
         self.validator = validator
-        self.resolver = resolver
     }
 }

@@ -2,36 +2,66 @@ import Foundation
 
 /// Фасад для построения словаря значений, пригодного для подстановки в DOCX.
 ///
-/// Сам resolver не содержит domain-правил — он только собирает `PlaceholderResolutionContext`
-/// из текущего состояния формы и делегирует вычисление значений в реестр.
-///
-/// Его смысл в том, чтобы orchestration/UI-слой не занимался вручную:
-/// - сборкой editable и custom значений;
-/// - созданием context-объекта;
-/// - вызовом множества отдельных resolver'ов.
+/// Это единственное место, где pipeline собирает финальный словарь для шаблона:
+/// 1. берёт текущее состояние формы;
+/// 2. превращает его в `sourceValues`;
+/// 3. добавляет derived/system placeholders;
+/// 4. возвращает `resolvedValues`.
+@MainActor
 enum TemplatePlaceholderResolver {
-    /// Собирает полный набор значений для шаблона на основе текущего состояния формы.
+    /// Собирает значения, пришедшие из формы, в sourceValues.
     ///
-    /// На выходе получается словарь, в котором уже смешаны:
-    /// - подтверждённые пользователем editable значения;
-    /// - custom поля;
-    /// - derived/system placeholders, вычисленные реестром.
+    /// Здесь остаются только пользовательские/extracted/custom поля:
+    /// без derived/system значений и без дополнительной логики вычисления.
+    static func makeSourceValues(
+        formModel: DocumentDataFormViewModel,
+        registry: PlaceholderRegistryProtocol
+    ) -> [PlaceholderKey: String] {
+        let allowedKeys = Set(registry.inputDescriptors.map(\.key))
+        return formModel.sourceValues().filter { allowedKeys.contains($0.key) }
+    }
+    
+    /// Собирает полный набор значений для шаблона.
+    ///
+    /// `resolvedValues = sourceValues + derived/system values`.
     static func resolve(
         formModel: DocumentDataFormViewModel,
         registry: PlaceholderRegistryProtocol,
-        now: Date = .now
+        now: Date = .now,
+        calendar: Calendar = .current,
+        locale: Locale = .current
     ) -> [PlaceholderKey: String] {
-        let allValues = formModel.editableValues()
-        // Custom values выделяются отдельно, потому что registry может трактовать их иначе,
-        // чем встроенные поля, и должен иметь возможность сохранить их даже без built-in descriptor'а.
-        let customValues = formModel.editableValues(in: .custom)
+        let sourceValues = makeSourceValues(
+            formModel: formModel,
+            registry: registry
+        )
+        var resolvedValues = sourceValues
         
-        let context = PlaceholderResolutionContext(
-            editableValues: allValues,
-            customValues: customValues,
-            now: now
+        resolvedValues[.fullCompanyName] = BuiltInPlaceholderValueFactory.companyNameWithLegalForm(
+            companyName: sourceValues[.companyName],
+            legalForm: sourceValues[.legalForm]
+        )
+        resolvedValues[.fullCompanyNameExpanded] = BuiltInPlaceholderValueFactory.fullCompanyNameExpanded(
+            companyName: sourceValues[.companyName],
+            legalForm: sourceValues[.legalForm]
+        )
+        resolvedValues[.ceoRole] = BuiltInPlaceholderValueFactory.ceoRole(
+            legalForm: sourceValues[.legalForm]
+        )
+        resolvedValues[.rules] = BuiltInPlaceholderValueFactory.rules(
+            legalForm: sourceValues[.legalForm]
+        )
+        resolvedValues[.dateShort] = BuiltInPlaceholderValueFactory.currentDate(
+            now: now,
+            calendar: calendar,
+            locale: locale
+        )
+        resolvedValues[.dateLong] = BuiltInPlaceholderValueFactory.currentDateQuoted(
+            now: now,
+            calendar: calendar,
+            locale: locale
         )
         
-        return registry.resolveAll(context: context)
+        return resolvedValues
     }
 }

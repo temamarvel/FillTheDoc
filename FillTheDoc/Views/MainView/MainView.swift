@@ -18,7 +18,7 @@ import UniformTypeIdentifiers
 /// Базовый flow для чтения кода:
 /// 1. Drop-зоны передают URL'ы в `MainViewModel`.
 /// 2. После LLM-извлечения появляется `DocumentDataFormView`.
-/// 3. После «Применить» форма отдаёт подтверждённые значения обратно в view model.
+/// 3. После «Применить» `MainViewModel` строит `resolvedValues` через `TemplatePlaceholderResolver`.
 /// 4. Кнопка `Заполнить шаблон` запускает export-пайплайн.
 struct MainView: View {
     @State private var viewModel: MainViewModel
@@ -50,14 +50,19 @@ struct MainView: View {
             }
             
             Group {
-                if viewModel.isFormAvailable {
+                if let formViewModel = viewModel.documentDataFormViewModel {
                     VStack(spacing: 12) {
                         DocumentDataFormView(
+                            viewModel: formViewModel,
                             extractedValues: viewModel.extractedPlaceholderValues,
-                            registry: viewModel.placeholderRegistry
-                        ) { resolvedValues in
-                            viewModel.applyFormData(resolvedValues: resolvedValues)
-                        }
+                            registry: viewModel.placeholderRegistry,
+                            onApply: {
+                                viewModel.applyFormData()
+                            },
+                            onChange: {
+                                viewModel.invalidateApprovedData()
+                            }
+                        )
                         
                         if let googleSheetsRow = viewModel.googleSheetsRow, !googleSheetsRow.isEmpty {
                             DocumentDataCopyStringPresenterView(content: googleSheetsRow)

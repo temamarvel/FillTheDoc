@@ -4,14 +4,13 @@ import Foundation
 
 /// Единая точка доступа к placeholder-domain.
 ///
-/// Реестр хранит одновременно два вида знаний:
+/// Реестр хранит стабильные знания о плейсхолдерах:
 /// - каталог всех известных placeholder'ов для UI/scanner/documentation;
-/// - правила получения итоговых строк для шаблона.
+/// - runtime-policy для пользовательского ввода.
 ///
-/// Важный архитектурный сдвиг этой версии: input-поля теперь описываются не как
-/// «просто строка с placeholder'ом», а как полноценные runtime-definition'ы
-/// с `valueSource` и `inputKind`. Это позволяет безопасно добавлять choice-поля,
-/// не ломая ни LLM-схему, ни DOCX fill.
+/// Итоговый `resolvedValues` больше не собирается внутри registry:
+/// это делает `TemplatePlaceholderResolver`, чтобы flow оставался линейным:
+/// form state → sourceValues → derived/system values → resolvedValues.
 protocol PlaceholderRegistryProtocol: Sendable {
     nonisolated var allDescriptors: [PlaceholderDescriptor] { get }
     nonisolated var inputDescriptors: [PlaceholderDescriptor] { get }
@@ -24,8 +23,6 @@ protocol PlaceholderRegistryProtocol: Sendable {
     nonisolated func descriptors(in section: PlaceholderSection) -> [PlaceholderDescriptor]
     nonisolated func normalizer(for key: PlaceholderKey) -> FieldNormalizer
     nonisolated func validator(for key: PlaceholderKey) -> FieldValidator
-    nonisolated func resolve(_ key: PlaceholderKey, context: PlaceholderResolutionContext) -> String?
-    nonisolated func resolveAll(context: PlaceholderResolutionContext) -> [PlaceholderKey: String]
 }
 
 // MARK: - Default implementation
@@ -103,29 +100,6 @@ final class PlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked Sendabl
     nonisolated func validator(for key: PlaceholderKey) -> FieldValidator {
         behaviors[key]?.validator ?? Self.defaultBehavior.validator
     }
-    
-    nonisolated func resolve(_ key: PlaceholderKey, context: PlaceholderResolutionContext) -> String? {
-        if let resolver = behaviors[key]?.resolver {
-            return resolver(context)
-        }
-        return context.editableValues[key] ?? context.customValues[key]
-    }
-    
-    nonisolated func resolveAll(context: PlaceholderResolutionContext) -> [PlaceholderKey: String] {
-        var result: [PlaceholderKey: String] = [:]
-        
-        for descriptor in allDescriptors {
-            if let value = resolve(descriptor.key, context: context) {
-                result[descriptor.key] = value
-            }
-        }
-        
-        for (key, value) in context.customValues where result[key] == nil {
-            result[key] = value
-        }
-        
-        return result
-    }
 }
 
 // MARK: - Built-ins
@@ -151,7 +125,7 @@ extension PlaceholderRegistry {
         switch descriptor.kind {
             case .editable(_, .text(let configuration)):
                 if configuration.isRequired {
-                    validator = Validators.nonEmpty
+                    validator = { Validators.nonEmpty($0) }
                 } else {
                     validator = { _ in nil }
                 }
@@ -171,24 +145,4 @@ extension PlaceholderRegistry {
             validator: validator
         )
     }
-    
-   
-    
-    nonisolated static func formatDateLong(_ date: Date, locale: Locale) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = locale
-        formatter.timeZone = .current
-        formatter.dateFormat = "«dd» MMMM yyyy 'г.'"
-        return formatter.string(from: date)
-    }
-    
-    nonisolated static func formatDateShort(_ date: Date, locale: Locale) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = locale
-        formatter.timeZone = .current
-        formatter.dateFormat = "dd.MM.yyyy"
-        return formatter.string(from: date)
-    }
-    
 }
-
