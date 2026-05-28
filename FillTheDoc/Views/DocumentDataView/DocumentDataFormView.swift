@@ -15,12 +15,10 @@ import SwiftUI
 /// - по нажатию «Применить» view только сообщает о готовности сохранить snapshot;
 /// - вычисление итоговых значений для шаблона происходит вне UI.
 struct DocumentDataFormView: View {
-    let viewModel: DocumentDataFormViewModel
-    private let registry: PlaceholderRegistryProtocol
+    @State private var viewModel: DocumentDataFormViewModel
+    private let input: DocumentDataFormInput
     private let companyValidator: CompanyReferenceValidator
-    private let extractedValues: [PlaceholderKey: String]
     
-    @State private var errorText = ""
     @State private var validationTask: Task<Void, Never>?
     /// Последний ключ lookup'а нужен, чтобы не дёргать справочную сверку повторно
     /// для тех же самых реквизитов без фактического изменения идентификатора компании.
@@ -28,26 +26,27 @@ struct DocumentDataFormView: View {
     
     @FocusState private var focusedKey: PlaceholderKey?
     
-    let onApply: () -> Void
-    let onChange: () -> Void
-    
-    private var registrySignature: [String] {
-        registry.inputDescriptors.map(\.signature)
-    }
+    private let onApprove: ([PlaceholderKey: String]) -> Void
+    private let onChange: () -> Void
     
     init(
-        viewModel: DocumentDataFormViewModel,
-        extractedValues: [PlaceholderKey: String],
-        registry: PlaceholderRegistryProtocol,
-        onApply: @escaping () -> Void,
+        input: DocumentDataFormInput,
+        valueResolver: PlaceholderValueResolver,
+        companyValidator: CompanyReferenceValidator = CompanyReferenceValidator(),
+        onApprove: @escaping ([PlaceholderKey: String]) -> Void,
         onChange: @escaping () -> Void
     ) {
-        self.viewModel = viewModel
-        self.registry = registry
-        self.extractedValues = extractedValues
-        self.companyValidator = CompanyReferenceValidator()
-        self.onApply = onApply
+        self.input = input
+        self.companyValidator = companyValidator
+        self.onApprove = onApprove
         self.onChange = onChange
+        _viewModel = State(
+            initialValue: DocumentDataFormViewModel(
+                descriptors: input.descriptors,
+                initialValues: input.extractedValues,
+                valueResolver: valueResolver
+            )
+        )
     }
     
     var body: some View {
@@ -70,7 +69,7 @@ struct DocumentDataFormView: View {
                 }
                 Spacer()
                 Button("Применить") {
-                    onApply()
+                    onApprove(viewModel.makeApprovedValues())
                 }
                 .disabled(viewModel.hasErrors)
                 .keyboardShortcut(.defaultAction)
@@ -80,9 +79,6 @@ struct DocumentDataFormView: View {
         .onChange(of: focusedKey) { old, new in
             guard let _ = old, old != new else { return }
             scheduleReferenceValidation()
-        }
-        .onChange(of: registrySignature) { _, _ in
-            viewModel.syncDefinitions(with: registry, extractedValues: extractedValues)
         }
         .animation(.easeInOut(duration: 0.15), value: viewModel.fieldStates)
     }
@@ -128,7 +124,7 @@ struct DocumentDataFormView: View {
             do {
                 try await Task.sleep(for: .milliseconds(300))
                 try Task.checkCancellation()
-                let companyValues = viewModel.sourceValues(in: .company)
+                let companyValues = viewModel.makeApprovedValues(in: .company)
                 let issues = await companyValidator.validate(values: companyValues)
                 try Task.checkCancellation()
                 viewModel.applyExternalIssues(issues)
@@ -142,7 +138,7 @@ struct DocumentDataFormView: View {
         // если авто-проверка не сработала или хочется повторно свериться после серии правок.
         validationTask?.cancel()
         validationTask = Task {
-            let companyValues = viewModel.sourceValues(in: .company)
+            let companyValues = viewModel.makeApprovedValues(in: .company)
             let issues = await companyValidator.validate(values: companyValues)
             viewModel.applyExternalIssues(issues)
         }

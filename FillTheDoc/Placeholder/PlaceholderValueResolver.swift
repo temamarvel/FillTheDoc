@@ -10,11 +10,22 @@ import Foundation
 /// Благодаря этому `choice`-поля не размазывают special-case'ы по UI, export и scanner-слоям.
 nonisolated struct PlaceholderValueResolver: Sendable {
     let normalizerProvider: @Sendable (PlaceholderKey) -> FieldNormalizer
+    let validatorProvider: @Sendable (PlaceholderKey) -> FieldValidator
     
     nonisolated init(
-        normalizerProvider: @escaping @Sendable (PlaceholderKey) -> FieldNormalizer
+        normalizerProvider: @escaping @Sendable (PlaceholderKey) -> FieldNormalizer,
+        validatorProvider: @escaping @Sendable (PlaceholderKey) -> FieldValidator = { _ in { _ in nil } }
     ) {
         self.normalizerProvider = normalizerProvider
+        self.validatorProvider = validatorProvider
+    }
+    
+    func normalize(_ value: String, for key: PlaceholderKey) -> String {
+        normalizerProvider(key)(value)
+    }
+    
+    func validate(_ value: String, for key: PlaceholderKey) -> FieldIssue? {
+        validatorProvider(key)(value)
     }
     
     func replacementValue(

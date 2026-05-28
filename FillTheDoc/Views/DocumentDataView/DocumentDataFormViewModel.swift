@@ -9,30 +9,28 @@ struct PlaceholderFieldState: Sendable, Equatable {
 /// UI-модель формы редактирования плейсхолдеров.
 ///
 /// Форма хранит typed `PlaceholderFieldValue`, а строковое представление для шаблона
-/// строится отдельно как `sourceValues`.
+/// строится отдельно как approved values.
 ///
 /// Это важно для choice-плейсхолдеров:
 /// - UI хранит стабильный `optionID`;
 /// - документ получает `replacementValue`;
-/// - повторная extraction обновляет только extracted-поля и не сбрасывает manual выбор.
+/// - конкретная editing session работает на snapshot-е descriptors/value policy.
 @MainActor
 @Observable
 final class DocumentDataFormViewModel {
-    private(set) var registry: PlaceholderRegistryProtocol
-    private var valueResolver: PlaceholderValueResolver
-    
     private(set) var editableDescriptors: [PlaceholderDescriptor]
     private(set) var fieldStates: [PlaceholderKey: PlaceholderFieldState]
+    private let valueResolver: PlaceholderValueResolver
     
     init(
-        registry: PlaceholderRegistryProtocol,
-        initialValues: [PlaceholderKey: String] = [:]
+        descriptors: [PlaceholderDescriptor],
+        initialValues: [PlaceholderKey: String] = [:],
+        valueResolver: PlaceholderValueResolver
     ) {
-        self.registry = registry
-        self.valueResolver = Self.makeValueResolver(registry: registry)
-        self.editableDescriptors = registry.inputDescriptors
+        self.editableDescriptors = descriptors
         self.fieldStates = [:]
-        syncDefinitions(with: registry, extractedValues: initialValues)
+        self.valueResolver = valueResolver
+        syncDescriptors(descriptors, extractedValues: initialValues)
     }
     
     // MARK: - Access
@@ -80,13 +78,11 @@ final class DocumentDataFormViewModel {
     
     // MARK: - Sync
     
-    func syncDefinitions(
-        with registry: PlaceholderRegistryProtocol,
+    func syncDescriptors(
+        _ descriptors: [PlaceholderDescriptor],
         extractedValues: [PlaceholderKey: String] = [:]
     ) {
-        self.registry = registry
-        self.valueResolver = Self.makeValueResolver(registry: registry)
-        self.editableDescriptors = registry.inputDescriptors
+        self.editableDescriptors = descriptors
         
         let allowedKeys = Set(editableDescriptors.map(\.key))
         var nextStates = fieldStates.filter { allowedKeys.contains($0.key) }
@@ -112,14 +108,14 @@ final class DocumentDataFormViewModel {
     
     // MARK: - Bulk
     
-    func sourceValues() -> [PlaceholderKey: String] {
+    func makeApprovedValues() -> [PlaceholderKey: String] {
         Dictionary(uniqueKeysWithValues: editableDescriptors.map { descriptor in
             let value = fieldStates[descriptor.key]?.value ?? initialValue(for: descriptor)
             return (descriptor.key, valueResolver.replacementValue(for: value, definition: descriptor))
         })
     }
     
-    func sourceValues(in section: PlaceholderSection) -> [PlaceholderKey: String] {
+    func makeApprovedValues(in section: PlaceholderSection) -> [PlaceholderKey: String] {
         Dictionary(uniqueKeysWithValues: descriptors(in: section).map { descriptor in
             let value = fieldStates[descriptor.key]?.value ?? initialValue(for: descriptor)
             return (descriptor.key, valueResolver.replacementValue(for: value, definition: descriptor))
@@ -144,14 +140,6 @@ final class DocumentDataFormViewModel {
 }
 
 private extension DocumentDataFormViewModel {
-    nonisolated static func makeValueResolver(
-        registry: PlaceholderRegistryProtocol
-    ) -> PlaceholderValueResolver {
-        PlaceholderValueResolver { key in
-            registry.normalizer(for: key)
-        }
-    }
-    
     func descriptor(for key: PlaceholderKey) -> PlaceholderDescriptor? {
         editableDescriptors.first { $0.key == key }
     }
@@ -173,8 +161,10 @@ private extension DocumentDataFormViewModel {
     func normalize(_ value: PlaceholderFieldValue, for descriptor: PlaceholderDescriptor) -> PlaceholderFieldValue {
         switch (value, descriptor.kind) {
             case (.text(let text), .editable(_, .text(let configuration))):
-                let normalizer = registry.normalizer(for: descriptor.key)
-                return .text(configuration.trimOnCommit ? normalizer(text) : text)
+                let normalizedText = configuration.trimOnCommit
+                ? valueResolver.normalize(text, for: descriptor.key)
+                : text
+                return .text(normalizedText)
             case (.choice(let optionID), .editable(_, .choice(let configuration))):
                 return configuration.normalizedFieldValue(for: optionID)
             case (.empty, .editable(_, .choice(let configuration))):
@@ -189,8 +179,7 @@ private extension DocumentDataFormViewModel {
     func validate(_ value: PlaceholderFieldValue, for descriptor: PlaceholderDescriptor) -> FieldIssue? {
         switch (value, descriptor.kind) {
             case (.text(let text), .editable(_, .text)):
-                let validator = registry.validator(for: descriptor.key)
-                return validator(text)
+                return valueResolver.validate(text, for: descriptor.key)
             case (.choice(let optionID), .editable(_, .choice(let configuration))):
                 if configuration.option(withID: optionID) != nil {
                     return nil
@@ -202,8 +191,7 @@ private extension DocumentDataFormViewModel {
                 }
                 return .error("Поле обязательно для выбора.")
             case (.empty, .editable(_, .text)):
-                let validator = registry.validator(for: descriptor.key)
-                return validator("")
+                return valueResolver.validate("", for: descriptor.key)
             case (_, .derived):
                 return nil
             default:

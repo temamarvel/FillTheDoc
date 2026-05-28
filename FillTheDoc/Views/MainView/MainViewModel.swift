@@ -55,13 +55,14 @@ final class MainViewModel {
     // MARK: - State (data)
     
     private(set) var extractedPlaceholderValues: [PlaceholderKey: String] = [:]
-    private(set) var documentDataFormViewModel: DocumentDataFormViewModel?
+    private(set) var documentDataFormInput: DocumentDataFormInput?
+    private(set) var approvedValues: [PlaceholderKey: String]?
     
     /// Итоговый словарь значений, который уже можно отдавать в DOCX-fill.
     ///
     /// Важно: он появляется только после пользовательского подтверждения формы,
     /// а не сразу после ответа модели.
-    var resolvedValues: [PlaceholderKey: String]?
+    private(set) var resolvedValues: [PlaceholderKey: String]?
     private(set) var templatePlaceholders: [String] = []
     private(set) var googleSheetsRow: String?
     private(set) var customPlaceholderDefinitions: [PlaceholderDescriptor] = []
@@ -94,7 +95,18 @@ final class MainViewModel {
     
     var isTemplateValid: Bool { isExistingFile(templateURL) }
     var isDetailsValid: Bool { isExistingFile(detailsURL) }
-    var isFormAvailable: Bool { documentDataFormViewModel != nil }
+    var isFormAvailable: Bool { documentDataFormInput != nil }
+    
+    var placeholderValueResolver: PlaceholderValueResolver {
+        PlaceholderValueResolver(
+            normalizerProvider: { [placeholderRegistry] key in
+                placeholderRegistry.normalizer(for: key)
+            },
+            validatorProvider: { [placeholderRegistry] key in
+                placeholderRegistry.validator(for: key)
+            }
+        )
+    }
     
     var canRun: Bool {
         isTemplateValid && isDetailsValid && isDataApproved
@@ -195,16 +207,16 @@ final class MainViewModel {
         // потому что они относятся к предыдущему файлу.
         invalidateApprovedData()
         extractedPlaceholderValues = [:]
-        documentDataFormViewModel = nil
+        documentDataFormInput = nil
         userFacingError = nil
         if let url = urls.first { detailsPath = url.path }
         extractDetails()
     }
     
-    func applyFormData() {
-        guard let formViewModel = documentDataFormViewModel else { return }
+    func approveDocumentData(_ approvedValues: [PlaceholderKey: String]) {
+        self.approvedValues = approvedValues
         resolvedValues = TemplatePlaceholderResolver.resolve(
-            formModel: formViewModel,
+            approvedValues: approvedValues,
             registry: placeholderRegistry
         )
         googleSheetsRow = nil
@@ -212,6 +224,7 @@ final class MainViewModel {
     }
     
     func invalidateApprovedData() {
+        approvedValues = nil
         resolvedValues = nil
         googleSheetsRow = nil
         isDataApproved = false
@@ -287,7 +300,7 @@ final class MainViewModel {
         guard let detailsURL else { return }
         guard apiKeyStore.hasKey else {
             extractedPlaceholderValues = [:]
-            documentDataFormViewModel = makeDocumentDataFormViewModel(initialValues: [:])
+            documentDataFormInput = makeDocumentDataFormInput(initialValues: [:])
             userFacingError = "Сначала укажите API-ключ OpenAI. После этого можно повторить извлечение или заполнить форму вручную."
             apiKeyStore.isPromptPresented = true
             return
@@ -323,7 +336,7 @@ final class MainViewModel {
                     
                     guard generation == self.extractionGeneration else { return }
                     self.extractedPlaceholderValues = stringValues
-                    self.documentDataFormViewModel = self.makeDocumentDataFormViewModel(initialValues: stringValues)
+                    self.documentDataFormInput = self.makeDocumentDataFormInput(initialValues: stringValues)
                     self.userFacingError = nil
                     print("Extracted placeholder values:", stringValues.debugDescription)
                 } catch is CancellationError {
@@ -331,7 +344,7 @@ final class MainViewModel {
                 } catch {
                     guard generation == self.extractionGeneration else { return }
                     self.extractedPlaceholderValues = [:]
-                    self.documentDataFormViewModel = self.makeDocumentDataFormViewModel(initialValues: [:])
+                    self.documentDataFormInput = self.makeDocumentDataFormInput(initialValues: [:])
                     self.userFacingError = "Не удалось извлечь реквизиты автоматически: \(error.localizedDescription)\nФорма открыта для ручного заполнения."
                     print("OpenAI extraction failed:", error)
                 }
@@ -339,7 +352,7 @@ final class MainViewModel {
             } catch {
                 guard generation == self.extractionGeneration else { return }
                 self.extractedPlaceholderValues = [:]
-                self.documentDataFormViewModel = self.makeDocumentDataFormViewModel(initialValues: [:])
+                self.documentDataFormInput = self.makeDocumentDataFormInput(initialValues: [:])
                 self.userFacingError = "Не удалось прочитать документ с реквизитами: \(error.localizedDescription)\nФорма открыта для ручного заполнения."
                 print("Extraction failed:", error)
             }
@@ -416,10 +429,10 @@ final class MainViewModel {
         return result
     }
     
-    private func makeDocumentDataFormViewModel(initialValues: [PlaceholderKey: String]) -> DocumentDataFormViewModel {
-        DocumentDataFormViewModel(
-            registry: placeholderRegistry,
-            initialValues: initialValues
+    private func makeDocumentDataFormInput(initialValues: [PlaceholderKey: String]) -> DocumentDataFormInput {
+        DocumentDataFormInput(
+            descriptors: placeholderRegistry.inputDescriptors,
+            extractedValues: initialValues
         )
     }
     
@@ -453,11 +466,8 @@ final class MainViewModel {
         let nextRegistry = PlaceholderRegistry(customDefinitions: customDefinitions)
         placeholderRegistry = nextRegistry
         
-        if let documentDataFormViewModel {
-            documentDataFormViewModel.syncDefinitions(
-                with: nextRegistry,
-                extractedValues: extractedPlaceholderValues
-            )
+        if documentDataFormInput != nil {
+            documentDataFormInput = makeDocumentDataFormInput(initialValues: extractedPlaceholderValues)
             invalidateApprovedData()
         }
     }
