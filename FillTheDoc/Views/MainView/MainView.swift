@@ -50,7 +50,7 @@ struct MainView: View {
             }
             
             Group {
-                if let input = viewModel.documentDataFormInput {
+                if viewModel.isFormAvailable, let input = viewModel.documentDataFormInput {
                     VStack(spacing: 12) {
                         DocumentDataFormView(
                             input: input,
@@ -58,7 +58,7 @@ struct MainView: View {
                             onApprove: { approvedValues in
                                 viewModel.approveDocumentData(approvedValues)
                             },
-                            onChange: {
+                            onFieldChange: {
                                 viewModel.invalidateApprovedData()
                             }
                         )
