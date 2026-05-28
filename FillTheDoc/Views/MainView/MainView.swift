@@ -50,10 +50,12 @@ struct MainView: View {
             }
             
             Group {
-                if viewModel.isFormAvailable, let input = viewModel.documentDataFormInput {
+                if viewModel.isFormAvailable {
                     VStack(spacing: 12) {
                         DocumentDataFormView(
-                            input: input,
+                            id: viewModel.documentDataFormID,
+                            descriptors: viewModel.documentDataDescriptors,
+                            initialValues: viewModel.extractedPlaceholderValues,
                             valueResolver: viewModel.placeholderValueResolver,
                             onApprove: { approvedValues in
                                 viewModel.approveDocumentData(approvedValues)
@@ -62,7 +64,7 @@ struct MainView: View {
                                 viewModel.invalidateApprovedData()
                             }
                         )
-                        .id(input.id)
+                        .id(viewModel.documentDataFormID)
                         
                         if let googleSheetsRow = viewModel.googleSheetsRow, !googleSheetsRow.isEmpty {
                             DocumentDataCopyStringPresenterView(content: googleSheetsRow)

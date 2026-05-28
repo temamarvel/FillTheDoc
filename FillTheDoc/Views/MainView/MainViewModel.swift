@@ -54,8 +54,9 @@ final class MainViewModel {
     
     // MARK: - State (data)
     
+    private(set) var documentDataDescriptors: [PlaceholderDescriptor] = []
     private(set) var extractedPlaceholderValues: [PlaceholderKey: String] = [:]
-    private(set) var documentDataFormInput: DocumentDataFormInput?
+    private(set) var documentDataFormID: UUID = UUID()
     private(set) var approvedValues: [PlaceholderKey: String]?
     
     /// Итоговый словарь значений, который уже можно отдавать в DOCX-fill.
@@ -95,7 +96,7 @@ final class MainViewModel {
     
     var isTemplateValid: Bool { isExistingFile(templateURL) }
     var isDetailsValid: Bool { isExistingFile(detailsURL) }
-    var isFormAvailable: Bool { documentDataFormInput != nil }
+    var isFormAvailable: Bool { !documentDataDescriptors.isEmpty }
     
     var placeholderValueResolver: PlaceholderValueResolver {
         PlaceholderValueResolver(
@@ -206,8 +207,9 @@ final class MainViewModel {
         // При смене входного документа сбрасываем и форму, и утверждённые данные,
         // потому что они относятся к предыдущему файлу.
         invalidateApprovedData()
+        documentDataDescriptors = []
         extractedPlaceholderValues = [:]
-        documentDataFormInput = nil
+        documentDataFormID = UUID()
         userFacingError = nil
         if let url = urls.first { detailsPath = url.path }
         extractDetails()
@@ -299,8 +301,7 @@ final class MainViewModel {
     func extractDetails() {
         guard let detailsURL else { return }
         guard apiKeyStore.hasKey else {
-            extractedPlaceholderValues = [:]
-            documentDataFormInput = makeDocumentDataFormInput(initialValues: [:])
+            showDocumentDataForm(initialValues: [:])
             userFacingError = "Сначала укажите API-ключ OpenAI. После этого можно повторить извлечение или заполнить форму вручную."
             apiKeyStore.isPromptPresented = true
             return
@@ -335,24 +336,21 @@ final class MainViewModel {
                     let stringValues = extractedValues.stringValues()
                     
                     guard generation == self.extractionGeneration else { return }
-                    self.extractedPlaceholderValues = stringValues
-                    self.documentDataFormInput = self.makeDocumentDataFormInput(initialValues: stringValues)
+                    self.showDocumentDataForm(initialValues: stringValues)
                     self.userFacingError = nil
                     print("Extracted placeholder values:", stringValues.debugDescription)
                 } catch is CancellationError {
                     throw CancellationError()
                 } catch {
                     guard generation == self.extractionGeneration else { return }
-                    self.extractedPlaceholderValues = [:]
-                    self.documentDataFormInput = self.makeDocumentDataFormInput(initialValues: [:])
+                    self.showDocumentDataForm(initialValues: [:])
                     self.userFacingError = "Не удалось извлечь реквизиты автоматически: \(error.localizedDescription)\nФорма открыта для ручного заполнения."
                     print("OpenAI extraction failed:", error)
                 }
             } catch is CancellationError {
             } catch {
                 guard generation == self.extractionGeneration else { return }
-                self.extractedPlaceholderValues = [:]
-                self.documentDataFormInput = self.makeDocumentDataFormInput(initialValues: [:])
+                self.showDocumentDataForm(initialValues: [:])
                 self.userFacingError = "Не удалось прочитать документ с реквизитами: \(error.localizedDescription)\nФорма открыта для ручного заполнения."
                 print("Extraction failed:", error)
             }
@@ -429,11 +427,10 @@ final class MainViewModel {
         return result
     }
     
-    private func makeDocumentDataFormInput(initialValues: [PlaceholderKey: String]) -> DocumentDataFormInput {
-        DocumentDataFormInput(
-            descriptors: placeholderRegistry.inputDescriptors,
-            extractedValues: initialValues
-        )
+    private func showDocumentDataForm(initialValues: [PlaceholderKey: String]) {
+        documentDataDescriptors = placeholderRegistry.inputDescriptors
+        extractedPlaceholderValues = initialValues
+        documentDataFormID = UUID()
     }
     
     private func makeTempOutputURL(from templateURL: URL) -> URL {
@@ -466,8 +463,9 @@ final class MainViewModel {
         let nextRegistry = PlaceholderRegistry(customDefinitions: customDefinitions)
         placeholderRegistry = nextRegistry
         
-        if documentDataFormInput != nil {
-            documentDataFormInput = makeDocumentDataFormInput(initialValues: extractedPlaceholderValues)
+        if isFormAvailable {
+            documentDataDescriptors = nextRegistry.inputDescriptors
+            documentDataFormID = UUID()
             invalidateApprovedData()
         }
     }

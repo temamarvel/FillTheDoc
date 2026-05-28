@@ -16,7 +16,6 @@ import SwiftUI
 /// - вычисление итоговых значений для шаблона происходит вне UI.
 struct DocumentDataFormView: View {
     @State private var viewModel: DocumentDataFormViewModel
-    private let input: DocumentDataFormInput
     private let companyValidator: CompanyReferenceValidator
     
     @State private var validationTask: Task<Void, Never>?
@@ -30,20 +29,21 @@ struct DocumentDataFormView: View {
     private let onFieldChange: () -> Void
     
     init(
-        input: DocumentDataFormInput,
+        id: UUID,
+        descriptors: [PlaceholderDescriptor],
+        initialValues: [PlaceholderKey: String],
         valueResolver: PlaceholderValueResolver,
         companyValidator: CompanyReferenceValidator = CompanyReferenceValidator(),
         onApprove: @escaping ([PlaceholderKey: String]) -> Void,
         onFieldChange: @escaping () -> Void
     ) {
-        self.input = input
         self.companyValidator = companyValidator
         self.onApprove = onApprove
         self.onFieldChange = onFieldChange
         _viewModel = State(
             initialValue: DocumentDataFormViewModel(
-                descriptors: input.descriptors,
-                initialValues: input.extractedValues,
+                descriptors: descriptors,
+                initialValues: initialValues,
                 valueResolver: valueResolver
             )
         )
