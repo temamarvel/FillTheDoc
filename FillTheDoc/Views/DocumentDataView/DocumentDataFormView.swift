@@ -26,25 +26,25 @@ struct DocumentDataFormView: View {
     @FocusState private var focusedKey: PlaceholderKey?
     
     private let onApprove: ([PlaceholderKey: String]) -> Void
-    private let onFieldChange: () -> Void
+    private let onChange: () -> Void
     
     init(
         id: UUID,
         descriptors: [PlaceholderDescriptor],
         initialValues: [PlaceholderKey: String],
-        valueResolver: PlaceholderValueResolver,
+        registry: PlaceholderRegistryProtocol,
         companyValidator: CompanyReferenceValidator = CompanyReferenceValidator(),
         onApprove: @escaping ([PlaceholderKey: String]) -> Void,
-        onFieldChange: @escaping () -> Void
+        onChange: @escaping () -> Void
     ) {
         self.companyValidator = companyValidator
         self.onApprove = onApprove
-        self.onFieldChange = onFieldChange
+        self.onChange = onChange
         _viewModel = State(
             initialValue: DocumentDataFormViewModel(
                 descriptors: descriptors,
                 initialValues: initialValues,
-                valueResolver: valueResolver
+                registry: registry
             )
         )
     }
@@ -102,7 +102,7 @@ struct DocumentDataFormView: View {
             get: { viewModel.fieldValue(for: key) },
             set: {
                 viewModel.setFieldValue($0, for: key)
-                onFieldChange()
+                onChange()
             }
         )
     }

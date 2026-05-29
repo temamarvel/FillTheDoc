@@ -98,17 +98,6 @@ final class MainViewModel {
     var isDetailsValid: Bool { isExistingFile(detailsURL) }
     var isFormAvailable: Bool { !documentDataDescriptors.isEmpty }
     
-    var placeholderValueResolver: PlaceholderValueResolver {
-        PlaceholderValueResolver(
-            normalizerProvider: { [placeholderRegistry] key in
-                placeholderRegistry.normalizer(for: key)
-            },
-            validatorProvider: { [placeholderRegistry] key in
-                placeholderRegistry.validator(for: key)
-            }
-        )
-    }
-    
     var canRun: Bool {
         isTemplateValid && isDetailsValid && isDataApproved
     }

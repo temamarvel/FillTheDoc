@@ -5,7 +5,7 @@ typealias FieldNormalizer = @Sendable (String) -> String
 /// Проверяет нормализованное строковое значение поля и возвращает проблему, если она есть.
 typealias FieldValidator = @Sendable (String) -> FieldIssue?
 
-/// Runtime-поведение конкретного плейсхолдера внутри registry.
+/// Policy обработки пользовательского значения конкретного поля внутри registry.
 ///
 /// После упрощения resolution registry отвечает только за policy input-полей:
 /// - как нормализовать ввод;
@@ -13,15 +13,15 @@ typealias FieldValidator = @Sendable (String) -> FieldIssue?
 ///
 /// Derived/system значения больше не вычисляются через замыкания в registry
 /// и собираются централизованно в `TemplatePlaceholderResolver`.
-nonisolated struct PlaceholderBehavior: Sendable {
-    let normalizer: FieldNormalizer
-    let validator: FieldValidator
+nonisolated struct PlaceholderFieldPolicy: Sendable {
+    let normalize: FieldNormalizer
+    let validate: FieldValidator
     
     nonisolated init(
-        normalizer: @escaping FieldNormalizer = { $0.trimmingCharacters(in: .whitespacesAndNewlines) },
-        validator: @escaping FieldValidator = { _ in nil }
+        normalize: @escaping FieldNormalizer = { $0.trimmingCharacters(in: .whitespacesAndNewlines) },
+        validate: @escaping FieldValidator = { _ in nil }
     ) {
-        self.normalizer = normalizer
-        self.validator = validator
+        self.normalize = normalize
+        self.validate = validate
     }
 }
