@@ -61,29 +61,21 @@ struct CustomPlaceholderValidator: Sendable {
     private func validateChoice(_ configuration: ChoiceInputConfiguration) -> [FieldIssue] {
         var issues: [FieldIssue] = []
         
-        if configuration.options.count < 2 {
-            issues.append(.error("Для поля выбора нужно минимум два варианта."))
+        if configuration.options.isEmpty {
+            issues.append(.error("Добавьте хотя бы один вариант выбора."))
         }
         
-        let optionIDs = configuration.options.map(\.id)
-        if Set(optionIDs).count != optionIDs.count {
-            issues.append(.error("ID вариантов выбора должны быть уникальными."))
+        let normalizedOptions = configuration.options.map {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines)
         }
         
-        for option in configuration.options {
-            if option.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                issues.append(.error("Название варианта выбора не может быть пустым."))
-            }
-            if option.replacementValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                issues.append(.error("Значение для подстановки не может быть пустым."))
-            }
+        if normalizedOptions.contains(where: \.isEmpty) {
+            issues.append(.error("Вариант выбора не может быть пустым."))
         }
         
-        if let defaultOptionID = configuration.defaultOptionID {
-            let hasDefaultOption = configuration.options.contains { $0.id == defaultOptionID }
-            if !hasDefaultOption {
-                issues.append(.error("Default-вариант должен существовать в списке вариантов."))
-            }
+        let nonEmptyOptions = normalizedOptions.filter { !$0.isEmpty }
+        if Set(nonEmptyOptions).count != nonEmptyOptions.count {
+            issues.append(.error("Варианты выбора не должны повторяться."))
         }
         
         return issues

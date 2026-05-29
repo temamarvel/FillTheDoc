@@ -10,20 +10,13 @@
 
 /// Типизированное runtime-состояние поля формы.
 ///
-/// Для `choice` мы храним именно `optionID`, а не итоговую строку подстановки,
-/// чтобы UI и persistence были устойчивы к изменению `title` и `replacementValue`.
+/// После упрощения choice-модели и текст, и выбор хранят одинаковый replacement value.
 nonisolated enum PlaceholderFieldValue: Hashable, Codable, Sendable {
-    case text(String)
-    case choice(optionID: String)
+    case value(String)
     case empty
     
-    var textValue: String {
-        guard case .text(let value) = self else { return "" }
+    var stringValue: String? {
+        guard case .value(let value) = self else { return nil }
         return value
-    }
-    
-    var choiceOptionID: String? {
-        guard case .choice(let optionID) = self else { return nil }
-        return optionID
     }
 }

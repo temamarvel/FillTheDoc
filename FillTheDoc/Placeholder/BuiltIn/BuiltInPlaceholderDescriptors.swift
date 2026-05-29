@@ -207,13 +207,11 @@ extension PlaceholderRegistry {
                 inputKind: .choice(
                     .init(
                         options: [
-                            .init(id: "invoice", title: "счет", replacementValue: "счет"),
-                            .init(id: "sbp", title: "сбп", replacementValue: "сбп")
+                            "счет",
+                            "сбп"
                         ],
-                        defaultOptionID: nil,
-                        allowsEmptySelection: false,
-                        emptyTitle: "Не выбрано",
-                        presentationStyle: .segmented
+                        allowsEmptyValue: false,
+                        emptyTitle: "Не выбрано"
                     )
                 )
             ),

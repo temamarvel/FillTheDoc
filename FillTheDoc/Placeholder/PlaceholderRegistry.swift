@@ -126,7 +126,7 @@ extension PlaceholderRegistry {
                 }
             case .editable(_, .choice(let configuration)):
                 validator = { value in
-                    if configuration.allowsEmptySelection || !value.isEmpty {
+                    if configuration.allowsEmptyValue || !value.isEmpty {
                         return nil
                     }
                     return .error("Поле обязательно для выбора.")

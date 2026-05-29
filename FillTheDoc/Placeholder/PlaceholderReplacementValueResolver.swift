@@ -13,16 +13,10 @@ nonisolated struct PlaceholderReplacementValueResolver: Sendable {
         for value: PlaceholderFieldValue,
         descriptor: PlaceholderDescriptor
     ) -> String {
-        switch (value, descriptor.kind) {
-            case (.text(let text), .editable(_, .text)):
-                return text
-            case (.choice(let optionID), .editable(_, .choice(let configuration))):
-                return configuration.replacementValue(for: optionID)
-            case (.empty, .editable(_, .choice(let configuration))):
-                return configuration.replacementValue(for: nil)
-            case (.empty, _):
-                return ""
-            default:
+        switch value {
+            case .value(let string):
+                return string
+            case .empty:
                 return ""
         }
     }

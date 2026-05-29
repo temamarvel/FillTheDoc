@@ -105,106 +105,63 @@ private extension DocumentDataFieldView {
     
     @ViewBuilder
     func choiceField(configuration: ChoiceInputConfiguration) -> some View {
-        switch configuration.presentationStyle {
-            case .menu:
-                Picker(
-                    "",
-                    selection: optionalChoiceSelectionBinding(for: configuration)
-                ) {
-                    if configuration.allowsEmptySelection {
-                        Text(configuration.emptyTitle)
-                            .tag(String?.none)
-                    }
-                    ForEach(configuration.options) { option in
-                        Text(option.title)
-                            .tag(String?.some(option.id))
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-            case .segmented:
-                if configuration.allowsEmptySelection || configuration.defaultOptionID == nil {
-                    Picker(
-                        "",
-                        selection: optionalChoiceSelectionBinding(for: configuration)
-                    ) {
-                        Text(configuration.emptyTitle)
-                            .tag(String?.none)
-                        ForEach(configuration.options) { option in
-                            Text(option.title)
-                                .tag(String?.some(option.id))
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                } else {
-                    Picker(
-                        "",
-                        selection: requiredChoiceSelectionBinding(for: configuration)
-                    ) {
-                        ForEach(configuration.options) { option in
-                            Text(option.title)
-                                .tag(option.id)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                }
+        Picker(
+            "",
+            selection: choiceSelectionBinding(configuration)
+        ) {
+            if configuration.allowsEmptyValue {
+                Text(configuration.emptyTitle)
+                    .tag("")
+            }
+            ForEach(configuration.options, id: \.self) { option in
+                Text(option)
+                    .tag(option)
+            }
         }
+        .labelsHidden()
+        .pickerStyle(.menu)
     }
     
     var textBinding: Binding<String> {
         Binding(
             get: {
                 switch value {
-                    case .text(let text):
+                    case .value(let text):
                         return text
-                    case .choice, .empty:
+                    case .empty:
                         return ""
                 }
             },
             set: { newValue in
-                value = .text(newValue)
-            }
-        )
-    }
-    
-    func optionalChoiceSelectionBinding(
-        for configuration: ChoiceInputConfiguration
-    ) -> Binding<String?> {
-        Binding(
-            get: {
-                effectiveChoiceSelection(for: configuration)
-            },
-            set: { newValue in
-                if let newValue {
-                    value = .choice(optionID: newValue)
-                } else {
+                if newValue.isEmpty {
                     value = .empty
+                } else {
+                    value = .value(newValue)
                 }
             }
         )
     }
     
-    func requiredChoiceSelectionBinding(
-        for configuration: ChoiceInputConfiguration
+    func choiceSelectionBinding(
+        _ configuration: ChoiceInputConfiguration
     ) -> Binding<String> {
         Binding(
             get: {
-                effectiveChoiceSelection(for: configuration)
-                ?? configuration.options.first?.id
-                ?? ""
+                switch configuration.normalizedFieldValue(for: value.stringValue) {
+                    case .value(let selectedValue):
+                        return selectedValue
+                    case .empty:
+                        return ""
+                }
             },
             set: { newValue in
-                value = .choice(optionID: newValue)
+                if newValue.isEmpty {
+                    value = configuration.allowsEmptyValue ? .empty : configuration.normalizedFieldValue(for: nil)
+                } else {
+                    value = .value(newValue)
+                }
             }
         )
-    }
-    
-    func effectiveChoiceSelection(
-        for configuration: ChoiceInputConfiguration
-    ) -> String? {
-        configuration.effectiveOptionID(for: value.choiceOptionID)
     }
     
     var errorText: String? {
@@ -251,7 +208,7 @@ private extension DocumentDataFieldView {
 #Preview("Текстовое поле с ошибкой") {
     DocumentDataFieldPreviewContainer(
         key: .fee,
-        initialValue: .text(""),
+        initialValue: .value(""),
         issue: .error("Поле обязательно для заполнения.")
     )
     .frame(width: 560)
@@ -260,7 +217,7 @@ private extension DocumentDataFieldView {
 #Preview("Многострочное поле") {
     DocumentDataFieldPreviewContainer(
         key: .address,
-        initialValue: .text("г. Москва, ул. Ленина, д. 1, офис 25")
+        initialValue: .value("г. Москва, ул. Ленина, д. 1, офис 25")
     )
     .frame(width: 560)
 }
@@ -268,7 +225,7 @@ private extension DocumentDataFieldView {
 #Preview("Поле выбора") {
     DocumentDataFieldPreviewContainer(
         key: .paymentMethod,
-        initialValue: .choice(optionID: "invoice")
+        initialValue: .value("счет")
     )
     .frame(width: 560)
 }

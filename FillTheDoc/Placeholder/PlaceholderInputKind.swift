@@ -30,7 +30,7 @@ nonisolated enum PlaceholderInputKind: Hashable, Codable, Sendable {
             case .text(let configuration):
                 return configuration.isRequired
             case .choice(let configuration):
-                return !configuration.allowsEmptySelection
+                return !configuration.allowsEmptyValue
         }
     }
     
@@ -41,9 +41,8 @@ nonisolated enum PlaceholderInputKind: Hashable, Codable, Sendable {
                 return "text|\(configuration.isRequired)|\(configuration.trimOnCommit)|\(configuration.editorStyle.signatureFragment)"
             case .choice(let configuration):
                 let optionsLine = configuration.options
-                    .map { "\($0.id):\($0.title):\($0.replacementValue)" }
                     .joined(separator: ";")
-                return "choice|\(optionsLine)|\(configuration.defaultOptionID ?? "")|\(configuration.allowsEmptySelection)|\(configuration.emptyTitle)|\(configuration.presentationStyle.rawValue)"
+                return "choice|\(optionsLine)|\(configuration.allowsEmptyValue)|\(configuration.emptyTitle)"
         }
     }
 }

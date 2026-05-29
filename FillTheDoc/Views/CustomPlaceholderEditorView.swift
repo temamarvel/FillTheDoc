@@ -3,33 +3,16 @@ import SwiftUI
 // MARK: - Draft models
 
 /// Локальный draft одного варианта выбора внутри редактора пользовательского плейсхолдера.
-nonisolated private struct ChoiceOptionDraft: Identifiable, Hashable {
-    let id: String
-    var title: String
+nonisolated private struct EditableChoiceOption: Identifiable, Hashable {
+    let id: UUID
+    var value: String
     
     nonisolated init(
-        id: String = UUID().uuidString,
-        title: String = ""
+        id: UUID = UUID(),
+        value: String = ""
     ) {
         self.id = id
-        self.title = title
-    }
-    
-    nonisolated init(option: PlaceholderOption) {
-        self.id = option.id
-        self.title = option.title
-    }
-    
-    nonisolated var generatedReplacementValue: String {
-        title.generatedLatinIdentifier
-    }
-    
-    nonisolated var placeholderOption: PlaceholderOption {
-        PlaceholderOption(
-            id: id,
-            title: title.trimmed,
-            replacementValue: generatedReplacementValue
-        )
+        self.value = value
     }
 }
 
@@ -106,7 +89,7 @@ private struct InlineValidationState {
     var titleError: String?
     var keyError: String?
     var choiceGeneralError: String?
-    var choiceOptionErrors: [String: String] = [:]
+    var choiceOptionErrors: [UUID: String] = [:]
     
     var hasBlockingErrors: Bool {
         titleError != nil
@@ -177,7 +160,7 @@ struct CustomPlaceholderEditorView: View {
     @State private var textRequired: Bool
     @State private var textValueSource: CustomPlaceholderEditorValueSource
     
-    @State private var choiceOptions: [ChoiceOptionDraft]
+    @State private var choiceOptions: [EditableChoiceOption]
     
     @State private var order: Int
     
@@ -215,7 +198,7 @@ struct CustomPlaceholderEditorView: View {
                 _exampleValueText = State(initialValue: definition?.exampleValue ?? "")
                 _textRequired = State(initialValue: false)
                 _textValueSource = State(initialValue: .manual)
-                _choiceOptions = State(initialValue: configuration.options.map(ChoiceOptionDraft.init(option:)))
+                _choiceOptions = State(initialValue: configuration.options.map { EditableChoiceOption(value: $0) })
                 
             case .derived, nil:
                 _valueType = State(initialValue: .text)
@@ -470,7 +453,7 @@ private extension CustomPlaceholderEditorView {
                     Image(systemName: "questionmark.circle")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .help("Введите только варианты, которые пользователь увидит в UI. Значение на латинице будет создано автоматически.")
+                        .help("Введите варианты, которые пользователь увидит в меню. Выбранная строка и будет подставлена в документ.")
                 }
                 
                 Spacer()
@@ -486,14 +469,14 @@ private extension CustomPlaceholderEditorView {
             
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(choiceOptions.indices, id: \.self) { index in
-                    let optionID = choiceOptions[index].id
+                    let optionToken = choiceOptions[index].id
                     ChoiceOptionRowView(
                         index: index,
                         option: $choiceOptions[index],
-                        errorText: validation.choiceOptionErrors[optionID],
-                        canDelete: choiceOptions.count > 2,
+                        errorText: validation.choiceOptionErrors[optionToken],
+                        canDelete: choiceOptions.count > 1,
                         onDelete: {
-                            removeOption(id: optionID)
+                            removeOption(id: optionToken)
                         }
                     )
                 }
@@ -540,7 +523,7 @@ private extension CustomPlaceholderEditorView {
             case .text:
                 return "Используется как пример итогового значения и отображается серым текстом в поле ввода."
             case .choice:
-                return "Используется в библиотеке плейсхолдеров как пример итогового replacement value."
+                return "Используется в библиотеке плейсхолдеров как пример возможного выбранного значения."
         }
     }
 }
@@ -574,32 +557,26 @@ private extension CustomPlaceholderEditorView {
     }
     
     func validateChoiceInline(into state: inout InlineValidationState) {
-        if choiceOptions.count < 2 {
-            state.choiceGeneralError = "Для поля выбора нужно минимум два варианта."
+        if choiceOptions.isEmpty {
+            state.choiceGeneralError = "Добавьте хотя бы один вариант выбора."
         }
         
-        var generatedValues: [String: Int] = [:]
+        var normalizedValues: [String: Int] = [:]
         
         for option in choiceOptions {
-            let title = option.title.trimmingCharacters(in: .whitespacesAndNewlines)
-            let generatedValue = option.generatedReplacementValue
+            let value = option.value.trimmingCharacters(in: .whitespacesAndNewlines)
             
-            if title.isEmpty {
-                state.choiceOptionErrors[option.id] = "Введите название варианта."
+            if value.isEmpty {
+                state.choiceOptionErrors[option.id] = "Вариант выбора не может быть пустым."
                 continue
             }
             
-            if generatedValue.isEmpty {
-                state.choiceOptionErrors[option.id] = "Не удалось автоматически создать значение на латинице. Измените название."
-                continue
-            }
-            
-            generatedValues[generatedValue, default: 0] += 1
+            normalizedValues[value, default: 0] += 1
         }
         
-        let duplicatedGeneratedValues = generatedValues.filter { $0.value > 1 }.map(\.key)
-        if !duplicatedGeneratedValues.isEmpty {
-            state.choiceGeneralError = "Некоторые варианты дают одинаковое значение на латинице. Измените названия вариантов."
+        let hasDuplicates = normalizedValues.contains { $0.value > 1 }
+        if hasDuplicates {
+            state.choiceGeneralError = "Варианты выбора не должны повторяться."
         }
     }
     
@@ -672,13 +649,15 @@ private extension CustomPlaceholderEditorView {
                 
             case .choice:
                 valueSource = .manual
+                let options = choiceOptions
+                    .map(\.value)
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
                 inputKind = .choice(
                     ChoiceInputConfiguration(
-                        options: choiceOptions.map(\.placeholderOption),
-                        defaultOptionID: nil,
-                        allowsEmptySelection: true,
-                        emptyTitle: "Не выбрано",
-                        presentationStyle: .menu
+                        options: options,
+                        allowsEmptyValue: false,
+                        emptyTitle: "Не выбрано"
                     )
                 )
         }
@@ -696,14 +675,13 @@ private extension CustomPlaceholderEditorView {
         )
     }
     
-    func removeOption(id: String) {
+    func removeOption(id: UUID) {
         choiceOptions.removeAll { $0.id == id }
     }
     
-    static func defaultChoiceOptions() -> [ChoiceOptionDraft] {
+    static func defaultChoiceOptions() -> [EditableChoiceOption] {
         [
-            .init(title: "Вариант 1"),
-            .init(title: "Вариант 2")
+            .init()
         ]
     }
 }
@@ -712,7 +690,7 @@ private extension CustomPlaceholderEditorView {
 
 private struct ChoiceOptionRowView: View {
     let index: Int
-    @Binding var option: ChoiceOptionDraft
+    @Binding var option: EditableChoiceOption
     let errorText: String?
     let canDelete: Bool
     let onDelete: () -> Void
@@ -725,7 +703,7 @@ private struct ChoiceOptionRowView: View {
                 .frame(width: 22, height: 34)
             
             VStack(alignment: .leading, spacing: 5) {
-                TextField("Например: Договор поставки", text: $option.title)
+                TextField("Например: СБП", text: $option.value)
                     .textFieldStyle(.plain)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 8)
@@ -743,17 +721,6 @@ private struct ChoiceOptionRowView: View {
                 
                 if let errorText {
                     validationMessage(errorText, style: .error)
-                } else {
-                    HStack(spacing: 4) {
-                        Text("Будет сохранено как:")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        
-                        Text(option.generatedReplacementValue.isEmpty ? "—" : option.generatedReplacementValue)
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
                 }
             }
             .frame(maxWidth: .infinity)
@@ -952,41 +919,6 @@ private extension CustomPlaceholderEditorView {
             RoundedRectangle(cornerRadius: 10)
                 .stroke(Color.red.opacity(0.20), lineWidth: 1)
         )
-    }
-}
-
-// MARK: - Local generation helpers
-
-private extension String {
-    nonisolated var generatedLatinIdentifier: String {
-        let source = trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !source.isEmpty else { return "" }
-        
-        let latin = source.applyingTransform(.toLatin, reverse: false) ?? source
-        let withoutDiacritics = latin.applyingTransform(.stripDiacritics, reverse: false) ?? latin
-        let lowercased = withoutDiacritics.lowercased()
-        
-        var result = ""
-        var previousWasSeparator = false
-        
-        for scalar in lowercased.unicodeScalars {
-            if CharacterSet.alphanumerics.contains(scalar) {
-                result.unicodeScalars.append(scalar)
-                previousWasSeparator = false
-            } else if !previousWasSeparator {
-                result.append("_")
-                previousWasSeparator = true
-            }
-        }
-        
-        result = result.trimmingCharacters(in: CharacterSet(charactersIn: "_"))
-        
-        if let first = result.unicodeScalars.first,
-           CharacterSet.decimalDigits.contains(first) {
-            result = "option_" + result
-        }
-        
-        return result
     }
 }
 

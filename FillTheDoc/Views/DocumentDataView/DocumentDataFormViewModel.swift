@@ -12,8 +12,8 @@ struct PlaceholderFieldState: Sendable, Equatable {
 /// для шаблона строится отдельно как approved values.
 ///
 /// Это важно для choice-плейсхолдеров:
-/// - UI хранит стабильный `optionID`;
-/// - документ получает `replacementValue`;
+/// - и текст, и choice хранят сразу replacement value;
+/// - документ получает ту же самую строку без дополнительных преобразований;
 /// - конкретная editing session работает на snapshot-е descriptors/value policy.
 @MainActor
 @Observable
@@ -43,11 +43,7 @@ final class DocumentDataFormViewModel {
     }
     
     func value(for key: PlaceholderKey) -> String {
-        fieldStates[key]?.value.textValue ?? ""
-    }
-    
-    func choiceSelection(for key: PlaceholderKey) -> String? {
-        fieldStates[key]?.value.choiceOptionID
+        fieldStates[key]?.value.stringValue ?? ""
     }
     
     func issue(for key: PlaceholderKey) -> FieldIssue? {
@@ -55,14 +51,10 @@ final class DocumentDataFormViewModel {
     }
     
     func setValue(_ newValue: String, for key: PlaceholderKey) {
-        setFieldValue(.text(newValue), for: key)
-    }
-    
-    func setChoiceSelection(_ optionID: String?, for key: PlaceholderKey) {
-        if let optionID {
-            setFieldValue(.choice(optionID: optionID), for: key)
-        } else {
+        if newValue.isEmpty {
             setFieldValue(.empty, for: key)
+        } else {
+            setFieldValue(.value(newValue), for: key)
         }
     }
     
@@ -155,9 +147,9 @@ private extension DocumentDataFormViewModel {
             case .editable(_, .text):
                 let rawText = extractedText ?? ""
                 let policy = registry.fieldPolicy(for: descriptor.key)
-                return .text(policy.normalize(rawText))
+                return .value(policy.normalize(rawText))
             case .editable(_, .choice(let configuration)):
-                return configuration.normalizedFieldValue(for: nil)
+                return configuration.normalizedFieldValue(for: extractedText)
             case .derived:
                 return .empty
         }
@@ -165,32 +157,32 @@ private extension DocumentDataFormViewModel {
     
     func normalize(_ value: PlaceholderFieldValue, for descriptor: PlaceholderDescriptor) -> PlaceholderFieldValue {
         switch (value, descriptor.kind) {
-            case (.text(let text), .editable(_, .text)):
+            case (.value(let text), .editable(_, .text)):
                 let policy = registry.fieldPolicy(for: descriptor.key)
-                return .text(policy.normalize(text))
-            case (.choice(let optionID), .editable(_, .choice(let configuration))):
-                return configuration.normalizedFieldValue(for: optionID)
+                return .value(policy.normalize(text))
+            case (.value(let selectedValue), .editable(_, .choice(let configuration))):
+                return configuration.normalizedFieldValue(for: selectedValue)
+            case (.value, .derived):
+                return .empty
             case (.empty, .editable(_, .choice(let configuration))):
                 return configuration.normalizedFieldValue(for: nil)
             case (.empty, _):
                 return .empty
-            default:
-                return initialValue(for: descriptor)
         }
     }
     
     func validate(_ value: PlaceholderFieldValue, for descriptor: PlaceholderDescriptor) -> FieldIssue? {
         switch (value, descriptor.kind) {
-            case (.text(let text), .editable(_, .text)):
+            case (.value(let text), .editable(_, .text)):
                 let policy = registry.fieldPolicy(for: descriptor.key)
                 return policy.validate(text)
-            case (.choice(let optionID), .editable(_, .choice(let configuration))):
-                if configuration.option(withID: optionID) != nil {
+            case (.value(let selectedValue), .editable(_, .choice(let configuration))):
+                if configuration.options.contains(selectedValue) {
                     return nil
                 }
-                return .error("Выбран неизвестный вариант.")
+                return .error("Выбрано неизвестное значение.")
             case (.empty, .editable(_, .choice(let configuration))):
-                if configuration.allowsEmptySelection {
+                if configuration.allowsEmptyValue {
                     return nil
                 }
                 return .error("Поле обязательно для выбора.")
@@ -199,8 +191,6 @@ private extension DocumentDataFormViewModel {
                 return policy.validate("")
             case (_, .derived):
                 return nil
-            default:
-                return .error("Некорректное значение поля.")
         }
     }
 }

@@ -341,22 +341,9 @@ struct PlaceholderLibraryRowView: View {
                         Text("Варианты выбора")
                             .font(.caption.weight(.medium))
                             .foregroundStyle(.secondary)
-                        ForEach(configuration.options) { option in
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("• \(option.title) → \(option.replacementValue)")
-                                    .font(.caption)
-                                if let description = option.description, !description.isEmpty {
-                                    Text(description)
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                        if let defaultOptionID = configuration.defaultOptionID,
-                           let option = configuration.options.first(where: { $0.id == defaultOptionID }) {
-                            Text("Default: \(option.title)")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+                        ForEach(configuration.options, id: \.self) { option in
+                            Text("• \(option)")
+                                .font(.caption)
                         }
                     }
                 }
