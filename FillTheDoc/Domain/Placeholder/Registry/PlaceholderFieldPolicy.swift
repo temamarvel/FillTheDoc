@@ -1,10 +1,5 @@
 import Foundation
 
-/// Нормализует пользовательский ввод перед хранением и валидацией.
-typealias FieldNormalizer = @Sendable (String) -> String
-/// Проверяет нормализованное строковое значение поля и возвращает проблему, если она есть.
-typealias FieldValidator = @Sendable (String) -> FieldIssue?
-
 /// Policy обработки пользовательского значения конкретного поля внутри registry.
 ///
 /// После упрощения resolution registry отвечает только за policy input-полей:

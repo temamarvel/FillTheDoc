@@ -18,7 +18,7 @@ import SwiftUI
 ///
 /// Важно: этот тип не хранит секрет «сам по себе» как полноценное secure storage.
 /// Он управляет UI-состоянием вокруг секрета, а низкоуровневое чтение/сохранение
-/// делегирует `KeychainService`.
+/// делегирует `KeychainStore`.
 @MainActor
 @Observable
 final class APIKeyStore {
@@ -26,11 +26,11 @@ final class APIKeyStore {
     var isPromptPresented: Bool = false
     var errorText: String?
     
-    private let keychain: KeychainService
+    private let keychain: KeychainStore
     private let account: String
     
     init(
-        keychain: KeychainService = KeychainService(),
+        keychain: KeychainStore = KeychainStore(),
         account: String = "openai_api_key"
     ) {
         self.keychain = keychain

@@ -12,7 +12,7 @@ import Observation
 /// UI-facing store для проверки обновлений.
 ///
 /// Хранит только observable state для интерфейса, а networking и сравнение версий
-/// делегирует `AppUpdateService`.
+/// делегирует `AppUpdateChecker`.
 ///
 /// Это стандартный для проекта split ответственности:
 /// - service выполняет побочную работу и возвращает данные;
@@ -20,14 +20,14 @@ import Observation
 @MainActor
 @Observable
 final class AppUpdateStore {
-    private let service: AppUpdateService
+    private let checker: AppUpdateChecker
     
-    var updateInfo: AppUpdateInfo?
+    var updateInfo: UpdateAvailability?
     var isChecking = false
     var errorText: String?
     
     init() {
-        self.service = AppUpdateService(owner: "temamarvel", repo: "FillTheDoc")
+        self.checker = AppUpdateChecker(owner: "temamarvel", repo: "FillTheDoc")
     }
     
     var currentVersionText: String {
@@ -50,7 +50,7 @@ final class AppUpdateStore {
         defer { isChecking = false }
         
         do {
-            updateInfo = try await service.checkForUpdate()
+            updateInfo = try await checker.checkForUpdate()
             errorText = nil
         } catch {
             updateInfo = nil

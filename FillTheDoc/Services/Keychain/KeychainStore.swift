@@ -19,14 +19,14 @@ enum KeychainError: Error, LocalizedError {
     }
 }
 
-/// Низкоуровневый сервис Keychain: хранение/чтение/удаление значений по `account`.
+/// Низкоуровневое keychain-хранилище: хранение/чтение/удаление значений по `account`.
 ///
 /// Это infrastructure-слой без знания о UI и без привязки к конкретному типу секрета.
 /// `APIKeyStore` строит поверх него уже прикладочное поведение для ключа OpenAI.
 ///
 /// Сервис intentionally generic: сегодня он используется для OpenAI API key,
 /// но сам по себе не знает ничего о конкретном секрете и может переиспользоваться шире.
-actor KeychainService {
+actor KeychainStore {
     private let service: String
     
     init(service: String = Bundle.main.bundleIdentifier ?? "FillTheDoc") {

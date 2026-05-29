@@ -1,4 +1,4 @@
- //
+//
 //  AppUpdateBadgeView.swift
 //  FillTheDoc
 //
@@ -10,7 +10,7 @@ import SwiftUI
 
 /// Компактный бейдж, который показывает доступность новой версии и открывает popover с ссылками на релиз.
 struct AppUpdateBadgeView: View {
-    let updateInfo: AppUpdateInfo
+    let updateInfo: UpdateAvailability
     @State private var isPopoverPresented = false
     
     var body: some View {
@@ -61,7 +61,7 @@ struct AppUpdateBadgeView: View {
         
         
         AppUpdateBadgeView(
-            updateInfo: AppUpdateInfo(
+            updateInfo: UpdateAvailability(
                 currentVersion: "1.3",
                 latestVersion: "1.4",
                 releasePageURL: URL(string: "https://github.com/example/repo/releases/tag/v1.4")!,
