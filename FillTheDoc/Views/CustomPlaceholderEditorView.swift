@@ -38,6 +38,31 @@ private enum CustomPlaceholderEditorInputType: String, CaseIterable, Identifiabl
     }
 }
 
+private enum CustomPlaceholderTextEditorMode: String, CaseIterable, Identifiable {
+    case singleLine
+    case multiline
+    
+    var id: String { rawValue }
+    
+    var title: String {
+        switch self {
+            case .singleLine:
+                return "Однострочное поле"
+            case .multiline:
+                return "Многострочное поле"
+        }
+    }
+    
+    init(editorStyle: TextEditorStyle) {
+        switch editorStyle {
+            case .singleLine:
+                self = .singleLine
+            case .multiline:
+                self = .multiline
+        }
+    }
+}
+
 /// Внутреннее представление источника значения для создаваемого плейсхолдера.
 private enum CustomPlaceholderEditorValueSource: String, CaseIterable, Identifiable {
     case manual
@@ -159,6 +184,7 @@ struct CustomPlaceholderEditorView: View {
     @State private var exampleValueText: String
     @State private var textRequired: Bool
     @State private var textValueSource: CustomPlaceholderEditorValueSource
+    @State private var textEditorStyle: TextEditorStyle
     
     @State private var choiceOptions: [EditableChoiceOption]
     
@@ -186,11 +212,12 @@ struct CustomPlaceholderEditorView: View {
         _order = State(initialValue: definition?.order ?? 500)
         
         switch definition?.kind {
-            case .editable(let source, .text(let configuration)):
+            case .editable(let source, .text(let editorStyle)):
                 _valueType = State(initialValue: .text)
                 _exampleValueText = State(initialValue: definition?.exampleValue ?? "")
-                _textRequired = State(initialValue: configuration.isRequired)
+                _textRequired = State(initialValue: definition?.isRequired ?? false)
                 _textValueSource = State(initialValue: .init(valueSource: source))
+                _textEditorStyle = State(initialValue: editorStyle)
                 _choiceOptions = State(initialValue: Self.defaultChoiceOptions())
                 
             case .editable(_, .choice(let configuration)):
@@ -198,6 +225,7 @@ struct CustomPlaceholderEditorView: View {
                 _exampleValueText = State(initialValue: definition?.exampleValue ?? "")
                 _textRequired = State(initialValue: false)
                 _textValueSource = State(initialValue: .manual)
+                _textEditorStyle = State(initialValue: .singleLine)
                 _choiceOptions = State(initialValue: configuration.options.map { EditableChoiceOption(value: $0) })
                 
             case .derived, nil:
@@ -205,6 +233,7 @@ struct CustomPlaceholderEditorView: View {
                 _exampleValueText = State(initialValue: definition?.exampleValue ?? "")
                 _textRequired = State(initialValue: false)
                 _textValueSource = State(initialValue: .manual)
+                _textEditorStyle = State(initialValue: .singleLine)
                 _choiceOptions = State(initialValue: Self.defaultChoiceOptions())
         }
     }
@@ -366,6 +395,25 @@ private extension CustomPlaceholderEditorView {
     var textSettingsSection: some View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 8) {
+                Text("Стиль поля")
+                    .font(.subheadline.weight(.medium))
+                
+                Picker("", selection: textEditorModeBinding) {
+                    ForEach(CustomPlaceholderTextEditorMode.allCases) { mode in
+                        Text(mode.title)
+                            .tag(mode)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                
+                Text("Определяет только визуальный режим ввода: одна строка или многострочное поле.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
                 Text("Источник значения")
                     .font(.subheadline.weight(.medium))
                 
@@ -417,6 +465,8 @@ private extension CustomPlaceholderEditorView {
                         .foregroundStyle(.secondary)
                 }
             }
+            
+            Toggle("Поле обязательно для заполнения", isOn: $textRequired)
             
         }
     }
@@ -635,17 +685,13 @@ private extension CustomPlaceholderEditorView {
     func makeDefinition() -> PlaceholderDescriptor {
         let inputKind: PlaceholderInputKind
         let valueSource: PlaceholderValueSource
+        let isRequired: Bool
         
         switch valueType {
             case .text:
                 valueSource = textValueSource.placeholderValueSource
-                inputKind = .text(
-                    TextInputConfiguration(
-                        isRequired: textRequired,
-                        trimOnCommit: true,
-                        editorStyle: .singleLine
-                    )
-                )
+                inputKind = .text(editorStyle: textEditorStyle)
+                isRequired = textRequired
                 
             case .choice:
                 valueSource = .manual
@@ -660,6 +706,7 @@ private extension CustomPlaceholderEditorView {
                         emptyTitle: "Не выбрано"
                     )
                 )
+                isRequired = true
         }
         
         return PlaceholderDescriptor(
@@ -671,7 +718,7 @@ private extension CustomPlaceholderEditorView {
             kind: .editable(source: valueSource, inputKind: inputKind),
             isUserDefined: true,
             exampleValue: exampleValueText.trimmedNilIfEmpty,
-            isRequired: inputKind.isRequired
+            isRequired: isRequired
         )
     }
     
@@ -683,6 +730,23 @@ private extension CustomPlaceholderEditorView {
         [
             .init()
         ]
+    }
+    
+    var textEditorModeBinding: Binding<CustomPlaceholderTextEditorMode> {
+        Binding(
+            get: { CustomPlaceholderTextEditorMode(editorStyle: textEditorStyle) },
+            set: { mode in
+                switch mode {
+                    case .singleLine:
+                        textEditorStyle = .singleLine
+                    case .multiline:
+                        if case .multiline = textEditorStyle {
+                            break
+                        }
+                        textEditorStyle = .multiline(minLines: 2, maxLines: 5)
+                }
+            }
+        )
     }
 }
 

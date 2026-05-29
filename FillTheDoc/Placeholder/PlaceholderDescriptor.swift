@@ -50,8 +50,8 @@ nonisolated struct PlaceholderDescriptor: Identifiable, Hashable, Codable, Senda
     }
     
     var textEditorStyleLabel: String? {
-        guard case .editable(_, .text(let configuration)) = kind else { return nil }
-        return configuration.editorStyle.label
+        guard case .editable(_, .text(let editorStyle)) = kind else { return nil }
+        return editorStyle.label
     }
     
     var valueSourceLabel: String? {

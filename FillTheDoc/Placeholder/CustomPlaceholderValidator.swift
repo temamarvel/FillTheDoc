@@ -41,8 +41,8 @@ struct CustomPlaceholderValidator: Sendable {
     
     private func validateKind(_ kind: PlaceholderKind) -> [FieldIssue] {
         switch kind {
-            case .editable(_, .text(let configuration)):
-                return validateText(configuration)
+            case .editable(_, .text(let editorStyle)):
+                return validateText(editorStyle)
             case .editable(_, .choice(let configuration)):
                 return validateChoice(configuration)
             case .derived:
@@ -50,8 +50,8 @@ struct CustomPlaceholderValidator: Sendable {
         }
     }
     
-    private func validateText(_ configuration: TextInputConfiguration) -> [FieldIssue] {
-        if case .multiline(let minLines, let maxLines) = configuration.editorStyle,
+    private func validateText(_ editorStyle: TextEditorStyle) -> [FieldIssue] {
+        if case .multiline(let minLines, let maxLines) = editorStyle,
            minLines < 1 || maxLines < minLines {
             return [.error("Некорректная конфигурация многострочного текстового поля.")]
         }

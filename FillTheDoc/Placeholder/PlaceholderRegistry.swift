@@ -118,8 +118,8 @@ extension PlaceholderRegistry {
         let validator: FieldValidator
         
         switch descriptor.kind {
-            case .editable(_, .text(let configuration)):
-                if configuration.isRequired {
+            case .editable(_, .text):
+                if descriptor.isRequired {
                     validator = { Validators.nonEmpty($0) }
                 } else {
                     validator = { _ in nil }

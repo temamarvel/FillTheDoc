@@ -31,9 +31,9 @@ struct DocumentDataFieldView: View {
     
     var body: some View {
         switch descriptor.kind {
-            case .editable(_, .text(let configuration)):
-                fieldRow(alignment: verticalAlignment(for: configuration)) {
-                    textInput(configuration: configuration)
+            case .editable(_, .text(let editorStyle)):
+                fieldRow(alignment: verticalAlignment(for: editorStyle)) {
+                    textInput(editorStyle: editorStyle)
                 }
             case .editable(_, .choice(let configuration)):
                 fieldRow(alignment: .center) {
@@ -66,8 +66,8 @@ private extension DocumentDataFieldView {
         }
     }
     
-    func verticalAlignment(for configuration: TextInputConfiguration) -> VerticalAlignment {
-        switch configuration.editorStyle {
+    func verticalAlignment(for editorStyle: TextEditorStyle) -> VerticalAlignment {
+        switch editorStyle {
             case .singleLine:
                 return .center
             case .multiline:
@@ -76,8 +76,8 @@ private extension DocumentDataFieldView {
     }
     
     @ViewBuilder
-    func textInput(configuration: TextInputConfiguration) -> some View {
-        switch configuration.editorStyle {
+    func textInput(editorStyle: TextEditorStyle) -> some View {
+        switch editorStyle {
             case .singleLine:
                 TextField(
                     "",
