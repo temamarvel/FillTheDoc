@@ -16,7 +16,7 @@ import SwiftUI
 /// - вычисление итоговых значений для шаблона происходит вне UI.
 struct DocumentDataFormView: View {
     @State private var viewModel: DocumentDataFormViewModel
-    @State private var referenceValidationCoordinator: DocumentDataReferenceValidationCoordinator
+    @State private var referenceValidationCoordinator: CompanyValidationService
     
     @FocusState private var focusedKey: PlaceholderKey?
     
@@ -48,7 +48,7 @@ struct DocumentDataFormView: View {
             )
         )
         _referenceValidationCoordinator = State(
-            initialValue: DocumentDataReferenceValidationCoordinator(validator: companyValidator)
+            initialValue: CompanyValidationService(validator: companyValidator)
         )
     }
     

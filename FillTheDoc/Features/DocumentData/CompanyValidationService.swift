@@ -1,7 +1,7 @@
 import Foundation
 
 @MainActor
-final class DocumentDataReferenceValidationCoordinator {
+final class CompanyValidationService {
     private let validator: CompanyReferenceValidator
     private var validationTask: Task<Void, Never>?
     private var lastLookupKey: String?
@@ -85,7 +85,7 @@ final class DocumentDataReferenceValidationCoordinator {
     }
 }
 
-private extension DocumentDataReferenceValidationCoordinator {
+private extension CompanyValidationService {
     static func lookupKey(for values: [PlaceholderKey: String]) -> String? {
         values[.ogrn]?.trimmedNilIfEmpty ?? values[.inn]?.trimmedNilIfEmpty
     }
