@@ -18,7 +18,7 @@ import UniformTypeIdentifiers
 /// Базовый flow для чтения кода:
 /// 1. Drop-зоны передают URL'ы в `MainViewModel`.
 /// 2. После LLM-извлечения появляется `DocumentDataFormView`.
-/// 3. После «Применить» `MainViewModel` строит `resolvedValues` через `TemplatePlaceholderResolver`.
+/// 3. После «Применить» `MainViewModel` строит `resolvedValues` через `PlaceholderValueAssembler`.
 /// 4. Кнопка `Заполнить шаблон` запускает export-пайплайн.
 struct MainView: View {
     @State private var viewModel: MainViewModel

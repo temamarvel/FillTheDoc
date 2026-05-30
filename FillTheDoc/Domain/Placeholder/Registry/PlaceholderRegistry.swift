@@ -9,7 +9,7 @@ import Foundation
 /// - runtime-policy для пользовательского ввода.
 ///
 /// Итоговый `resolvedValues` больше не собирается внутри registry:
-/// это делает `TemplatePlaceholderResolver`, чтобы flow оставался линейным:
+/// это делает `PlaceholderValueAssembler`, чтобы flow оставался линейным:
 /// form state → sourceValues → derived/system values → resolvedValues.
 protocol PlaceholderRegistryProtocol: Sendable {
     nonisolated var allDescriptors: [PlaceholderDescriptor] { get }

@@ -1,12 +1,45 @@
 import Foundation
 
-/// Централизованный factory вычисляемых встроенных placeholder-значений.
+/// Централизованный factory встроенных derived placeholder-значений.
 ///
-/// В отличие от прошлой архитектуры с context-объектом, здесь каждый метод принимает
-/// только явные аргументы. Это делает resolution прозрачным и позволяет читать flow линейно:
-/// sourceValues → derived/system values → resolvedValues.
-enum BuiltInPlaceholderValueFactory {
-    static func companyNameWithLegalForm(
+/// Он не собирает весь словарь значений, а только вычисляет derived placeholders
+/// из уже подтверждённых source values.
+nonisolated struct BuiltInDerivedValueFactory: Sendable {
+    nonisolated func makeValues(
+        sourceValues: [PlaceholderKey: String],
+        date: Date = Date(),
+        calendar: Calendar = .current,
+        locale: Locale = .current
+    ) -> [PlaceholderKey: String] {
+        [
+            .dateShort: Self.currentDate(
+                now: date,
+                calendar: calendar,
+                locale: locale
+            ),
+            .dateLong: Self.currentDateQuoted(
+                now: date,
+                calendar: calendar,
+                locale: locale
+            ),
+            .ceoRole: Self.ceoRole(
+                legalForm: sourceValues[.legalForm]
+            ),
+            .fullCompanyName: Self.companyNameWithLegalForm(
+                companyName: sourceValues[.companyName],
+                legalForm: sourceValues[.legalForm]
+            ),
+            .fullCompanyNameExpanded: Self.fullCompanyNameExpanded(
+                companyName: sourceValues[.companyName],
+                legalForm: sourceValues[.legalForm]
+            ),
+            .rules: Self.rules(
+                legalForm: sourceValues[.legalForm]
+            )
+        ]
+    }
+    
+    nonisolated static func companyNameWithLegalForm(
         companyName: String?,
         legalForm: String?
     ) -> String {
@@ -27,7 +60,7 @@ enum BuiltInPlaceholderValueFactory {
         return "\(legalForm.shortName) «\(normalizedCompanyName)»"
     }
     
-    static func fullCompanyNameExpanded(
+    nonisolated static func fullCompanyNameExpanded(
         companyName: String?,
         legalForm: String?
     ) -> String {
@@ -48,7 +81,7 @@ enum BuiltInPlaceholderValueFactory {
         return "\(legalForm.fullName) «\(normalizedCompanyName)»"
     }
     
-    static func ceoRole(
+    nonisolated static func ceoRole(
         legalForm: String?
     ) -> String {
         parseLegalForm(legalForm) == .ip
@@ -56,7 +89,7 @@ enum BuiltInPlaceholderValueFactory {
         : "Генеральный директор"
     }
     
-    static func rules(
+    nonisolated static func rules(
         legalForm: String?
     ) -> String {
         parseLegalForm(legalForm) == .ip
@@ -64,7 +97,7 @@ enum BuiltInPlaceholderValueFactory {
         : "Устава"
     }
     
-    static func currentDate(
+    nonisolated static func currentDate(
         now: Date,
         calendar: Calendar,
         locale: Locale
@@ -76,7 +109,7 @@ enum BuiltInPlaceholderValueFactory {
         ).string(from: now)
     }
     
-    static func currentDateText(
+    nonisolated static func currentDateText(
         now: Date,
         calendar: Calendar,
         locale: Locale
@@ -88,7 +121,7 @@ enum BuiltInPlaceholderValueFactory {
         ).string(from: now)
     }
     
-    static func currentDateQuoted(
+    nonisolated static func currentDateQuoted(
         now: Date,
         calendar: Calendar,
         locale: Locale
@@ -101,14 +134,14 @@ enum BuiltInPlaceholderValueFactory {
     }
 }
 
-private extension BuiltInPlaceholderValueFactory {
-    static func parseLegalForm(_ legalForm: String?) -> LegalForm? {
+private extension BuiltInDerivedValueFactory {
+    nonisolated static func parseLegalForm(_ legalForm: String?) -> LegalForm? {
         legalForm?
             .trimmedNilIfEmpty
             .flatMap { LegalForm.parse($0) }
     }
     
-    static func makeFormatter(
+    nonisolated static func makeFormatter(
         calendar: Calendar,
         locale: Locale,
         dateFormat: String

@@ -8,7 +8,7 @@ extension PlaceholderRegistry {
     /// Runtime-policy для встроенных input-плейсхолдеров: normalizer и validator по ключу.
     ///
     /// Derived/system значения больше не вычисляются здесь и собираются централизованно
-    /// в `TemplatePlaceholderResolver` через `BuiltInPlaceholderValueFactory`.
+    /// в `PlaceholderValueAssembler` через `BuiltInDerivedValueFactory`.
     nonisolated static let builtInFieldPolicies: [PlaceholderKey: PlaceholderFieldPolicy] = [
         .companyName: .init(
             normalize: { $0.trimmed },

@@ -45,6 +45,7 @@ final class MainViewModel {
     private let replacer: DocxTemplateFiller
     private let googleSheetsRowBuilder: DocumentDataCopyStringBuilder
     private let extractorService: DocumentTextExtractorService
+    private let placeholderValueAssembler: PlaceholderValueAssembler
     private let customPlaceholderRepository: CustomPlaceholderRepository?
     
     // MARK: - State (paths)
@@ -141,7 +142,8 @@ final class MainViewModel {
         conditionalAssembler: DocxTemplateConditionalAssembler,
         replacer: DocxTemplateFiller,
         googleSheetsRowBuilder: DocumentDataCopyStringBuilder,
-        extractorService: DocumentTextExtractorService
+        extractorService: DocumentTextExtractorService,
+        placeholderValueAssembler: PlaceholderValueAssembler = .init()
     ) {
         self.apiKeyStore = apiKeyStore
         // `AppUpdateStore` — UI-facing состояние вокруг отдельного update-service слоя.
@@ -153,6 +155,7 @@ final class MainViewModel {
         self.replacer = replacer
         self.googleSheetsRowBuilder = googleSheetsRowBuilder
         self.extractorService = extractorService
+        self.placeholderValueAssembler = placeholderValueAssembler
     }
     
     /// Convenience init with default dependencies for production use.
@@ -178,7 +181,8 @@ final class MainViewModel {
             conditionalAssembler: DocxTemplateConditionalAssembler(),
             replacer: DocxTemplateFiller(),
             googleSheetsRowBuilder: DocumentDataCopyStringBuilder(),
-            extractorService: DocumentTextExtractorService()
+            extractorService: DocumentTextExtractorService(),
+            placeholderValueAssembler: PlaceholderValueAssembler()
         )
     }
     
@@ -209,9 +213,8 @@ final class MainViewModel {
     
     func approveData(with approvedValues: [PlaceholderKey: String]) {
         self.approvedValues = approvedValues
-        resolvedValues = TemplatePlaceholderResolver.resolve(
-            approvedValues: approvedValues,
-            registry: placeholderRegistry
+        resolvedValues = placeholderValueAssembler.assemble(
+            approvedValues: approvedValues
         )
         googleSheetsRow = nil
         isDataApproved = true

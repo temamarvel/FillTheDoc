@@ -7,7 +7,7 @@ import Foundation
 /// - как валидировать editable значение.
 ///
 /// Derived/system значения больше не вычисляются через замыкания в registry
-/// и собираются централизованно в `TemplatePlaceholderResolver`.
+/// и собираются централизованно в `PlaceholderValueAssembler`.
 nonisolated struct PlaceholderFieldPolicy: Sendable {
     let normalize: FieldNormalizer
     let validate: FieldValidator
