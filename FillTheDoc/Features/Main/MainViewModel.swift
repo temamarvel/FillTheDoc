@@ -205,7 +205,7 @@ final class MainViewModel {
         extractDetails()
     }
     
-    func approveDocumentData(_ approvedValues: [PlaceholderKey: String]) {
+    func approveData(with approvedValues: [PlaceholderKey: String]) {
         self.approvedValues = approvedValues
         resolvedValues = TemplatePlaceholderResolver.resolve(
             approvedValues: approvedValues,
@@ -291,7 +291,7 @@ final class MainViewModel {
     func extractDetails() {
         guard let detailsURL else { return }
         guard apiKeyStore.hasKey else {
-            showDocumentDataForm(initialValues: [:])
+            showDocumentDataForm(extractedPlaceholderValues: [:])
             userFacingError = "Сначала укажите API-ключ OpenAI. После этого можно повторить извлечение или заполнить форму вручную."
             apiKeyStore.isPromptPresented = true
             return
@@ -326,21 +326,21 @@ final class MainViewModel {
                     let stringValues = extractedValues.stringValues()
                     
                     guard generation == self.extractionGeneration else { return }
-                    self.showDocumentDataForm(initialValues: stringValues)
+                    self.showDocumentDataForm(extractedPlaceholderValues: stringValues)
                     self.userFacingError = nil
                     print("Extracted placeholder values:", stringValues.debugDescription)
                 } catch is CancellationError {
                     throw CancellationError()
                 } catch {
                     guard generation == self.extractionGeneration else { return }
-                    self.showDocumentDataForm(initialValues: [:])
+                    self.showDocumentDataForm(extractedPlaceholderValues: [:])
                     self.userFacingError = "Не удалось извлечь реквизиты автоматически: \(error.localizedDescription)\nФорма открыта для ручного заполнения."
                     print("OpenAI extraction failed:", error)
                 }
             } catch is CancellationError {
             } catch {
                 guard generation == self.extractionGeneration else { return }
-                self.showDocumentDataForm(initialValues: [:])
+                self.showDocumentDataForm(extractedPlaceholderValues: [:])
                 self.userFacingError = "Не удалось прочитать документ с реквизитами: \(error.localizedDescription)\nФорма открыта для ручного заполнения."
                 print("Extraction failed:", error)
             }
@@ -417,10 +417,10 @@ final class MainViewModel {
         return result
     }
     
-    private func showDocumentDataForm(initialValues: [PlaceholderKey: String]) {
-        documentDataDescriptors = placeholderRegistry.inputDescriptors
-        extractedPlaceholderValues = initialValues
-        documentDataFormID = UUID()
+    private func showDocumentDataForm(extractedPlaceholderValues: [PlaceholderKey: String]) {
+        self.documentDataDescriptors = placeholderRegistry.inputDescriptors
+        self.extractedPlaceholderValues = extractedPlaceholderValues
+        self.documentDataFormID = UUID()
     }
     
     private func makeTempOutputURL(from templateURL: URL) -> URL {

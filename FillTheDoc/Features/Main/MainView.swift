@@ -58,10 +58,10 @@ struct MainView: View {
                     DocumentDataFormView(
                         id: viewModel.documentDataFormID,
                         descriptors: viewModel.documentDataDescriptors,
-                        initialValues: viewModel.extractedPlaceholderValues,
-                        registry: viewModel.placeholderRegistry,
+                        extractedDescriptorValues: viewModel.extractedPlaceholderValues,
+                        placeholderRegistry: viewModel.placeholderRegistry,
                         onApprove: { approvedValues in
-                            viewModel.approveDocumentData(approvedValues)
+                            viewModel.approveData(with: approvedValues)
                         },
                         onChange: {
                             viewModel.invalidateApprovedData()

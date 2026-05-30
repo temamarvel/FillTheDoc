@@ -8,7 +8,7 @@ import Foundation
 /// - шаблонизатор работает только со строками.
 ///
 /// Благодаря этому `choice`-поля не размазывают special-case'ы по UI, export и scanner-слоям.
-nonisolated struct PlaceholderReplacementValueResolver: Sendable {
+nonisolated struct PlaceholderValueResolver: Sendable {
     func replacementValue(
         for value: PlaceholderFieldValue,
         descriptor: PlaceholderDescriptor

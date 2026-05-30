@@ -31,8 +31,8 @@ struct DocumentDataFormView: View {
     init(
         id: UUID,
         descriptors: [PlaceholderDescriptor],
-        initialValues: [PlaceholderKey: String],
-        registry: PlaceholderRegistryProtocol,
+        extractedDescriptorValues: [PlaceholderKey: String],
+        placeholderRegistry: PlaceholderRegistryProtocol,
         companyValidator: CompanyReferenceValidator = CompanyReferenceValidator(),
         onApprove: @escaping ([PlaceholderKey: String]) -> Void,
         onChange: @escaping () -> Void
@@ -43,8 +43,8 @@ struct DocumentDataFormView: View {
         _viewModel = State(
             initialValue: DocumentDataFormViewModel(
                 descriptors: descriptors,
-                initialValues: initialValues,
-                registry: registry
+                extractedDescriptorValues: extractedDescriptorValues,
+                palaceholderRegistry: placeholderRegistry
             )
         )
     }
