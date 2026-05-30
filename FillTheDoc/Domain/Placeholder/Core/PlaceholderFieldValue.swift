@@ -19,4 +19,13 @@ nonisolated enum PlaceholderFieldValue: Hashable, Codable, Sendable {
         guard case .value(let value) = self else { return nil }
         return value
     }
+    
+    var replacementString: String {
+        switch self {
+            case .value(let string):
+                return string
+            case .empty:
+                return ""
+        }
+    }
 }

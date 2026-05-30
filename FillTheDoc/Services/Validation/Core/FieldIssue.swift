@@ -7,7 +7,7 @@
 
 /// Результат валидации поля.
 /// `nil` означает валидное поле (pass). Наличие — предупреждение или ошибка.
-struct FieldIssue: Equatable, Sendable {
+struct FieldIssue: Hashable, Sendable {
     let severity: Severity
     let text: String
     
@@ -16,7 +16,7 @@ struct FieldIssue: Equatable, Sendable {
         self.text = text
     }
     
-    enum Severity: Int, Equatable, Sendable, Comparable {
+    enum Severity: Int, Hashable, Sendable, Comparable {
         case warning = 0
         case error = 1
         

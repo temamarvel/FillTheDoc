@@ -56,7 +56,7 @@ final class MainViewModel {
     
     private(set) var documentDataDescriptors: [PlaceholderDescriptor] = []
     private(set) var extractedPlaceholderValues: [PlaceholderKey: String] = [:]
-    private(set) var documentDataFormID: UUID = UUID()
+    private(set) var documentDataSessionID: UUID = UUID()
     private(set) var approvedValues: [PlaceholderKey: String]?
     
     /// Итоговый словарь значений, который уже можно отдавать в DOCX-fill.
@@ -185,9 +185,11 @@ final class MainViewModel {
     // MARK: - Actions
     
     func handleTemplateDrop(_ urls: [URL]) {
-        // Смена шаблона не инвалидирует сам draft формы, но инвалидирует approved snapshot,
-        // потому что новый шаблон может требовать другой набор placeholder'ов.
+        // Новый шаблон начинает новую form-session: draft формы сбрасывается,
+        // а approved snapshot инвалидируется, потому что новый документ может
+        // требовать другой набор placeholder'ов.
         invalidateApprovedData()
+        beginDocumentDataSession()
         userFacingError = nil
         if let url = urls.first { templatePath = url.path }
         scanPlaceholders()
@@ -199,7 +201,7 @@ final class MainViewModel {
         invalidateApprovedData()
         documentDataDescriptors = []
         extractedPlaceholderValues = [:]
-        documentDataFormID = UUID()
+        beginDocumentDataSession()
         userFacingError = nil
         if let url = urls.first { detailsPath = url.path }
         extractDetails()
@@ -317,6 +319,15 @@ final class MainViewModel {
                 let extractedDetails = try await extractorService.extract(from: detailsURL)
                 try Task.checkCancellation()
                 
+                let extractedText = extractedDetails.text
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !extractedText.isEmpty else {
+                    guard generation == self.extractionGeneration else { return }
+                    self.showDocumentDataForm(extractedPlaceholderValues: [:])
+                    self.userFacingError = "Не удалось извлечь текст из файла с реквизитами. Заполните поля вручную."
+                    return
+                }
+                
                 // Второй этап: LLM строит черновик placeholder-значений.
                 // Это всё ещё draft, а не окончательные данные для шаблона.
                 do {
@@ -420,7 +431,11 @@ final class MainViewModel {
     private func showDocumentDataForm(extractedPlaceholderValues: [PlaceholderKey: String]) {
         self.documentDataDescriptors = placeholderRegistry.inputDescriptors
         self.extractedPlaceholderValues = extractedPlaceholderValues
-        self.documentDataFormID = UUID()
+        beginDocumentDataSession()
+    }
+    
+    private func beginDocumentDataSession() {
+        documentDataSessionID = UUID()
     }
     
     private func makeTempOutputURL(from templateURL: URL) -> URL {
@@ -455,7 +470,6 @@ final class MainViewModel {
         
         if isFormAvailable {
             documentDataDescriptors = nextRegistry.inputDescriptors
-            documentDataFormID = UUID()
             invalidateApprovedData()
         }
     }

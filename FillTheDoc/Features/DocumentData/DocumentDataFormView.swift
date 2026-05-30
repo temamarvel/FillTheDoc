@@ -16,36 +16,39 @@ import SwiftUI
 /// - вычисление итоговых значений для шаблона происходит вне UI.
 struct DocumentDataFormView: View {
     @State private var viewModel: DocumentDataFormViewModel
-    private let companyValidator: CompanyReferenceValidator
-    
-    @State private var validationTask: Task<Void, Never>?
-    /// Последний ключ lookup'а нужен, чтобы не дёргать справочную сверку повторно
-    /// для тех же самых реквизитов без фактического изменения идентификатора компании.
-    @State private var lastLookupKey: String?
+    @State private var referenceValidationCoordinator: DocumentDataReferenceValidationCoordinator
     
     @FocusState private var focusedKey: PlaceholderKey?
+    
+    private let descriptors: [PlaceholderDescriptor]
+    private let initialValues: [PlaceholderKey: String]
+    private let placeholderRegistry: PlaceholderRegistryProtocol
     
     private let onApprove: ([PlaceholderKey: String]) -> Void
     private let onChange: () -> Void
     
     init(
-        id: UUID,
         descriptors: [PlaceholderDescriptor],
-        extractedDescriptorValues: [PlaceholderKey: String],
+        initialValues: [PlaceholderKey: String],
         placeholderRegistry: PlaceholderRegistryProtocol,
         companyValidator: CompanyReferenceValidator = CompanyReferenceValidator(),
         onApprove: @escaping ([PlaceholderKey: String]) -> Void,
         onChange: @escaping () -> Void
     ) {
-        self.companyValidator = companyValidator
+        self.descriptors = descriptors
+        self.initialValues = initialValues
+        self.placeholderRegistry = placeholderRegistry
         self.onApprove = onApprove
         self.onChange = onChange
         _viewModel = State(
             initialValue: DocumentDataFormViewModel(
                 descriptors: descriptors,
-                extractedDescriptorValues: extractedDescriptorValues,
-                palaceholderRegistry: placeholderRegistry
+                extractedDescriptorValues: initialValues,
+                placeholderRegistry: placeholderRegistry
             )
+        )
+        _referenceValidationCoordinator = State(
+            initialValue: DocumentDataReferenceValidationCoordinator(validator: companyValidator)
         )
     }
     
@@ -80,6 +83,16 @@ struct DocumentDataFormView: View {
             guard let _ = old, old != new else { return }
             scheduleReferenceValidation()
         }
+        .onChange(of: descriptorsSyncToken) { _, _ in
+            viewModel.syncDescriptors(
+                descriptors: descriptors,
+                extractedValues: initialValues,
+                placeholderRegistry: placeholderRegistry
+            )
+        }
+        .onDisappear {
+            referenceValidationCoordinator.cancel()
+        }
         .animation(.easeInOut(duration: 0.15), value: viewModel.fieldStates)
     }
     
@@ -107,40 +120,27 @@ struct DocumentDataFormView: View {
         )
     }
     
+    var descriptorsSyncToken: String {
+        descriptors.map(\.signature).joined(separator: "||")
+    }
+    
+    func companyValuesForReferenceValidation() -> [PlaceholderKey: String] {
+        viewModel.makeApprovedValues(in: .company)
+    }
+    
     // MARK: - Reference validation scheduling
     
     private func scheduleReferenceValidation() {
-        // Справочная валидация не запускается на каждую клавишу:
-        // она дебаунсится и работает только когда есть ИНН/ОГРН для lookup.
-        // Это снижает шум в UI и лишние сетевые запросы во время обычного ввода.
-        let ogrn = viewModel.value(for: .ogrn).trimmedNilIfEmpty
-        let inn = viewModel.value(for: .inn).trimmedNilIfEmpty
-        let lookupKey = ogrn ?? inn
-        guard let lookupKey, !lookupKey.isEmpty else { return }
-        if lookupKey == lastLookupKey { return }
-        
-        validationTask?.cancel()
-        validationTask = Task {
-            do {
-                try await Task.sleep(for: .milliseconds(300))
-                try Task.checkCancellation()
-                let companyValues = viewModel.makeApprovedValues(in: .company)
-                let issues = await companyValidator.validate(values: companyValues)
-                try Task.checkCancellation()
-                viewModel.applyExternalIssues(issues)
-                lastLookupKey = lookupKey
-            } catch {}
-        }
+        referenceValidationCoordinator.scheduleValidation(
+            valuesProvider: { companyValuesForReferenceValidation() },
+            applyIssues: { viewModel.applyExternalIssues($0) }
+        )
     }
     
     private func runReferenceValidation() {
-        // Ручной запуск нужен как явное действие пользователя на случай,
-        // если авто-проверка не сработала или хочется повторно свериться после серии правок.
-        validationTask?.cancel()
-        validationTask = Task {
-            let companyValues = viewModel.makeApprovedValues(in: .company)
-            let issues = await companyValidator.validate(values: companyValues)
-            viewModel.applyExternalIssues(issues)
-        }
+        referenceValidationCoordinator.runValidationNow(
+            valuesProvider: { companyValuesForReferenceValidation() },
+            applyIssues: { viewModel.applyExternalIssues($0) }
+        )
     }
 }

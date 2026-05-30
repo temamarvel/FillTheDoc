@@ -56,9 +56,8 @@ struct MainView: View {
                 
                 if viewModel.isFormAvailable && !viewModel.isCopyStringReady {
                     DocumentDataFormView(
-                        id: viewModel.documentDataFormID,
                         descriptors: viewModel.documentDataDescriptors,
-                        extractedDescriptorValues: viewModel.extractedPlaceholderValues,
+                        initialValues: viewModel.extractedPlaceholderValues,
                         placeholderRegistry: viewModel.placeholderRegistry,
                         onApprove: { approvedValues in
                             viewModel.approveData(with: approvedValues)
@@ -67,7 +66,7 @@ struct MainView: View {
                             viewModel.invalidateApprovedData()
                         }
                     )
-                    .id(viewModel.documentDataFormID)
+                    .id(viewModel.documentDataSessionID)
                 }
                 
                 if viewModel.isCopyStringReady {

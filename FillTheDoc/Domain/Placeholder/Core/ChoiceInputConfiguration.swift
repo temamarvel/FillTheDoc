@@ -6,6 +6,8 @@
 //
 
 
+import Foundation
+
 /// Конфигурация editable-поля с ограниченным набором вариантов выбора.
 ///
 /// Для choice-плейсхолдера выбранная строка и есть итоговое replacement value,
@@ -21,21 +23,26 @@ nonisolated struct ChoiceInputConfiguration: Hashable, Codable, Sendable {
         emptyTitle: String = "Не выбрано"
     ) {
         self.options = options
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
         self.allowsEmptyValue = allowsEmptyValue
         self.emptyTitle = emptyTitle
     }
     
     /// Нормализует внешнее строковое значение к допустимому runtime-состоянию поля.
     func normalizedFieldValue(for value: String?) -> PlaceholderFieldValue {
-        if let value,
-           options.contains(value) {
-            return .value(value)
+        let normalizedValue = value?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        ?? ""
+        
+        guard !normalizedValue.isEmpty else {
+            return allowsEmptyValue ? .empty : .value(options.first ?? "")
         }
         
-        if allowsEmptyValue {
-            return .empty
+        guard options.contains(normalizedValue) else {
+            return allowsEmptyValue ? .empty : .value(options.first ?? "")
         }
         
-        return .value(options.first ?? "")
+        return .value(normalizedValue)
     }
 }
