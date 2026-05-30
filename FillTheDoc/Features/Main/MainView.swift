@@ -50,30 +50,28 @@ struct MainView: View {
             }
             
             Group {
-                if viewModel.isFormAvailable {
-                    VStack(spacing: 12) {
-                        DocumentDataFormView(
-                            id: viewModel.documentDataFormID,
-                            descriptors: viewModel.documentDataDescriptors,
-                            initialValues: viewModel.extractedPlaceholderValues,
-                            registry: viewModel.placeholderRegistry,
-                            onApprove: { approvedValues in
-                                viewModel.approveDocumentData(approvedValues)
-                            },
-                            onChange: {
-                                viewModel.invalidateApprovedData()
-                            }
-                        )
-                        .id(viewModel.documentDataFormID)
-                        
-                        if let googleSheetsRow = viewModel.googleSheetsRow, !googleSheetsRow.isEmpty {
-                            DocumentDataCopyStringPresenterView(content: googleSheetsRow)
-                        }
-                    }
-                } else if let googleSheetsRow = viewModel.googleSheetsRow, !googleSheetsRow.isEmpty {
-                    DocumentDataCopyStringPresenterView(content: googleSheetsRow)
-                } else {
+                if !viewModel.isFormAvailable && !viewModel.isCopyStringReady{
                     EmptyDocumentDataView()
+                }
+                
+                if viewModel.isFormAvailable && !viewModel.isCopyStringReady {
+                    DocumentDataFormView(
+                        id: viewModel.documentDataFormID,
+                        descriptors: viewModel.documentDataDescriptors,
+                        initialValues: viewModel.extractedPlaceholderValues,
+                        registry: viewModel.placeholderRegistry,
+                        onApprove: { approvedValues in
+                            viewModel.approveDocumentData(approvedValues)
+                        },
+                        onChange: {
+                            viewModel.invalidateApprovedData()
+                        }
+                    )
+                    .id(viewModel.documentDataFormID)
+                }
+                
+                if viewModel.isCopyStringReady {
+                    DocumentDataCopyStringPresenterView(content: viewModel.googleSheetsRow!)
                 }
             }
             

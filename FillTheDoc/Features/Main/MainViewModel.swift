@@ -97,6 +97,7 @@ final class MainViewModel {
     var isTemplateValid: Bool { isExistingFile(templateURL) }
     var isDetailsValid: Bool { isExistingFile(detailsURL) }
     var isFormAvailable: Bool { !documentDataDescriptors.isEmpty }
+    var isCopyStringReady: Bool { googleSheetsRow != nil }
     
     var canRun: Bool {
         isTemplateValid && isDetailsValid && isDataApproved
