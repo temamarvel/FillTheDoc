@@ -242,6 +242,13 @@ struct PlaceholderLibraryView: View {
 }
 
 private extension PlaceholderLibraryView {
+    /// Вычисляет следующий порядковый номер для нового custom placeholder.
+    /// Каждый новый placeholder получает order на 10 больше максимального существующего.
+    var nextOrder: Int {
+        let maxExisting = customDefinitions.map(\.order).max() ?? 490
+        return maxExisting + 10
+    }
+    
     @ViewBuilder
     func editorView(for sheet: PlaceholderEditorSheet) -> some View {
         switch sheet {
@@ -249,6 +256,7 @@ private extension PlaceholderLibraryView {
                 CustomPlaceholderEditorView(
                     mode: .create,
                     existingKeys: existingKeys,
+                    nextOrder: nextOrder,
                     onSave: onCreateCustom,
                     onDismiss: { editorSheet = nil }
                 )

@@ -31,16 +31,18 @@ nonisolated struct ChoiceInputConfiguration: Hashable, Codable, Sendable {
     
     /// Нормализует внешнее строковое значение к допустимому runtime-состоянию поля.
     func normalizedFieldValue(for value: String?) -> PlaceholderFieldValue {
+        guard !options.isEmpty else { return .empty }
+        
         let normalizedValue = value?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         ?? ""
         
         guard !normalizedValue.isEmpty else {
-            return allowsEmptyValue ? .empty : .value(options.first ?? "")
+            return allowsEmptyValue ? .empty : .value(options.first!)
         }
         
         guard options.contains(normalizedValue) else {
-            return allowsEmptyValue ? .empty : .value(options.first ?? "")
+            return allowsEmptyValue ? .empty : .value(options.first!)
         }
         
         return .value(normalizedValue)

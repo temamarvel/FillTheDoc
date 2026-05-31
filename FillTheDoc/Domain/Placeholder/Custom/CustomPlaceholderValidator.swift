@@ -2,9 +2,13 @@ import Foundation
 
 /// Валидирует draft пользовательского плейсхолдера до сохранения.
 ///
-/// Это отдельный слой правил для редактора: он проверяет не runtime-значение поля,
-/// а корректность самой definition-модели — ключ, заголовок, тип ввода и конфигурацию опций.
+/// Это единственный источник правил валидации для custom placeholders.
+/// UI-слой (inline validation) делегирует сюда, чтобы не дублировать логику.
 struct CustomPlaceholderValidator: Sendable {
+    
+    /// Максимальное количество вариантов выбора для choice-плейсхолдера.
+    static let maxChoiceOptions = 30
+    
     /// Возвращает набор найденных проблем в definition draft.
     func validate(
         draft: PlaceholderDescriptor,
@@ -35,9 +39,85 @@ struct CustomPlaceholderValidator: Sendable {
             issues.append(.error("Плейсхолдер с выбором не может извлекаться моделью. Для него доступно только ручное заполнение."))
         }
         
+        // Для extracted-плейсхолдера описание обязательно: оно попадает в LLM prompt
+        // и без него модель не сможет корректно извлечь значение.
+        if case .editable(source: .extracted, inputKind: .text) = draft.kind {
+            let description = draft.description.trimmingCharacters(in: .whitespacesAndNewlines)
+            if description.isEmpty {
+                issues.append(.error("Для извлекаемого плейсхолдера описание обязательно — оно используется в промпте для модели."))
+            }
+        }
+        
         issues.append(contentsOf: validateKind(draft.kind))
         return issues
     }
+    
+    // MARK: - Granular validation helpers (used by inline validation in editor)
+    
+    func validateKey(_ rawKey: String, existingKeys: Set<PlaceholderKey>) -> String? {
+        let key = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if key.isEmpty {
+            return "Ключ не может быть пустым."
+        }
+        if key.range(of: #"^[a-z][a-z0-9_]*$"#, options: .regularExpression) == nil {
+            return "Только латинские буквы, цифры и _. Первый символ — буква."
+        }
+        if existingKeys.contains(key.placeholderKey) {
+            return "Плейсхолдер с таким ключом уже существует."
+        }
+        return nil
+    }
+    
+    func validateTitle(_ title: String) -> String? {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "Название не может быть пустым." : nil
+    }
+    
+    func validateDescription(
+        _ description: String,
+        valueSource: PlaceholderValueSource,
+        inputType: CustomPlaceholderEditorInputType
+    ) -> String? {
+        guard inputType == .text, valueSource == .extracted else { return nil }
+        let trimmed = description.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty
+        ? "Для извлекаемого плейсхолдера описание обязательно."
+        : nil
+    }
+    
+    func validateChoiceOptions(_ options: [String]) -> (general: String?, perOption: [Int: String]) {
+        var generalError: String?
+        var perOptionErrors: [Int: String] = [:]
+        
+        if options.isEmpty {
+            generalError = "Добавьте хотя бы один вариант выбора."
+            return (generalError, perOptionErrors)
+        }
+        
+        if options.count > Self.maxChoiceOptions {
+            generalError = "Максимум \(Self.maxChoiceOptions) вариантов выбора."
+            return (generalError, perOptionErrors)
+        }
+        
+        var normalizedValues: [String: Int] = [:]
+        
+        for (index, option) in options.enumerated() {
+            let value = option.trimmingCharacters(in: .whitespacesAndNewlines)
+            if value.isEmpty {
+                perOptionErrors[index] = "Вариант выбора не может быть пустым."
+                continue
+            }
+            normalizedValues[value, default: 0] += 1
+        }
+        
+        if normalizedValues.contains(where: { $0.value > 1 }) {
+            generalError = "Варианты выбора не должны повторяться."
+        }
+        
+        return (generalError, perOptionErrors)
+    }
+    
+    // MARK: - Private
     
     private func validateKind(_ kind: PlaceholderKind) -> [FieldIssue] {
         switch kind {
@@ -65,6 +145,10 @@ struct CustomPlaceholderValidator: Sendable {
             issues.append(.error("Добавьте хотя бы один вариант выбора."))
         }
         
+        if configuration.options.count > Self.maxChoiceOptions {
+            issues.append(.error("Максимум \(Self.maxChoiceOptions) вариантов выбора."))
+        }
+        
         let normalizedOptions = configuration.options.map {
             $0.trimmingCharacters(in: .whitespacesAndNewlines)
         }
@@ -79,5 +163,28 @@ struct CustomPlaceholderValidator: Sendable {
         }
         
         return issues
+    }
+}
+
+/// Вспомогательный enum для inline-валидации в EditorView.
+/// Используется валидатором для определения контекста.
+enum CustomPlaceholderEditorInputType: String, CaseIterable, Identifiable {
+    case text
+    case choice
+    
+    var id: String { rawValue }
+    
+    var title: String {
+        switch self {
+            case .text: return "Текст"
+            case .choice: return "Выбор"
+        }
+    }
+    
+    var systemImage: String {
+        switch self {
+            case .text: return "textformat"
+            case .choice: return "list.bullet"
+        }
     }
 }

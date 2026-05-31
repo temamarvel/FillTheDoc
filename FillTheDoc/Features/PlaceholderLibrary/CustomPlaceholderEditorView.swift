@@ -16,28 +16,6 @@ nonisolated private struct EditableChoiceOption: Identifiable, Hashable {
     }
 }
 
-/// Внутренний тип ввода редактора: текстовое поле или ограниченный выбор.
-private enum CustomPlaceholderEditorInputType: String, CaseIterable, Identifiable {
-    case text
-    case choice
-    
-    var id: String { rawValue }
-    
-    var title: String {
-        switch self {
-            case .text: return "Текст"
-            case .choice: return "Выбор"
-        }
-    }
-    
-    var systemImage: String {
-        switch self {
-            case .text: return "textformat"
-            case .choice: return "list.bullet"
-        }
-    }
-}
-
 private enum CustomPlaceholderTextEditorMode: String, CaseIterable, Identifiable {
     case singleLine
     case multiline
@@ -113,12 +91,14 @@ private enum CustomPlaceholderEditorValueSource: String, CaseIterable, Identifia
 private struct InlineValidationState {
     var titleError: String?
     var keyError: String?
+    var descriptionError: String?
     var choiceGeneralError: String?
     var choiceOptionErrors: [UUID: String] = [:]
     
     var hasBlockingErrors: Bool {
         titleError != nil
         || keyError != nil
+        || descriptionError != nil
         || choiceGeneralError != nil
         || !choiceOptionErrors.isEmpty
     }
@@ -183,6 +163,7 @@ struct CustomPlaceholderEditorView: View {
     
     @State private var exampleValueText: String
     @State private var textRequired: Bool
+    @State private var choiceRequired: Bool
     @State private var textValueSource: CustomPlaceholderEditorValueSource
     @State private var textEditorStyle: TextEditorStyle
     
@@ -193,9 +174,12 @@ struct CustomPlaceholderEditorView: View {
     @State private var saveErrorText: String?
     @State private var isSaving = false
     
+    private let validator = CustomPlaceholderValidator()
+    
     init(
         mode: Mode,
         existingKeys: Set<PlaceholderKey>,
+        nextOrder: Int = 500,
         onSave: @escaping (PlaceholderDescriptor) async throws -> Void,
         onDismiss: (() -> Void)? = nil
     ) {
@@ -209,13 +193,14 @@ struct CustomPlaceholderEditorView: View {
         _titleText = State(initialValue: definition?.title ?? "")
         _keyText = State(initialValue: definition?.key.rawValue ?? "")
         _descriptionText = State(initialValue: definition?.description ?? "")
-        _order = State(initialValue: definition?.order ?? 500)
+        _order = State(initialValue: definition?.order ?? nextOrder)
         
         switch definition?.kind {
             case .editable(let source, .text(let editorStyle)):
                 _valueType = State(initialValue: .text)
                 _exampleValueText = State(initialValue: definition?.exampleValue ?? "")
                 _textRequired = State(initialValue: definition?.isRequired ?? false)
+                _choiceRequired = State(initialValue: true)
                 _textValueSource = State(initialValue: .init(valueSource: source))
                 _textEditorStyle = State(initialValue: editorStyle)
                 _choiceOptions = State(initialValue: Self.defaultChoiceOptions())
@@ -224,6 +209,7 @@ struct CustomPlaceholderEditorView: View {
                 _valueType = State(initialValue: .choice)
                 _exampleValueText = State(initialValue: definition?.exampleValue ?? "")
                 _textRequired = State(initialValue: false)
+                _choiceRequired = State(initialValue: definition?.isRequired ?? true)
                 _textValueSource = State(initialValue: .manual)
                 _textEditorStyle = State(initialValue: .singleLine)
                 _choiceOptions = State(initialValue: configuration.options.map { EditableChoiceOption(value: $0) })
@@ -232,6 +218,7 @@ struct CustomPlaceholderEditorView: View {
                 _valueType = State(initialValue: .text)
                 _exampleValueText = State(initialValue: definition?.exampleValue ?? "")
                 _textRequired = State(initialValue: false)
+                _choiceRequired = State(initialValue: true)
                 _textValueSource = State(initialValue: .manual)
                 _textEditorStyle = State(initialValue: .singleLine)
                 _choiceOptions = State(initialValue: Self.defaultChoiceOptions())
@@ -451,18 +438,22 @@ private extension CustomPlaceholderEditorView {
                 )
                 .frame(height: 118)
                 
-                HStack {
-                    Text(textValueSource == .extracted
-                         ? "Описание помогает модели понять, какие данные искать."
-                         : "Описание используется в интерфейсе и справочнике плейсхолдеров.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    
-                    Spacer()
-                    
-                    Text("\(descriptionText.count)/500")
+                if let descriptionError = validation.descriptionError {
+                    validationMessage(descriptionError, style: .error)
+                } else {
+                    HStack {
+                        Text(textValueSource == .extracted
+                             ? "Описание помогает модели понять, какие данные искать."
+                             : "Описание используется в интерфейсе и справочнике плейсхолдеров.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        
+                        Spacer()
+                        
+                        Text("\(descriptionText.count)/500")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             
@@ -508,7 +499,7 @@ private extension CustomPlaceholderEditorView {
                 
                 Spacer()
                 
-                Text("\(choiceOptions.count) \(choiceOptions.count.optionCountWord)")
+                Text("\(choiceOptions.count)/\(CustomPlaceholderValidator.maxChoiceOptions) \(choiceOptions.count.optionCountWord)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -539,6 +530,9 @@ private extension CustomPlaceholderEditorView {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
+            .disabled(choiceOptions.count >= CustomPlaceholderValidator.maxChoiceOptions)
+            
+            Toggle("Поле обязательно для выбора", isOn: $choiceRequired)
         }
     }
     
@@ -584,20 +578,15 @@ private extension CustomPlaceholderEditorView {
     func validateInline() -> InlineValidationState {
         var state = InlineValidationState()
         
-        let rawKey = normalizedKeyText
-        let title = titleText.trimmingCharacters(in: .whitespacesAndNewlines)
+        state.titleError = validator.validateTitle(titleText)
+        state.keyError = validator.validateKey(normalizedKeyText, existingKeys: existingKeysForValidation)
         
-        if title.isEmpty {
-            state.titleError = "Название не может быть пустым."
-        }
-        
-        if rawKey.isEmpty {
-            state.keyError = "Ключ не может быть пустым."
-        } else if rawKey.range(of: #"^[a-z][a-z0-9_]*$"#, options: .regularExpression) == nil {
-            state.keyError = "Только латинские буквы, цифры и _. Первый символ — буква."
-        } else if existingKeysForValidation.contains(rawKey.placeholderKey) {
-            state.keyError = "Плейсхолдер с таким ключом уже существует."
-        }
+        // Описание обязательно только для extracted текстовых плейсхолдеров.
+        state.descriptionError = validator.validateDescription(
+            descriptionText,
+            valueSource: textValueSource == .extracted ? .extracted : .manual,
+            inputType: valueType
+        )
         
         if valueType == .choice {
             validateChoiceInline(into: &state)
@@ -607,26 +596,14 @@ private extension CustomPlaceholderEditorView {
     }
     
     func validateChoiceInline(into state: inout InlineValidationState) {
-        if choiceOptions.isEmpty {
-            state.choiceGeneralError = "Добавьте хотя бы один вариант выбора."
-        }
+        let optionValues = choiceOptions.map(\.value)
+        let result = validator.validateChoiceOptions(optionValues)
+        state.choiceGeneralError = result.general
         
-        var normalizedValues: [String: Int] = [:]
-        
-        for option in choiceOptions {
-            let value = option.value.trimmingCharacters(in: .whitespacesAndNewlines)
-            
-            if value.isEmpty {
-                state.choiceOptionErrors[option.id] = "Вариант выбора не может быть пустым."
-                continue
-            }
-            
-            normalizedValues[value, default: 0] += 1
-        }
-        
-        let hasDuplicates = normalizedValues.contains { $0.value > 1 }
-        if hasDuplicates {
-            state.choiceGeneralError = "Варианты выбора не должны повторяться."
+        // Map index-based errors to UUID-based errors for the UI
+        for (index, error) in result.perOption {
+            guard index < choiceOptions.count else { continue }
+            state.choiceOptionErrors[choiceOptions[index].id] = error
         }
     }
     
@@ -702,11 +679,11 @@ private extension CustomPlaceholderEditorView {
                 inputKind = .choice(
                     ChoiceInputConfiguration(
                         options: options,
-                        allowsEmptyValue: false,
+                        allowsEmptyValue: !choiceRequired,
                         emptyTitle: "Не выбрано"
                     )
                 )
-                isRequired = true
+                isRequired = choiceRequired
         }
         
         return PlaceholderDescriptor(
