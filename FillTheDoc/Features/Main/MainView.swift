@@ -69,8 +69,8 @@ struct MainView: View {
                     .id(viewModel.documentDataSessionID)
                 }
                 
-                if viewModel.isCopyStringReady {
-                    DocumentDataCopyStringPresenterView(content: viewModel.googleSheetsRow!)
+                if let copyString = viewModel.googleSheetsRow {
+                    DocumentDataCopyStringPresenterView(content: copyString)
                 }
             }
             

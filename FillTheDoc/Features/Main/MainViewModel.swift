@@ -114,12 +114,17 @@ final class MainViewModel {
         Set(availablePlaceholders.map(\.key))
     }
     
-    var templatePlaceholderKeys: Set<PlaceholderKey> {
-        Set(templatePlaceholders.map(\.placeholderKey).filter { !$0.isControlToken })
-    }
+    /// Кэшированный набор ключей из шаблона.
+    /// Пересчитывается только при изменении `templatePlaceholders`.
+    private(set) var templatePlaceholderKeys: Set<PlaceholderKey> = []
+    
+    /// Кэшированный отчёт об использовании плейсхолдеров в шаблоне.
+    /// Пересчитывается при изменении `templatePlaceholders` или `placeholderRegistry`.
+    private(set) var cachedUsageReport: PlaceholderUsageReport?
     
     var templateUsageReport: PlaceholderUsageReport {
-        PlaceholderUsageAnalyzer.analyze(
+        if let cachedUsageReport { return cachedUsageReport }
+        return PlaceholderUsageAnalyzer.analyze(
             templateKeys: templatePlaceholderKeys,
             registry: placeholderRegistry
         )
@@ -239,22 +244,30 @@ final class MainViewModel {
     }
     
     func addCustomPlaceholder(_ definition: PlaceholderDescriptor) async throws {
-        guard let customPlaceholderRepository else { return }
-        try await customPlaceholderRepository.add(definition)
-        let allDefinitions = await customPlaceholderRepository.all()
-        refreshPlaceholderRegistry(customDefinitions: allDefinitions)
+        try await mutateCustomPlaceholders { repo in
+            try await repo.add(definition)
+        }
     }
     
     func updateCustomPlaceholder(_ definition: PlaceholderDescriptor) async throws {
-        guard let customPlaceholderRepository else { return }
-        try await customPlaceholderRepository.update(definition)
-        let allDefinitions = await customPlaceholderRepository.all()
-        refreshPlaceholderRegistry(customDefinitions: allDefinitions)
+        try await mutateCustomPlaceholders { repo in
+            try await repo.update(definition)
+        }
     }
     
     func deleteCustomPlaceholder(key: PlaceholderKey) async throws {
+        try await mutateCustomPlaceholders { repo in
+            try await repo.delete(key: key)
+        }
+    }
+    
+    /// Обобщённый helper для мутаций custom placeholders.
+    /// Гарантирует единую точку обновления registry после любого CRUD-действия.
+    private func mutateCustomPlaceholders(
+        _ action: (CustomPlaceholderRepository) async throws -> Void
+    ) async throws {
         guard let customPlaceholderRepository else { return }
-        try await customPlaceholderRepository.delete(key: key)
+        try await action(customPlaceholderRepository)
         let allDefinitions = await customPlaceholderRepository.all()
         refreshPlaceholderRegistry(customDefinitions: allDefinitions)
     }
@@ -284,6 +297,7 @@ final class MainViewModel {
                 let keys = try scanner.scanKeys(templateURL: templateURL)
                 try Task.checkCancellation()
                 self.templatePlaceholders = keys
+                self.recomputeTemplateCache()
             } catch is CancellationError {
             } catch {
                 print("Scan failed:", error)
@@ -461,19 +475,26 @@ final class MainViewModel {
     }
     
     private func refreshPlaceholderRegistry(customDefinitions: [PlaceholderDescriptor]) {
-        customPlaceholderDefinitions = customDefinitions.sorted { lhs, rhs in
-            if lhs.order == rhs.order {
-                return lhs.key.rawValue < rhs.key.rawValue
-            }
-            return lhs.order < rhs.order
-        }
+        customPlaceholderDefinitions = customDefinitions.sortedCanonically()
         
         let nextRegistry = PlaceholderRegistry(customDefinitions: customDefinitions)
         placeholderRegistry = nextRegistry
+        recomputeTemplateCache()
         
         if isFormAvailable {
             documentDataDescriptors = nextRegistry.inputDescriptors
             invalidateApprovedData()
         }
+    }
+    
+    /// Пересчитывает кэш ключей шаблона и usage report.
+    private func recomputeTemplateCache() {
+        templatePlaceholderKeys = Set(
+            templatePlaceholders.map(\.placeholderKey).filter { !$0.isControlToken }
+        )
+        cachedUsageReport = PlaceholderUsageAnalyzer.analyze(
+            templateKeys: templatePlaceholderKeys,
+            registry: placeholderRegistry
+        )
     }
 }

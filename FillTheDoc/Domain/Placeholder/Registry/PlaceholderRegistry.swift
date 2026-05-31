@@ -26,7 +26,7 @@ protocol PlaceholderRegistryProtocol: Sendable {
 
 // MARK: - Default implementation
 
-final class PlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked Sendable {
+struct PlaceholderRegistry: PlaceholderRegistryProtocol, Sendable {
     nonisolated let allDescriptors: [PlaceholderDescriptor]
     
     nonisolated private let index: [PlaceholderKey: PlaceholderDescriptor]
@@ -35,7 +35,7 @@ final class PlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked Sendabl
     nonisolated var inputDescriptors: [PlaceholderDescriptor] {
         allDescriptors
             .filter(\.acceptsUserInput)
-            .sorted(by: Self.sortDescriptors)
+            .sortedCanonically()
     }
     
     nonisolated var extractedDescriptors: [PlaceholderDescriptor] {
@@ -67,7 +67,7 @@ final class PlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked Sendabl
             .filter { !Self.builtInDescriptorIndex.keys.contains($0.key) }
         
         let all = (Self.builtInDescriptors + customDescriptors)
-            .sorted(by: Self.sortDescriptors)
+            .sortedCanonically()
         
         self.allDescriptors = all
         self.index = Dictionary(uniqueKeysWithValues: all.map { ($0.key, $0) })
@@ -89,7 +89,7 @@ final class PlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked Sendabl
     nonisolated func descriptors(in section: PlaceholderSection) -> [PlaceholderDescriptor] {
         allDescriptors
             .filter { $0.section == section }
-            .sorted(by: Self.sortDescriptors)
+            .sortedCanonically()
     }
     
     nonisolated func fieldPolicy(for key: PlaceholderKey) -> PlaceholderFieldPolicy {
@@ -101,16 +101,6 @@ final class PlaceholderRegistry: PlaceholderRegistryProtocol, @unchecked Sendabl
 
 extension PlaceholderRegistry {
     nonisolated static let defaultFieldPolicy = PlaceholderFieldPolicy()
-    
-    nonisolated static func sortDescriptors(_ lhs: PlaceholderDescriptor, _ rhs: PlaceholderDescriptor) -> Bool {
-        if lhs.section == rhs.section {
-            if lhs.order == rhs.order {
-                return lhs.key.rawValue < rhs.key.rawValue
-            }
-            return lhs.order < rhs.order
-        }
-        return lhs.section.rawValue < rhs.section.rawValue
-    }
     
     nonisolated static func defaultCustomFieldPolicy(
         for descriptor: PlaceholderDescriptor

@@ -84,15 +84,13 @@ final class APIKeyStore {
     }
     
     func clear() async {
-        Task {
-            do {
-                try await keychain.delete(account: account)
-                apiKey = nil
-                errorText = nil
-                isPromptPresented = true
-            } catch {
-                errorText = "Не удалось удалить ключ из Keychain: \(error.localizedDescription)"
-            }
+        do {
+            try await keychain.delete(account: account)
+            apiKey = nil
+            errorText = nil
+            isPromptPresented = true
+        } catch {
+            errorText = "Не удалось удалить ключ из Keychain: \(error.localizedDescription)"
         }
     }
     

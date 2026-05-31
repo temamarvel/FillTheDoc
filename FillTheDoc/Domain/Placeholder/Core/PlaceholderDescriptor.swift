@@ -105,3 +105,21 @@ nonisolated struct PlaceholderDescriptor: Identifiable, Hashable, Codable, Senda
         self.isRequired = isRequired
     }
 }
+
+// MARK: - Canonical sorting
+
+extension Array where Element == PlaceholderDescriptor {
+    /// Каноническая сортировка дескрипторов: сначала по секции, затем по order, затем по ключу.
+    /// Единственный источник правила сортировки для всего проекта.
+    func sortedCanonically() -> [PlaceholderDescriptor] {
+        sorted { lhs, rhs in
+            if lhs.section == rhs.section {
+                if lhs.order == rhs.order {
+                    return lhs.key.rawValue < rhs.key.rawValue
+                }
+                return lhs.order < rhs.order
+            }
+            return lhs.section.rawValue < rhs.section.rawValue
+        }
+    }
+}

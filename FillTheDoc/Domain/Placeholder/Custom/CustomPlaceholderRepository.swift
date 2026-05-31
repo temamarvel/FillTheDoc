@@ -36,12 +36,7 @@ actor CustomPlaceholderRepository {
     
     /// Возвращает определения в стабильном порядке для UI и registry.
     func all() -> [PlaceholderDescriptor] {
-        definitions.sorted { lhs, rhs in
-            if lhs.order == rhs.order {
-                return lhs.key.rawValue < rhs.key.rawValue
-            }
-            return lhs.order < rhs.order
-        }
+        definitions.sortedCanonically()
     }
     
     /// Добавляет новый placeholder и сразу сохраняет обновлённый набор.
