@@ -71,7 +71,18 @@ struct PlaceholderRegistry: PlaceholderRegistryProtocol, Sendable {
         
         self.allDescriptors = all
         self.index = Dictionary(uniqueKeysWithValues: all.map { ($0.key, $0) })
+        
         var fieldPolicies = Self.builtInFieldPolicies
+        
+        // Для встроенных choice-дескрипторов без явной policy —
+        // генерируем стандартную choice-policy с validateFieldValue.
+        for descriptor in Self.builtInDescriptors {
+            if fieldPolicies[descriptor.key] == nil,
+               case .editable(_, .choice) = descriptor.kind {
+                fieldPolicies[descriptor.key] = Self.defaultCustomFieldPolicy(for: descriptor)
+            }
+        }
+        
         for descriptor in customDescriptors {
             fieldPolicies[descriptor.key] = Self.defaultCustomFieldPolicy(for: descriptor)
         }
@@ -105,29 +116,54 @@ extension PlaceholderRegistry {
     nonisolated static func defaultCustomFieldPolicy(
         for descriptor: PlaceholderDescriptor
     ) -> PlaceholderFieldPolicy {
-        let validator: FieldValidator
-        
         switch descriptor.kind {
             case .editable(_, .text):
-                if descriptor.isRequired {
-                    validator = { Validators.nonEmpty($0) }
-                } else {
-                    validator = { _ in nil }
-                }
-            case .editable(_, .choice(let configuration)):
-                validator = { value in
-                    if configuration.allowsEmptyValue || !value.isEmpty {
+                let isRequired = descriptor.isRequired
+                return PlaceholderFieldPolicy(
+                    normalize: { $0.trimmingCharacters(in: .whitespacesAndNewlines) },
+                    validate: { value in
+                        if isRequired {
+                            if let issue = Validators.nonEmpty(value) { return issue }
+                        }
+                        if !value.isEmpty && value.count > PlaceholderFieldPolicy.maxCustomTextLength {
+                            return .warning("Значение длиннее \(PlaceholderFieldPolicy.maxCustomTextLength) символов — возможны проблемы с отображением в документе.")
+                        }
                         return nil
                     }
-                    return .error("Поле обязательно для выбора.")
-                }
+                )
+                
+            case .editable(_, .choice(let configuration)):
+                return PlaceholderFieldPolicy(
+                    normalize: { $0.trimmingCharacters(in: .whitespacesAndNewlines) },
+                    validate: { value in
+                        // String-level fallback (вызывается для .empty → "")
+                        if value.isEmpty {
+                            return configuration.allowsEmptyValue
+                            ? nil
+                            : .error("Поле обязательно для выбора.")
+                        }
+                        if !configuration.options.contains(value) {
+                            return .error("Выбрано неизвестное значение.")
+                        }
+                        return nil
+                    },
+                    validateFieldValue: { fieldValue in
+                        switch fieldValue {
+                            case .empty:
+                                return configuration.allowsEmptyValue
+                                ? nil
+                                : .error("Поле обязательно для выбора.")
+                            case .value(let selected):
+                                if !configuration.options.contains(selected) {
+                                    return .error("Выбрано неизвестное значение.")
+                                }
+                                return nil
+                        }
+                    }
+                )
+                
             case .derived:
-                validator = { _ in nil }
+                return PlaceholderFieldPolicy()
         }
-        
-        return PlaceholderFieldPolicy(
-            normalize: { $0.trimmingCharacters(in: .whitespacesAndNewlines) },
-            validate: validator
-        )
     }
 }

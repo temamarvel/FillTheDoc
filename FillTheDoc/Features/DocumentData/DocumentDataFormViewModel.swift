@@ -129,6 +129,18 @@ final class DocumentDataFormViewModel {
         })
     }
     
+    var companyReferenceValidationValues: [PlaceholderKey: String] {
+        makeApprovedValues(in: .company)
+            .compactMapValues { $0.trimmedNilIfEmpty }
+    }
+    
+    var referenceValidationTrigger: String {
+        companyReferenceValidationValues
+            .sorted { $0.key.rawValue < $1.key.rawValue }
+            .map { "\($0.key.rawValue)=\($0.value)" }
+            .joined(separator: "|")
+    }
+    
     var hasErrors: Bool {
         fieldStates.values.contains { $0.displayIssue?.severity == .error }
     }
@@ -136,7 +148,7 @@ final class DocumentDataFormViewModel {
     // MARK: - External issues (e.g. from DaData reference validation)
     
     func applyExternalIssues(_ issues: [PlaceholderKey: FieldIssue]) {
-        for key in fieldStates.keys {
+        for key in companyReferenceFieldKeys {
             guard var state = fieldStates[key] else { continue }
             state.externalIssue = issues[key]
             fieldStates[key] = state
@@ -145,6 +157,14 @@ final class DocumentDataFormViewModel {
 }
 
 private extension DocumentDataFormViewModel {
+    var companyReferenceFieldKeys: Set<PlaceholderKey> {
+        Set(
+            editableDescriptors
+                .filter { $0.section == .company }
+                .map(\.key)
+        )
+    }
+    
     func descriptor(for key: PlaceholderKey) -> PlaceholderDescriptor? {
         editableDescriptors.first { $0.key == key }
     }
@@ -182,22 +202,20 @@ private extension DocumentDataFormViewModel {
     }
     
     func validate(_ value: PlaceholderFieldValue, for descriptor: PlaceholderDescriptor) -> FieldIssue? {
+        let policy = placeholderRegistry.fieldPolicy(for: descriptor.key)
+        
         switch (value, descriptor.kind) {
             case (.value(let text), .editable(_, .text)):
-                let policy = placeholderRegistry.fieldPolicy(for: descriptor.key)
                 return policy.validate(text)
-            case (.value(let selectedValue), .editable(_, .choice(let configuration))):
-                if configuration.options.contains(selectedValue) {
-                    return nil
+            case (_, .editable(_, .choice)):
+                // Choice-валидация работает на уровне PlaceholderFieldValue,
+                // чтобы различать .empty (не выбрано) и .value (конкретный выбор).
+                if let fieldValueValidator = policy.validateFieldValue {
+                    return fieldValueValidator(value)
                 }
-                return .error("Выбрано неизвестное значение.")
-            case (.empty, .editable(_, .choice(let configuration))):
-                if configuration.allowsEmptyValue {
-                    return nil
-                }
-                return .error("Поле обязательно для выбора.")
+                // Fallback для встроенных choice без validateFieldValue
+                return policy.validate(value.replacementString)
             case (.empty, .editable(_, .text)):
-                let policy = placeholderRegistry.fieldPolicy(for: descriptor.key)
                 return policy.validate("")
             case (_, .derived):
                 return nil
