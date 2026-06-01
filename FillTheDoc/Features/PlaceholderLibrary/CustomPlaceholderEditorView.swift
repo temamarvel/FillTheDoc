@@ -52,6 +52,7 @@ struct CustomPlaceholderEditorView: View {
     @Environment(\.dismiss) private var dismiss
     
     @State private var draft: CustomPlaceholderDraft
+    @State private var lastTextValueSource: PlaceholderValueSource
     @State private var validationState: InlineValidationState
     @State private var saveErrorText: String?
     @State private var isSaving = false
@@ -84,6 +85,14 @@ struct CustomPlaceholderEditorView: View {
         }
         
         _draft = State(initialValue: initialDraft)
+        _lastTextValueSource = State(
+            initialValue: {
+                guard case .text(let valueSource) = initialDraft.inputKind else {
+                    return .extracted
+                }
+                return valueSource
+            }()
+        )
         _validationState = State(
             initialValue: InlineValidationState(
                 issues: CustomPlaceholderDraftValidator().validate(
@@ -168,12 +177,11 @@ private extension CustomPlaceholderEditorView {
             set: { selection in
                 switch selection {
                     case .text:
-                        draft.inputKind = .text(
-                            valueSource: .extracted,
-                            editorStyle: .singleLine
-                        )
-                        draft.isRequired = false
+                        draft.inputKind = .text(valueSource: lastTextValueSource)
                     case .choice:
+                        if case .text(let valueSource) = draft.inputKind {
+                            lastTextValueSource = valueSource
+                        }
                         draft.inputKind = .choice(
                             options: [EditableChoiceOption(value: "")]
                         )
@@ -183,38 +191,18 @@ private extension CustomPlaceholderEditorView {
         )
     }
     
-    var textEditorStyleBinding: Binding<TextEditorStyle> {
-        Binding(
-            get: {
-                guard case .text(_, let editorStyle) = draft.inputKind else {
-                    return .singleLine
-                }
-                return editorStyle
-            },
-            set: { newStyle in
-                guard case .text(let source, _) = draft.inputKind else { return }
-                draft.inputKind = .text(
-                    valueSource: source,
-                    editorStyle: newStyle
-                )
-            }
-        )
-    }
-    
     var textValueSourceBinding: Binding<PlaceholderValueSource> {
         Binding(
             get: {
-                guard case .text(let source, _) = draft.inputKind else {
-                    return .manual
+                guard case .text(let source) = draft.inputKind else {
+                    return lastTextValueSource
                 }
                 return source
             },
             set: { newSource in
-                guard case .text(_, let style) = draft.inputKind else { return }
-                draft.inputKind = .text(
-                    valueSource: newSource,
-                    editorStyle: style
-                )
+                lastTextValueSource = newSource
+                guard case .text = draft.inputKind else { return }
+                draft.inputKind = .text(valueSource: newSource)
             }
         )
     }
@@ -303,7 +291,7 @@ private extension CustomPlaceholderEditorView {
             sectionHeader("2. Настройки плейсхолдера")
             
             VStack(alignment: .leading, spacing: 8) {
-                Text("Тип плейсхолдера")
+                Text("Тип значения")
                     .font(.subheadline.weight(.medium))
                 
                 Picker("", selection: inputKindSelectionBinding) {
@@ -329,25 +317,6 @@ private extension CustomPlaceholderEditorView {
     
     var textSettingsSection: some View {
         VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Тип поля")
-                    .font(.subheadline.weight(.medium))
-                
-                Picker("", selection: textEditorStyleBinding) {
-                    ForEach(TextEditorStyle.allCases) { style in
-                        Text(style.label)
-                            .tag(style)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.segmented)
-                
-                Text("Определяет только визуальный режим ввода: одна строка или многострочное поле.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            
             VStack(alignment: .leading, spacing: 8) {
                 Text("Источник значения")
                     .font(.subheadline.weight(.medium))

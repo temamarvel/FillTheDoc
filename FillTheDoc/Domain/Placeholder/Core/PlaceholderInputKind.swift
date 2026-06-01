@@ -11,7 +11,7 @@
 /// Этот enum нужен, чтобы registry и UI опирались на единое определение того,
 /// является ли поле обычным текстом или полем выбора с опциями.
 nonisolated enum PlaceholderInputKind: Hashable, Codable, Sendable {
-    case text(editorStyle: TextEditorStyle = .singleLine)
+    case text
     case choice(ChoiceInputConfiguration)
     
     /// Короткое человекочитаемое название типа ввода для UI.
@@ -27,8 +27,8 @@ nonisolated enum PlaceholderInputKind: Hashable, Codable, Sendable {
     /// Стабильный фрагмент сигнатуры для синхронизации UI с изменившимся registry.
     var signatureFragment: String {
         switch self {
-            case .text(let editorStyle):
-                return "text|\(editorStyle.signatureFragment)"
+            case .text:
+                return "text"
             case .choice(let configuration):
                 let optionsLine = configuration.options
                     .joined(separator: ";")

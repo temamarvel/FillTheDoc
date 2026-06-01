@@ -17,7 +17,7 @@ extension PlaceholderRegistry {
             order: 10,
             kind: .editable(
                 source: .extracted,
-                inputKind: .text()
+                inputKind: .text
             ),
             exampleValue: "Ромашка",
             isRequired: true
@@ -30,7 +30,7 @@ extension PlaceholderRegistry {
             order: 20,
             kind: .editable(
                 source: .extracted,
-                inputKind: .text()
+                inputKind: .text
             ),
             exampleValue: "ООО",
             isRequired: true
@@ -43,7 +43,7 @@ extension PlaceholderRegistry {
             order: 30,
             kind: .editable(
                 source: .extracted,
-                inputKind: .text()
+                inputKind: .text
             ),
             exampleValue: "Иванов Иван Иванович",
             isRequired: true
@@ -56,7 +56,7 @@ extension PlaceholderRegistry {
             order: 40,
             kind: .editable(
                 source: .extracted,
-                inputKind: .text()
+                inputKind: .text
             ),
             exampleValue: "Иванова Ивана Ивановича",
             isRequired: true
@@ -69,7 +69,7 @@ extension PlaceholderRegistry {
             order: 50,
             kind: .editable(
                 source: .extracted,
-                inputKind: .text()
+                inputKind: .text
             ),
             exampleValue: "Иванов И.И.",
             isRequired: true
@@ -82,7 +82,7 @@ extension PlaceholderRegistry {
             order: 60,
             kind: .editable(
                 source: .extracted,
-                inputKind: .text()
+                inputKind: .text
             ),
             exampleValue: "1187746707280",
             isRequired: true
@@ -95,7 +95,7 @@ extension PlaceholderRegistry {
             order: 70,
             kind: .editable(
                 source: .extracted,
-                inputKind: .text()
+                inputKind: .text
             ),
             exampleValue: "9731007287",
             isRequired: true
@@ -108,7 +108,7 @@ extension PlaceholderRegistry {
             order: 80,
             kind: .editable(
                 source: .extracted,
-                inputKind: .text()
+                inputKind: .text
             ),
             exampleValue: "773101001",
             isRequired: false
@@ -121,7 +121,7 @@ extension PlaceholderRegistry {
             order: 90,
             kind: .editable(
                 source: .extracted,
-                inputKind: .text()
+                inputKind: .text
             ),
             exampleValue: "info@romashka.ru",
             isRequired: false
@@ -134,7 +134,7 @@ extension PlaceholderRegistry {
             order: 100,
             kind: .editable(
                 source: .extracted,
-                inputKind: .text(editorStyle: .multiline)
+                inputKind: .text
             ),
             exampleValue: "г. Москва, ул. Ленина, д. 1",
             isRequired: false
@@ -147,7 +147,7 @@ extension PlaceholderRegistry {
             order: 110,
             kind: .editable(
                 source: .extracted,
-                inputKind: .text()
+                inputKind: .text
             ),
             exampleValue: "+79991234567",
             isRequired: false
@@ -160,7 +160,7 @@ extension PlaceholderRegistry {
             order: 120,
             kind: .editable(
                 source: .manual,
-                inputKind: .text()
+                inputKind: .text
             ),
             exampleValue: "2024-01-001",
             isRequired: false
@@ -173,7 +173,7 @@ extension PlaceholderRegistry {
             order: 130,
             kind: .editable(
                 source: .manual,
-                inputKind: .text()
+                inputKind: .text
             ),
             exampleValue: "1",
             isRequired: true
@@ -186,7 +186,7 @@ extension PlaceholderRegistry {
             order: 140,
             kind: .editable(
                 source: .manual,
-                inputKind: .text()
+                inputKind: .text
             ),
             exampleValue: "10",
             isRequired: true

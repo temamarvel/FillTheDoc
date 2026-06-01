@@ -73,7 +73,7 @@ struct CustomPlaceholderDraftValidator: Sendable {
             }
         }
         
-        if case .text(let valueSource, _) = draft.inputKind,
+        if case .text(let valueSource) = draft.inputKind,
            valueSource == .extracted,
            draft.normalizedDescription == nil {
             issues.append(.description("Для извлекаемого плейсхолдера описание обязательно."))

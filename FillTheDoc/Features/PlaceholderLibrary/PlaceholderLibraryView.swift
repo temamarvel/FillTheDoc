@@ -311,10 +311,6 @@ struct PlaceholderLibraryRowView: View {
                         MetadataBadgeView(text: inputKindLabel, color: .teal)
                     }
                     
-                    if let textEditorStyleLabel = item.descriptor.textEditorStyleLabel {
-                        MetadataBadgeView(text: textEditorStyleLabel, color: .mint)
-                    }
-                    
                     if item.descriptor.isUserDefined {
                         MetadataBadgeView(text: "Пользовательский", color: .green)
                     }

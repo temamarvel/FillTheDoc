@@ -1,10 +1,7 @@
 import Foundation
 
-nonisolated enum CustomPlaceholderDraftInputKind: Equatable, Sendable {
-    case text(
-        valueSource: PlaceholderValueSource,
-        editorStyle: TextEditorStyle
-    )
+nonisolated enum CustomPlaceholderDraftInputKind: Hashable, Sendable {
+    case text(valueSource: PlaceholderValueSource)
     case choice(
         options: [EditableChoiceOption]
     )
@@ -48,11 +45,8 @@ nonisolated struct CustomPlaceholderDraft: Equatable, Sendable {
         switch descriptor.kind {
             case .editable(let source, let inputKind):
                 switch inputKind {
-                    case .text(let editorStyle):
-                        self.inputKind = .text(
-                            valueSource: source,
-                            editorStyle: editorStyle
-                        )
+                    case .text:
+                        self.inputKind = .text(valueSource: source)
                     case .choice(let configuration):
                         self.inputKind = .choice(
                             options: configuration.options.map {
@@ -70,10 +64,7 @@ nonisolated struct CustomPlaceholderDraft: Equatable, Sendable {
             title: "",
             key: "",
             description: "",
-            inputKind: .text(
-                valueSource: .extracted,
-                editorStyle: .singleLine
-            ),
+            inputKind: .text(valueSource: .extracted),
             isRequired: false,
             exampleValue: nil,
             displayOrder: displayOrder
@@ -98,10 +89,10 @@ nonisolated struct CustomPlaceholderDraft: Equatable, Sendable {
 private extension CustomPlaceholderDraft {
     nonisolated func makeKind() -> PlaceholderKind {
         switch inputKind {
-            case .text(let valueSource, let editorStyle):
+            case .text(let valueSource):
                 return .editable(
                     source: valueSource,
-                    inputKind: .text(editorStyle: editorStyle)
+                    inputKind: .text
                 )
             case .choice(let options):
                 return .editable(

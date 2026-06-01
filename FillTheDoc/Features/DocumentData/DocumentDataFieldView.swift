@@ -31,9 +31,9 @@ struct DocumentDataFieldView: View {
     
     var body: some View {
         switch descriptor.kind {
-            case .editable(_, .text(let editorStyle)):
-                fieldRow(alignment: verticalAlignment(for: editorStyle)) {
-                    textInput(editorStyle: editorStyle)
+            case .editable(_, .text):
+                fieldRow(alignment: .top) {
+                    adaptiveTextInput
                 }
             case .editable(_, .choice(let configuration)):
                 fieldRow(alignment: .center) {
@@ -66,38 +66,18 @@ private extension DocumentDataFieldView {
         }
     }
     
-    func verticalAlignment(for editorStyle: TextEditorStyle) -> VerticalAlignment {
-        switch editorStyle {
-            case .singleLine:
-                return .center
-            case .multiline:
-                return .top
-        }
+    var adaptiveTextInput: some View {
+        TextField(
+            "",
+            text: textBinding,
+            prompt: Text(inputPrompt),
+            axis: .vertical
+        )
+        .lineLimit(1...4)
+        .focused($focusedKey, equals: descriptor.key)
     }
     
-    @ViewBuilder
-    func textInput(editorStyle: TextEditorStyle) -> some View {
-        switch editorStyle {
-            case .singleLine:
-                TextField(
-                    "",
-                    text: textBinding,
-                    prompt: Text(inputExampleValue)
-                )
-                .focused($focusedKey, equals: descriptor.key)
-            case .multiline:
-                TextField(
-                    "",
-                    text: textBinding,
-                    prompt: Text(inputExampleValue),
-                    axis: .vertical
-                )
-                .lineLimit(2...)
-                .focused($focusedKey, equals: descriptor.key)
-        }
-    }
-    
-    var inputExampleValue: String {
+    var inputPrompt: String {
         descriptor.exampleValue ?? ""
     }
     
@@ -212,12 +192,20 @@ private extension DocumentDataFieldView {
     .frame(width: 560)
 }
 
-#Preview("Многострочное поле") {
+#Preview("Адаптивное поле — короткое значение") {
     DocumentDataFieldPreviewContainer(
         key: .address,
-        initialValue: .value("г. Москва, ул. Ленина, д. 1, офис 25")
+        initialValue: .value("г. Москва")
     )
-    .frame(width: 560)
+    .frame(width: 420)
+}
+
+#Preview("Адаптивное поле — длинное значение") {
+    DocumentDataFieldPreviewContainer(
+        key: .address,
+        initialValue: .value("Российская Федерация, 123112, г. Москва, Пресненская набережная, д. 12, башня Федерация, офис 508, помещение 14")
+    )
+    .frame(width: 420)
 }
 
 #Preview("Поле выбора") {

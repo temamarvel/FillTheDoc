@@ -49,18 +49,13 @@ nonisolated struct PlaceholderDescriptor: Identifiable, Hashable, Codable, Senda
         return inputKind
     }
     
-    var textEditorStyleLabel: String? {
-        guard case .editable(_, .text(let editorStyle)) = kind else { return nil }
-        return editorStyle.label
-    }
-    
     var valueSourceLabel: String? {
         guard case .editable(let source, _) = kind else { return nil }
         return source.label
     }
     
     var metadataLabels: [String] {
-        [valueSourceLabel, inputKindLabel, textEditorStyleLabel].compactMap { $0 }
+        [valueSourceLabel, inputKindLabel].compactMap { $0 }
     }
     
     var searchableTextFragments: [String] {

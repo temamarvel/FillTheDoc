@@ -57,19 +57,12 @@ struct CustomPlaceholderValidator: Sendable {
     
     private func validateKind(_ kind: PlaceholderKind) -> [FieldIssue] {
         switch kind {
-            case .editable(_, .text(let editorStyle)):
-                return validateText(editorStyle)
+            case .editable(_, .text):
+                return []
             case .editable(_, .choice(let configuration)):
                 return validateChoice(configuration)
             case .derived:
                 return [.error("Пользовательский плейсхолдер должен поддерживать ввод значения.")]
-        }
-    }
-    
-    private func validateText(_ editorStyle: TextEditorStyle) -> [FieldIssue] {
-        switch editorStyle {
-            case .singleLine, .multiline:
-                return []
         }
     }
     
