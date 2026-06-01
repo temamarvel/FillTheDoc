@@ -1,117 +1,12 @@
 import SwiftUI
 
-// MARK: - Draft models
-
-/// Локальный draft одного варианта выбора внутри редактора пользовательского плейсхолдера.
-nonisolated private struct EditableChoiceOption: Identifiable, Hashable {
-    let id: UUID
-    var value: String
-    
-    nonisolated init(
-        id: UUID = UUID(),
-        value: String = ""
-    ) {
-        self.id = id
-        self.value = value
-    }
-}
-
-private enum CustomPlaceholderTextEditorMode: String, CaseIterable, Identifiable {
-    case singleLine
-    case multiline
-    
-    var id: String { rawValue }
-    
-    var title: String {
-        switch self {
-            case .singleLine:
-                return "Однострочное поле"
-            case .multiline:
-                return "Многострочное поле"
-        }
-    }
-    
-    init(editorStyle: TextEditorStyle) {
-        switch editorStyle {
-            case .singleLine:
-                self = .singleLine
-            case .multiline:
-                self = .multiline
-        }
-    }
-}
-
-/// Внутреннее представление источника значения для создаваемого плейсхолдера.
-private enum CustomPlaceholderEditorValueSource: String, CaseIterable, Identifiable {
-    case manual
-    case extracted
-    
-    var id: String { rawValue }
-    
-    var title: String {
-        switch self {
-            case .manual:
-                return "Пользователь вводит вручную"
-            case .extracted:
-                return "Извлекать из документа с помощью ИИ"
-        }
-    }
-    
-    var helperText: String {
-        switch self {
-            case .manual:
-                return "Поле не будет заполняться моделью и всегда редактируется пользователем."
-            case .extracted:
-                return "Поле войдёт в LLM schema и будет пытаться извлекаться из исходного документа."
-        }
-    }
-    
-    var placeholderValueSource: PlaceholderValueSource {
-        switch self {
-            case .manual:
-                return .manual
-            case .extracted:
-                return .extracted
-        }
-    }
-    
-    init(valueSource: PlaceholderValueSource) {
-        switch valueSource {
-            case .manual:
-                self = .manual
-            case .extracted:
-                self = .extracted
-        }
-    }
-}
-
-// MARK: - Validation
-
-/// Состояние inline-валидации редактора пользовательского плейсхолдера.
-private struct InlineValidationState {
-    var titleError: String?
-    var keyError: String?
-    var descriptionError: String?
-    var choiceGeneralError: String?
-    var choiceOptionErrors: [UUID: String] = [:]
-    
-    var hasBlockingErrors: Bool {
-        titleError != nil
-        || keyError != nil
-        || descriptionError != nil
-        || choiceGeneralError != nil
-        || !choiceOptionErrors.isEmpty
-    }
-}
-
 // MARK: - CustomPlaceholderEditorView
 
-/// Экран создания и редактирования пользовательских плейсхолдеров.
+/// Экран создания и редактирования пользовательских плейсхолдера.
 ///
-/// View собирает draft definition, валидирует его локально и по сохранению
-/// отдаёт готовый `PlaceholderDescriptor` во внешний persistence-flow.
+/// View редактирует единый `CustomPlaceholderDraft`, валидирует его на UI-уровне
+/// и по сохранению отдаёт готовый `PlaceholderDescriptor` во внешний persistence-flow.
 struct CustomPlaceholderEditorView: View {
-    /// Режим работы редактора: создание нового плейсхолдера или правка существующего.
     enum Mode {
         case create
         case edit(PlaceholderDescriptor)
@@ -156,24 +51,12 @@ struct CustomPlaceholderEditorView: View {
     
     @Environment(\.dismiss) private var dismiss
     
-    @State private var titleText: String
-    @State private var keyText: String
-    @State private var descriptionText: String
-    @State private var valueType: CustomPlaceholderEditorInputType
-    
-    @State private var exampleValueText: String
-    @State private var textRequired: Bool
-    @State private var choiceRequired: Bool
-    @State private var textValueSource: CustomPlaceholderEditorValueSource
-    @State private var textEditorStyle: TextEditorStyle
-    
-    @State private var choiceOptions: [EditableChoiceOption]
-    
-    @State private var order: Int
-    
+    @State private var draft: CustomPlaceholderDraft
+    @State private var validationState: InlineValidationState
     @State private var saveErrorText: String?
     @State private var isSaving = false
     
+    private let draftValidator = CustomPlaceholderDraftValidator()
     private let validator = CustomPlaceholderValidator()
     
     init(
@@ -188,68 +71,27 @@ struct CustomPlaceholderEditorView: View {
         self.onSave = onSave
         self.onDismiss = onDismiss
         
-        let definition = mode.existingDefinition
-        
-        _titleText = State(initialValue: definition?.title ?? "")
-        _keyText = State(initialValue: definition?.key.rawValue ?? "")
-        _descriptionText = State(initialValue: definition?.description ?? "")
-        _order = State(initialValue: definition?.order ?? nextOrder)
-        
-        switch definition?.kind {
-            case .editable(let source, .text(let editorStyle)):
-                _valueType = State(initialValue: .text)
-                _exampleValueText = State(initialValue: definition?.exampleValue ?? "")
-                _textRequired = State(initialValue: definition?.isRequired ?? false)
-                _choiceRequired = State(initialValue: true)
-                _textValueSource = State(initialValue: .init(valueSource: source))
-                _textEditorStyle = State(initialValue: editorStyle)
-                _choiceOptions = State(initialValue: Self.defaultChoiceOptions())
-                
-            case .editable(_, .choice(let configuration)):
-                _valueType = State(initialValue: .choice)
-                _exampleValueText = State(initialValue: definition?.exampleValue ?? "")
-                _textRequired = State(initialValue: false)
-                _choiceRequired = State(initialValue: definition?.isRequired ?? true)
-                _textValueSource = State(initialValue: .manual)
-                _textEditorStyle = State(initialValue: .singleLine)
-                _choiceOptions = State(initialValue: configuration.options.map { EditableChoiceOption(value: $0) })
-                
-            case .derived, nil:
-                _valueType = State(initialValue: .text)
-                _exampleValueText = State(initialValue: definition?.exampleValue ?? "")
-                _textRequired = State(initialValue: false)
-                _choiceRequired = State(initialValue: true)
-                _textValueSource = State(initialValue: .manual)
-                _textEditorStyle = State(initialValue: .singleLine)
-                _choiceOptions = State(initialValue: Self.defaultChoiceOptions())
+        let initialDraft: CustomPlaceholderDraft
+        if let descriptor = mode.existingDefinition {
+            initialDraft = CustomPlaceholderDraft(descriptor: descriptor)
+        } else {
+            initialDraft = .new(displayOrder: nextOrder)
         }
-    }
-    
-    private var normalizedKeyText: String {
-        keyText
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-    }
-    
-    private var tokenPreview: String {
-        let key = normalizedKeyText.isEmpty ? "placeholder_key" : normalizedKeyText
-        return "<!\(key)!>"
-    }
-    
-    private var existingKeysForValidation: Set<PlaceholderKey> {
-        var keys = existingKeys
+        
+        var validationKeys = existingKeys
         if let existingDefinition = mode.existingDefinition {
-            keys.remove(existingDefinition.key)
+            validationKeys.remove(existingDefinition.key)
         }
-        return keys
-    }
-    
-    private var validation: InlineValidationState {
-        validateInline()
-    }
-    
-    private var canSave: Bool {
-        !isSaving && !validation.hasBlockingErrors
+        
+        _draft = State(initialValue: initialDraft)
+        _validationState = State(
+            initialValue: InlineValidationState(
+                issues: CustomPlaceholderDraftValidator().validate(
+                    initialDraft,
+                    existingKeys: validationKeys
+                )
+            )
+        )
     }
     
     var body: some View {
@@ -277,23 +119,129 @@ struct CustomPlaceholderEditorView: View {
             footerView
         }
         .background(Color(nsColor: .windowBackgroundColor))
-        .onChange(of: valueType) { _, _ in
-            if valueType == .choice {
-                textValueSource = .manual
-            }
+        .onChange(of: draft) { _, _ in
+            refreshValidation()
             saveErrorText = nil
         }
-        .onChange(of: titleText) { _, _ in saveErrorText = nil }
-        .onChange(of: keyText) { _, _ in saveErrorText = nil }
-        .onChange(of: descriptionText) { _, _ in saveErrorText = nil }
-        .onChange(of: exampleValueText) { _, _ in saveErrorText = nil }
-        .onChange(of: choiceOptions) { _, _ in saveErrorText = nil }
     }
 }
 
 // MARK: - Layout
 
 private extension CustomPlaceholderEditorView {
+    var existingKeysForValidation: Set<PlaceholderKey> {
+        var keys = existingKeys
+        if let existingDefinition = mode.existingDefinition {
+            keys.remove(existingDefinition.key)
+        }
+        return keys
+    }
+    
+    var tokenPreview: String {
+        let key = draft.normalizedKey.isEmpty ? "placeholder_key" : draft.normalizedKey
+        return "<!\(key)!>"
+    }
+    
+    var canSave: Bool {
+        !isSaving && !validationState.hasBlockingErrors
+    }
+    
+    var inputKindSelection: InputKindSelection {
+        switch draft.inputKind {
+            case .text:
+                return .text
+            case .choice:
+                return .choice
+        }
+    }
+    
+    var exampleValueTextBinding: Binding<String> {
+        Binding(
+            get: { draft.exampleValue ?? "" },
+            set: { draft.exampleValue = $0 }
+        )
+    }
+    
+    var inputKindSelectionBinding: Binding<InputKindSelection> {
+        Binding(
+            get: { inputKindSelection },
+            set: { selection in
+                switch selection {
+                    case .text:
+                        draft.inputKind = .text(
+                            valueSource: .extracted,
+                            editorStyle: .singleLine
+                        )
+                        draft.isRequired = false
+                    case .choice:
+                        draft.inputKind = .choice(
+                            options: [EditableChoiceOption(value: "")]
+                        )
+                        draft.isRequired = true
+                }
+            }
+        )
+    }
+    
+    var textEditorStyleBinding: Binding<TextEditorStyle> {
+        Binding(
+            get: {
+                guard case .text(_, let editorStyle) = draft.inputKind else {
+                    return .singleLine
+                }
+                return editorStyle
+            },
+            set: { newStyle in
+                guard case .text(let source, _) = draft.inputKind else { return }
+                draft.inputKind = .text(
+                    valueSource: source,
+                    editorStyle: newStyle
+                )
+            }
+        )
+    }
+    
+    var textValueSourceBinding: Binding<PlaceholderValueSource> {
+        Binding(
+            get: {
+                guard case .text(let source, _) = draft.inputKind else {
+                    return .manual
+                }
+                return source
+            },
+            set: { newSource in
+                guard case .text(_, let style) = draft.inputKind else { return }
+                draft.inputKind = .text(
+                    valueSource: newSource,
+                    editorStyle: style
+                )
+            }
+        )
+    }
+    
+    var choiceOptions: [EditableChoiceOption] {
+        guard case .choice(let options) = draft.inputKind else { return [] }
+        return options
+    }
+    
+    func choiceOptionBinding(at index: Int) -> Binding<EditableChoiceOption> {
+        Binding(
+            get: {
+                let options = choiceOptions
+                guard options.indices.contains(index) else {
+                    return EditableChoiceOption()
+                }
+                return options[index]
+            },
+            set: { newValue in
+                guard case .choice(var options) = draft.inputKind,
+                      options.indices.contains(index) else { return }
+                options[index] = newValue
+                draft.inputKind = .choice(options: options)
+            }
+        )
+    }
+    
     func closeEditor() {
         if let onDismiss {
             onDismiss()
@@ -328,23 +276,23 @@ private extension CustomPlaceholderEditorView {
     }
     
     var baseSection: some View {
-        editorCard{
+        editorCard {
             sectionHeader("1. Основные параметры")
             
             labeledTextField(
                 title: "Название плейсхолдера",
-                text: $titleText,
+                text: $draft.title,
                 prompt: "Например: Номер договора",
                 helper: .plain("Отображаемое имя в интерфейсе"),
-                errorText: validation.titleError
+                errorText: validationState.titleError
             )
             
             labeledTextField(
                 title: "Ключ плейсхолдера",
-                text: $keyText,
+                text: $draft.key,
                 prompt: "Например: contract_number",
                 helper: .token(prefix: "Используется в шаблоне документа как", token: tokenPreview),
-                errorText: validation.keyError,
+                errorText: validationState.keyError,
                 isDisabled: mode.isEditing
             )
         }
@@ -358,8 +306,8 @@ private extension CustomPlaceholderEditorView {
                 Text("Тип плейсхолдера")
                     .font(.subheadline.weight(.medium))
                 
-                Picker("", selection: $valueType) {
-                    ForEach(CustomPlaceholderEditorInputType.allCases) { type in
+                Picker("", selection: inputKindSelectionBinding) {
+                    ForEach(InputKindSelection.allCases) { type in
                         Label(type.title, systemImage: type.systemImage)
                             .tag(type)
                     }
@@ -368,7 +316,7 @@ private extension CustomPlaceholderEditorView {
                 .pickerStyle(.segmented)
             }
             
-            switch valueType {
+            switch draft.inputKind {
                 case .text:
                     textSettingsSection
                 case .choice:
@@ -382,13 +330,13 @@ private extension CustomPlaceholderEditorView {
     var textSettingsSection: some View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Стиль поля")
+                Text("Тип поля")
                     .font(.subheadline.weight(.medium))
                 
-                Picker("", selection: textEditorModeBinding) {
-                    ForEach(CustomPlaceholderTextEditorMode.allCases) { mode in
-                        Text(mode.title)
-                            .tag(mode)
+                Picker("", selection: textEditorStyleBinding) {
+                    ForEach(TextEditorStyle.allCases) { style in
+                        Text(style.label)
+                            .tag(style)
                     }
                 }
                 .labelsHidden()
@@ -404,16 +352,16 @@ private extension CustomPlaceholderEditorView {
                 Text("Источник значения")
                     .font(.subheadline.weight(.medium))
                 
-                Picker("", selection: $textValueSource) {
-                    ForEach(CustomPlaceholderEditorValueSource.allCases) { source in
-                        Text(source.title)
+                Picker("", selection: textValueSourceBinding) {
+                    ForEach(PlaceholderValueSource.allCases) { source in
+                        Text(source.editorTitle)
                             .tag(source)
                     }
                 }
                 .labelsHidden()
                 .pickerStyle(.segmented)
                 
-                Text(textValueSource.helperText)
+                Text(textValueSourceBinding.wrappedValue.editorHelperText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -421,44 +369,47 @@ private extension CustomPlaceholderEditorView {
             
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 6) {
-                    Text(textValueSource == .extracted ? "Описание для экстракции (для LLM)" : "Описание поля")
+                    Text(textValueSourceBinding.wrappedValue == .extracted ? "Описание для экстракции (для LLM)" : "Описание поля")
                         .font(.subheadline.weight(.medium))
                     
                     Image(systemName: "questionmark.circle")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .help(textValueSource == .extracted
-                              ? "Опишите, какое значение нужно найти в исходных документах. Это описание попадёт в промпт извлечения."
-                              : "Краткое описание поля для интерфейса и библиотеки плейсхолдеров.")
+                        .help(
+                            textValueSourceBinding.wrappedValue == .extracted
+                            ? "Опишите, какое значение нужно найти в исходных документах. Это описание попадёт в промпт извлечения."
+                            : "Краткое описание поля для интерфейса и библиотеки плейсхолдеров."
+                        )
                 }
                 
                 multilineTextEditor(
-                    text: $descriptionText,
+                    text: $draft.description,
                     prompt: "Например: Номер договора. Обычно содержит цифры и может включать дополнительные символы, например, слеши или дефисы."
                 )
                 .frame(height: 118)
                 
-                if let descriptionError = validation.descriptionError {
+                if let descriptionError = validationState.descriptionError {
                     validationMessage(descriptionError, style: .error)
                 } else {
                     HStack {
-                        Text(textValueSource == .extracted
-                             ? "Описание помогает модели понять, какие данные искать."
-                             : "Описание используется в интерфейсе и справочнике плейсхолдеров.")
+                        Text(
+                            textValueSourceBinding.wrappedValue == .extracted
+                            ? "Описание помогает модели понять, какие данные искать."
+                            : "Описание используется в интерфейсе и справочнике плейсхолдеров."
+                        )
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         
                         Spacer()
                         
-                        Text("\(descriptionText.count)/500")
+                        Text("\(draft.description.count)/500")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
             }
             
-            Toggle("Поле обязательно для заполнения", isOn: $textRequired)
-            
+            Toggle("Поле обязательно для заполнения", isOn: $draft.isRequired)
         }
     }
     
@@ -466,11 +417,12 @@ private extension CustomPlaceholderEditorView {
         VStack(alignment: .leading, spacing: 8) {
             labeledTextField(
                 title: "Пример значения (необязательно)",
-                text: $exampleValueText,
-                prompt: valueType == .text
+                text: exampleValueTextBinding,
+                prompt: draft.isTextInput
                 ? "Например: 123/2024-ОД или Д-45 от 12.03.2024"
                 : "Например: счет",
-                helper: .plain(exampleValueHelperText)
+                helper: .plain(exampleValueHelperText),
+                errorText: validationState.exampleValueError
             )
         }
     }
@@ -499,46 +451,44 @@ private extension CustomPlaceholderEditorView {
                 
                 Spacer()
                 
-                Text("\(choiceOptions.count)/\(CustomPlaceholderValidator.maxChoiceOptions) \(choiceOptions.count.optionCountWord)")
+                Text("\(choiceOptions.count)/\(CustomPlaceholderDraftValidator.maxChoiceOptions) \(choiceOptions.count.optionCountWord)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             
-            if let choiceGeneralError = validation.choiceGeneralError {
+            if let choiceGeneralError = validationState.choiceGeneralError {
                 validationMessage(choiceGeneralError, style: .error)
             }
             
             VStack(alignment: .leading, spacing: 10) {
-                ForEach(choiceOptions.indices, id: \.self) { index in
-                    let optionToken = choiceOptions[index].id
+                ForEach(Array(choiceOptions.enumerated()), id: \.element.id) { index, option in
                     ChoiceOptionRowView(
-                        index: index,
-                        option: $choiceOptions[index],
-                        errorText: validation.choiceOptionErrors[optionToken],
+                        option: choiceOptionBinding(at: index),
+                        errorText: validationState.choiceOptionErrors[option.id],
                         canDelete: choiceOptions.count > 1,
                         onDelete: {
-                            removeOption(id: optionToken)
+                            removeOption(id: option.id)
                         }
                     )
                 }
             }
             
             Button {
-                choiceOptions.append(.init())
+                addOption()
             } label: {
                 Label("Добавить вариант", systemImage: "plus")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
-            .disabled(choiceOptions.count >= CustomPlaceholderValidator.maxChoiceOptions)
+            .disabled(choiceOptions.count >= CustomPlaceholderDraftValidator.maxChoiceOptions)
             
-            Toggle("Поле обязательно для выбора", isOn: $choiceRequired)
+            Toggle("Поле обязательно для выбора", isOn: $draft.isRequired)
         }
     }
     
     var footerView: some View {
         HStack {
-            if validation.hasBlockingErrors {
+            if validationState.hasBlockingErrors {
                 Label("Исправьте ошибки перед сохранением", systemImage: "exclamationmark.circle")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -563,7 +513,7 @@ private extension CustomPlaceholderEditorView {
     }
     
     var exampleValueHelperText: String {
-        switch valueType {
+        switch draft.inputKind {
             case .text:
                 return "Используется как пример итогового значения и отображается серым текстом в поле ввода."
             case .choice:
@@ -575,50 +525,28 @@ private extension CustomPlaceholderEditorView {
 // MARK: - Validation / Save
 
 private extension CustomPlaceholderEditorView {
-    func validateInline() -> InlineValidationState {
-        var state = InlineValidationState()
-        
-        state.titleError = validator.validateTitle(titleText)
-        state.keyError = validator.validateKey(normalizedKeyText, existingKeys: existingKeysForValidation)
-        
-        // Описание обязательно только для extracted текстовых плейсхолдеров.
-        state.descriptionError = validator.validateDescription(
-            descriptionText,
-            valueSource: textValueSource == .extracted ? .extracted : .manual,
-            inputType: valueType
+    func refreshValidation() {
+        validationState = InlineValidationState(
+            issues: draftValidator.validate(
+                draft,
+                existingKeys: existingKeysForValidation
+            )
         )
-        
-        if valueType == .choice {
-            validateChoiceInline(into: &state)
-        }
-        
-        return state
-    }
-    
-    func validateChoiceInline(into state: inout InlineValidationState) {
-        let optionValues = choiceOptions.map(\.value)
-        let result = validator.validateChoiceOptions(optionValues)
-        state.choiceGeneralError = result.general
-        
-        // Map index-based errors to UUID-based errors for the UI
-        for (index, error) in result.perOption {
-            guard index < choiceOptions.count else { continue }
-            state.choiceOptionErrors[choiceOptions[index].id] = error
-        }
     }
     
     func save() {
         saveErrorText = nil
+        refreshValidation()
         
-        guard !validation.hasBlockingErrors else {
+        guard !validationState.hasBlockingErrors else {
             return
         }
         
         isSaving = true
         
-        let definition = makeDefinition()
-        let issues = CustomPlaceholderValidator().validate(
-            draft: definition,
+        let descriptor = draft.makeDescriptor()
+        let issues = validator.validate(
+            descriptor: descriptor,
             existingKeys: existingKeysForValidation
         )
         
@@ -630,7 +558,7 @@ private extension CustomPlaceholderEditorView {
         
         Task {
             do {
-                try await onSave(definition)
+                try await onSave(descriptor)
                 
                 await MainActor.run {
                     isSaving = false
@@ -643,6 +571,21 @@ private extension CustomPlaceholderEditorView {
                 }
             }
         }
+    }
+    
+    func addOption() {
+        guard case .choice(var options) = draft.inputKind else { return }
+        options.append(.init())
+        draft.inputKind = .choice(options: options)
+    }
+    
+    func removeOption(id: UUID) {
+        guard case .choice(var options) = draft.inputKind else { return }
+        options.removeAll { $0.id == id }
+        if options.isEmpty {
+            options = [.init()]
+        }
+        draft.inputKind = .choice(options: options)
     }
     
     func editorCard<Content: View>(
@@ -658,79 +601,11 @@ private extension CustomPlaceholderEditorView {
                 .stroke(Color.primary.opacity(0.10), lineWidth: 1)
         )
     }
-    
-    func makeDefinition() -> PlaceholderDescriptor {
-        let inputKind: PlaceholderInputKind
-        let valueSource: PlaceholderValueSource
-        let isRequired: Bool
-        
-        switch valueType {
-            case .text:
-                valueSource = textValueSource.placeholderValueSource
-                inputKind = .text(editorStyle: textEditorStyle)
-                isRequired = textRequired
-                
-            case .choice:
-                valueSource = .manual
-                let options = choiceOptions
-                    .map(\.value)
-                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                    .filter { !$0.isEmpty }
-                inputKind = .choice(
-                    ChoiceInputConfiguration(
-                        options: options,
-                        allowsEmptyValue: !choiceRequired,
-                        emptyTitle: "Не выбрано"
-                    )
-                )
-                isRequired = choiceRequired
-        }
-        
-        return PlaceholderDescriptor(
-            key: normalizedKeyText.placeholderKey,
-            title: titleText.trimmingCharacters(in: .whitespacesAndNewlines),
-            description: descriptionText.trimmed,
-            section: .custom,
-            order: order,
-            kind: .editable(source: valueSource, inputKind: inputKind),
-            isUserDefined: true,
-            exampleValue: exampleValueText.trimmedNilIfEmpty,
-            isRequired: isRequired
-        )
-    }
-    
-    func removeOption(id: UUID) {
-        choiceOptions.removeAll { $0.id == id }
-    }
-    
-    static func defaultChoiceOptions() -> [EditableChoiceOption] {
-        [
-            .init()
-        ]
-    }
-    
-    var textEditorModeBinding: Binding<CustomPlaceholderTextEditorMode> {
-        Binding(
-            get: { CustomPlaceholderTextEditorMode(editorStyle: textEditorStyle) },
-            set: { mode in
-                switch mode {
-                    case .singleLine:
-                        textEditorStyle = .singleLine
-                    case .multiline:
-                        if case .multiline = textEditorStyle {
-                            break
-                        }
-                        textEditorStyle = .multiline(minLines: 2, maxLines: 5)
-                }
-            }
-        )
-    }
 }
 
 // MARK: - ChoiceOptionRowView
 
 private struct ChoiceOptionRowView: View {
-    let index: Int
     @Binding var option: EditableChoiceOption
     let errorText: String?
     let canDelete: Bool
@@ -798,6 +673,27 @@ private struct ChoiceOptionRowView: View {
 
 // MARK: - Small UI helpers
 
+private enum InputKindSelection: String, CaseIterable, Identifiable {
+    case text
+    case choice
+    
+    var id: String { rawValue }
+    
+    var title: String {
+        switch self {
+            case .text: return "Текст"
+            case .choice: return "Выбор"
+        }
+    }
+    
+    var systemImage: String {
+        switch self {
+            case .text: return "textformat"
+            case .choice: return "list.bullet"
+        }
+    }
+}
+
 private enum FieldHelper {
     case plain(String)
     case token(prefix: String, token: String)
@@ -818,6 +714,26 @@ private enum ValidationMessageStyle {
         switch self {
             case .error: return "exclamationmark.circle.fill"
             case .info: return "info.circle.fill"
+        }
+    }
+}
+
+private extension PlaceholderValueSource {
+    var editorTitle: String {
+        switch self {
+            case .manual:
+                return "Пользователь вводит вручную"
+            case .extracted:
+                return "Извлекать из документа с помощью ИИ"
+        }
+    }
+    
+    var editorHelperText: String {
+        switch self {
+            case .manual:
+                return "Поле не будет заполняться моделью."
+            case .extracted:
+                return "Поле будет извлекаться из документа с помощью ИИ."
         }
     }
 }

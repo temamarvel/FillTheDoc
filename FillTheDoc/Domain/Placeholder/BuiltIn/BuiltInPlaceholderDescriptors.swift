@@ -134,7 +134,7 @@ extension PlaceholderRegistry {
             order: 100,
             kind: .editable(
                 source: .extracted,
-                inputKind: .text(editorStyle: .multiline(minLines: 1, maxLines: 8))
+                inputKind: .text(editorStyle: .multiline)
             ),
             exampleValue: "г. Москва, ул. Ленина, д. 1",
             isRequired: false

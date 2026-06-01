@@ -82,19 +82,17 @@ private extension DocumentDataFieldView {
                 TextField(
                     "",
                     text: textBinding,
-                    prompt: Text(inputExampleValue),
-                    axis: .horizontal
+                    prompt: Text(inputExampleValue)
                 )
-                .lineLimit(1)
                 .focused($focusedKey, equals: descriptor.key)
-            case .multiline(let minLines, let maxLines):
+            case .multiline:
                 TextField(
                     "",
                     text: textBinding,
                     prompt: Text(inputExampleValue),
                     axis: .vertical
                 )
-                .lineLimit(minLines...max(maxLines, minLines))
+                .lineLimit(2...)
                 .focused($focusedKey, equals: descriptor.key)
         }
     }

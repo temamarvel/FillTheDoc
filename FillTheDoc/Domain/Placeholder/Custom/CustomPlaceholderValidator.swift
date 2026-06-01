@@ -8,15 +8,16 @@ struct CustomPlaceholderValidator: Sendable {
     
     /// Максимальное количество вариантов выбора для choice-плейсхолдера.
     static let maxChoiceOptions = 30
+    static let minimumChoiceOptions = 2
     
     /// Возвращает набор найденных проблем в definition draft.
     func validate(
-        draft: PlaceholderDescriptor,
+        descriptor: PlaceholderDescriptor,
         existingKeys: Set<PlaceholderKey>
     ) -> [FieldIssue] {
         var issues: [FieldIssue] = []
-        let rawKey = draft.key.rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let rawKey = descriptor.key.rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        let title = descriptor.title.trimmingCharacters(in: .whitespacesAndNewlines)
         
         if rawKey.isEmpty {
             issues.append(.error("Ключ плейсхолдера не может быть пустым."))
@@ -27,7 +28,7 @@ struct CustomPlaceholderValidator: Sendable {
             issues.append(.error("Ключ должен содержать только латинские буквы, цифры и _. Первый символ — буква."))
         }
         
-        if existingKeys.contains(draft.key) {
+        if existingKeys.contains(descriptor.key) {
             issues.append(.error("Плейсхолдер с таким ключом уже существует."))
         }
         
@@ -35,86 +36,21 @@ struct CustomPlaceholderValidator: Sendable {
             issues.append(.error("Название плейсхолдера не может быть пустым."))
         }
         
-        if case .editable(source: .extracted, inputKind: .choice) = draft.kind {
+        if case .editable(source: .extracted, inputKind: .choice) = descriptor.kind {
             issues.append(.error("Плейсхолдер с выбором не может извлекаться моделью. Для него доступно только ручное заполнение."))
         }
         
         // Для extracted-плейсхолдера описание обязательно: оно попадает в LLM prompt
         // и без него модель не сможет корректно извлечь значение.
-        if case .editable(source: .extracted, inputKind: .text) = draft.kind {
-            let description = draft.description.trimmingCharacters(in: .whitespacesAndNewlines)
+        if case .editable(source: .extracted, inputKind: .text) = descriptor.kind {
+            let description = descriptor.description.trimmingCharacters(in: .whitespacesAndNewlines)
             if description.isEmpty {
                 issues.append(.error("Для извлекаемого плейсхолдера описание обязательно — оно используется в промпте для модели."))
             }
         }
         
-        issues.append(contentsOf: validateKind(draft.kind))
+        issues.append(contentsOf: validateKind(descriptor.kind))
         return issues
-    }
-    
-    // MARK: - Granular validation helpers (used by inline validation in editor)
-    
-    func validateKey(_ rawKey: String, existingKeys: Set<PlaceholderKey>) -> String? {
-        let key = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        if key.isEmpty {
-            return "Ключ не может быть пустым."
-        }
-        if key.range(of: #"^[a-z][a-z0-9_]*$"#, options: .regularExpression) == nil {
-            return "Только латинские буквы, цифры и _. Первый символ — буква."
-        }
-        if existingKeys.contains(key.placeholderKey) {
-            return "Плейсхолдер с таким ключом уже существует."
-        }
-        return nil
-    }
-    
-    func validateTitle(_ title: String) -> String? {
-        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "Название не может быть пустым." : nil
-    }
-    
-    func validateDescription(
-        _ description: String,
-        valueSource: PlaceholderValueSource,
-        inputType: CustomPlaceholderEditorInputType
-    ) -> String? {
-        guard inputType == .text, valueSource == .extracted else { return nil }
-        let trimmed = description.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty
-        ? "Для извлекаемого плейсхолдера описание обязательно."
-        : nil
-    }
-    
-    func validateChoiceOptions(_ options: [String]) -> (general: String?, perOption: [Int: String]) {
-        var generalError: String?
-        var perOptionErrors: [Int: String] = [:]
-        
-        if options.isEmpty {
-            generalError = "Добавьте хотя бы один вариант выбора."
-            return (generalError, perOptionErrors)
-        }
-        
-        if options.count > Self.maxChoiceOptions {
-            generalError = "Максимум \(Self.maxChoiceOptions) вариантов выбора."
-            return (generalError, perOptionErrors)
-        }
-        
-        var normalizedValues: [String: Int] = [:]
-        
-        for (index, option) in options.enumerated() {
-            let value = option.trimmingCharacters(in: .whitespacesAndNewlines)
-            if value.isEmpty {
-                perOptionErrors[index] = "Вариант выбора не может быть пустым."
-                continue
-            }
-            normalizedValues[value, default: 0] += 1
-        }
-        
-        if normalizedValues.contains(where: { $0.value > 1 }) {
-            generalError = "Варианты выбора не должны повторяться."
-        }
-        
-        return (generalError, perOptionErrors)
     }
     
     // MARK: - Private
@@ -131,11 +67,10 @@ struct CustomPlaceholderValidator: Sendable {
     }
     
     private func validateText(_ editorStyle: TextEditorStyle) -> [FieldIssue] {
-        if case .multiline(let minLines, let maxLines) = editorStyle,
-           minLines < 1 || maxLines < minLines {
-            return [.error("Некорректная конфигурация многострочного текстового поля.")]
+        switch editorStyle {
+            case .singleLine, .multiline:
+                return []
         }
-        return []
     }
     
     private func validateChoice(_ configuration: ChoiceInputConfiguration) -> [FieldIssue] {
@@ -158,33 +93,13 @@ struct CustomPlaceholderValidator: Sendable {
         }
         
         let nonEmptyOptions = normalizedOptions.filter { !$0.isEmpty }
+        if nonEmptyOptions.count < Self.minimumChoiceOptions {
+            issues.append(.error("Добавьте минимум \(Self.minimumChoiceOptions) непустых варианта выбора."))
+        }
         if Set(nonEmptyOptions).count != nonEmptyOptions.count {
             issues.append(.error("Варианты выбора не должны повторяться."))
         }
         
         return issues
-    }
-}
-
-/// Вспомогательный enum для inline-валидации в EditorView.
-/// Используется валидатором для определения контекста.
-enum CustomPlaceholderEditorInputType: String, CaseIterable, Identifiable {
-    case text
-    case choice
-    
-    var id: String { rawValue }
-    
-    var title: String {
-        switch self {
-            case .text: return "Текст"
-            case .choice: return "Выбор"
-        }
-    }
-    
-    var systemImage: String {
-        switch self {
-            case .text: return "textformat"
-            case .choice: return "list.bullet"
-        }
     }
 }
