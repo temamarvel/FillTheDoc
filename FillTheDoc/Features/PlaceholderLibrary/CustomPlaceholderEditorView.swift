@@ -254,35 +254,30 @@ private extension CustomPlaceholderEditorView {
         editorCard {
             sectionHeader("1. Основные параметры")
             
+            labeledTextField(
+                title: "Название плейсхолдера",
+                text: $draft.title,
+                prompt: "Например: Номер договора",
+                helper: .plain("Отображаемое имя в интерфейсе"),
+                errorText: validationState.titleError
+            )
             
-            
-            TextField("tezt", text: $draft.title)
-                .padding(20)
-            
-//            labeledTextField(
-//                title: "Название плейсхолдера",
-//                text: $draft.title,
-//                prompt: "Например: Номер договора",
-//                helper: .plain("Отображаемое имя в интерфейсе"),
-//                errorText: validationState.titleError
-//            )
-//            
-//            labeledTextField(
-//                title: "Ключ плейсхолдера",
-//                text: $draft.key,
-//                prompt: "Например: contract_number",
-//                helper: .token(prefix: "Используется в шаблоне документа как", token: tokenPreview),
-//                errorText: validationState.keyError,
-//                isDisabled: mode.isEditing
-//            )
-        }.padding(30)
+            labeledTextField(
+                title: "Ключ плейсхолдера",
+                text: $draft.key,
+                prompt: "Например: contract_number",
+                helper: .token(prefix: "Используется в шаблоне документа как", token: tokenPreview),
+                errorText: validationState.keyError,
+                isDisabled: mode.isEditing
+            )
+        }
     }
     
     var settingsSection: some View {
         editorCard {
             sectionHeader("2. Настройки плейсхолдера")
             
-            VStack(alignment: .leading, spacing: 8) {
+            VStack {
                 Text("Тип значения")
                     .font(.subheadline.weight(.medium))
                 
@@ -292,7 +287,6 @@ private extension CustomPlaceholderEditorView {
                             .tag(type)
                     }
                 }
-                .labelsHidden()
                 .pickerStyle(.segmented)
             }
             
@@ -308,8 +302,8 @@ private extension CustomPlaceholderEditorView {
     }
     
     var textSettingsSection: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 8) {
+        VStack {
+            VStack {
                 Text("Источник значения")
                     .font(.subheadline.weight(.medium))
                 
@@ -319,17 +313,15 @@ private extension CustomPlaceholderEditorView {
                             .tag(source)
                     }
                 }
-                .labelsHidden()
                 .pickerStyle(.segmented)
                 
                 Text(textValueSourceBinding.wrappedValue.editorHelperText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
             }
             
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
+            VStack {
+                HStack {
                     Text(textValueSourceBinding.wrappedValue == .extracted ? "Описание для экстракции (для LLM)" : "Описание поля")
                         .font(.subheadline.weight(.medium))
                     
@@ -347,7 +339,6 @@ private extension CustomPlaceholderEditorView {
                     text: $draft.description,
                     prompt: "Например: Номер договора. Обычно содержит цифры и может включать дополнительные символы, например, слеши или дефисы."
                 )
-                .frame(height: 118)
                 
                 if let descriptionError = validationState.descriptionError {
                     validationMessage(descriptionError, style: .error)
@@ -375,7 +366,7 @@ private extension CustomPlaceholderEditorView {
     }
     
     var exampleValueSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack {
             labeledTextField(
                 title: "Пример значения (необязательно)",
                 text: exampleValueTextBinding,
@@ -389,18 +380,18 @@ private extension CustomPlaceholderEditorView {
     }
     
     var choiceSettingsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 6) {
+        VStack {
+            VStack {
                 Text("Источник значения")
                     .font(.subheadline.weight(.medium))
                 Text("Плейсхолдер с выбором всегда заполняется пользователем вручную.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                   
             }
             
-            HStack(alignment: .firstTextBaseline) {
-                HStack(spacing: 6) {
+            HStack {
+                HStack {
                     Text("Варианты выбора")
                         .font(.subheadline.weight(.medium))
                     
@@ -421,7 +412,7 @@ private extension CustomPlaceholderEditorView {
                 validationMessage(choiceGeneralError, style: .error)
             }
             
-            VStack(alignment: .leading, spacing: 10) {
+            VStack {
                 ForEach(Array(choiceOptions.enumerated()), id: \.element.id) { index, option in
                     ChoiceOptionRowView(
                         option: choiceOptionBinding(at: index),
@@ -438,9 +429,7 @@ private extension CustomPlaceholderEditorView {
                 addOption()
             } label: {
                 Label("Добавить вариант", systemImage: "plus")
-                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.bordered)
             .disabled(choiceOptions.count >= CustomPlaceholderDraftValidator.maxChoiceOptions)
             
             Toggle("Поле обязательно для выбора", isOn: $draft.isRequired)
@@ -460,7 +449,7 @@ private extension CustomPlaceholderEditorView {
             Button("Отмена") {
                 closeEditor()
             }
-            .buttonStyle(.bordered)
+            //.buttonStyle(.bordered)
             
             Button(mode.saveButtonTitle) {
                 save()
@@ -469,8 +458,6 @@ private extension CustomPlaceholderEditorView {
             .keyboardShortcut(.defaultAction)
             .disabled(!canSave)
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 16)
     }
     
     var exampleValueHelperText: String {
@@ -556,7 +543,7 @@ private extension CustomPlaceholderEditorView {
             content()
         }
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 12) //TODO: check radius
                 .stroke(Color.primary.opacity(0.10), lineWidth: 1)
         )
     }
@@ -571,21 +558,15 @@ private struct ChoiceOptionRowView: View {
     let onDelete: () -> Void
     
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack {
             Image(systemName: "line.3.horizontal")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .frame(width: 22, height: 34)
             
-            VStack(alignment: .leading, spacing: 5) {
+            VStack {
                 TextField("Например: СБП", text: $option.value)
-                    .textFieldStyle(.plain)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color(nsColor: .textBackgroundColor))
-                    )
+                    
+                    
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
                             .stroke(
@@ -598,18 +579,18 @@ private struct ChoiceOptionRowView: View {
                     validationMessage(errorText, style: .error)
                 }
             }
-            .frame(maxWidth: .infinity)
+            
             
             Button(role: .destructive) {
                 onDelete()
             } label: {
                 Image(systemName: "trash")
-                    .frame(width: 28, height: 28)
+            
             }
-            .buttonStyle(.borderless)
+//            .buttonStyle(.borderless)
             .disabled(!canDelete)
             .help(canDelete ? "Удалить вариант" : "Минимум два варианта")
-            .padding(.top, 2)
+            
         }
     }
     
@@ -617,7 +598,7 @@ private struct ChoiceOptionRowView: View {
         _ text: String,
         style: ValidationMessageStyle
     ) -> some View {
-        HStack(alignment: .top, spacing: 5) {
+        HStack {
             Image(systemName: style.systemImage)
                 .font(.caption)
                 .foregroundStyle(style.color)
@@ -625,7 +606,7 @@ private struct ChoiceOptionRowView: View {
             Text(text)
                 .font(.caption)
                 .foregroundStyle(style.color)
-                .fixedSize(horizontal: false, vertical: true)
+               
         }
     }
 }
@@ -733,7 +714,7 @@ private extension CustomPlaceholderEditorView {
     ) -> some View {
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color(nsColor: .textBackgroundColor))
+                //.fill(Color(nsColor: .textBackgroundColor))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(Color.primary.opacity(0.12), lineWidth: 1)
@@ -762,7 +743,7 @@ private extension CustomPlaceholderEditorView {
                 Text(text)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    
                 
             case .token(let prefix, let token):
                 HStack(spacing: 6) {
@@ -787,7 +768,7 @@ private extension CustomPlaceholderEditorView {
         _ text: String,
         style: ValidationMessageStyle
     ) -> some View {
-        HStack(alignment: .top, spacing: 5) {
+        HStack {
             Image(systemName: style.systemImage)
                 .font(.caption)
                 .foregroundStyle(style.color)
@@ -800,7 +781,7 @@ private extension CustomPlaceholderEditorView {
     }
     
     func errorBanner(text: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.red)
             
