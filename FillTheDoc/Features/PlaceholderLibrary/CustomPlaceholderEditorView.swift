@@ -132,7 +132,7 @@ struct CustomPlaceholderEditorView: View {
             
             footerView
         }
-        .background(.white)
+        .background(.windowBackground)
         .onChange(of: draft) { _, _ in
             refreshValidation()
             saveErrorText = nil
