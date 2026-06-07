@@ -25,5 +25,6 @@ struct FillTheDocApp: App {
         WindowGroup {
             MainView()
         }
+        .windowStyle(.hiddenTitleBar)
     }
 }
