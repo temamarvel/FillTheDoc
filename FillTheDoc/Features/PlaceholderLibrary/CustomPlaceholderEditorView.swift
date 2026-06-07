@@ -239,28 +239,10 @@ private extension CustomPlaceholderEditorView {
     }
     
     var headerView: some View {
-        HStack(spacing: 12) {
-            Button {
-                closeEditor()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 28, height: 28)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("Закрыть")
-            
-            Spacer()
-            
+        HStack {
             Text(mode.title)
                 .font(.title3.weight(.semibold))
-            
-            Spacer()
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 18)
     }
     
     var baseSection: some View {
@@ -560,11 +542,9 @@ private extension CustomPlaceholderEditorView {
     func editorCard<Content: View>(
         @ViewBuilder content: () -> Content
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack {
             content()
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.primary.opacity(0.10), lineWidth: 1)
