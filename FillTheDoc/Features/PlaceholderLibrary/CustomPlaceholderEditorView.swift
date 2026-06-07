@@ -109,25 +109,30 @@ struct CustomPlaceholderEditorView: View {
             
             Divider()
             
+            
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack {
                     baseSection
                     settingsSection
                 }
-                .padding(24)
             }
             
-            if let saveErrorText {
-                Divider()
-                errorBanner(text: saveErrorText)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-            }
+            //TODO: error?
+//            if let saveErrorText {
+//                Divider()
+//                errorBanner(text: saveErrorText)
+//                    .padding(.horizontal, 24)
+//                    .padding(.vertical, 12)
+//            }
+//
+            
             
             Divider()
+            
+            
             footerView
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(.white)
         .onChange(of: draft) { _, _ in
             refreshValidation()
             saveErrorText = nil
@@ -249,23 +254,28 @@ private extension CustomPlaceholderEditorView {
         editorCard {
             sectionHeader("1. Основные параметры")
             
-            labeledTextField(
-                title: "Название плейсхолдера",
-                text: $draft.title,
-                prompt: "Например: Номер договора",
-                helper: .plain("Отображаемое имя в интерфейсе"),
-                errorText: validationState.titleError
-            )
             
-            labeledTextField(
-                title: "Ключ плейсхолдера",
-                text: $draft.key,
-                prompt: "Например: contract_number",
-                helper: .token(prefix: "Используется в шаблоне документа как", token: tokenPreview),
-                errorText: validationState.keyError,
-                isDisabled: mode.isEditing
-            )
-        }
+            
+            TextField("tezt", text: $draft.title)
+                .padding(20)
+            
+//            labeledTextField(
+//                title: "Название плейсхолдера",
+//                text: $draft.title,
+//                prompt: "Например: Номер договора",
+//                helper: .plain("Отображаемое имя в интерфейсе"),
+//                errorText: validationState.titleError
+//            )
+//            
+//            labeledTextField(
+//                title: "Ключ плейсхолдера",
+//                text: $draft.key,
+//                prompt: "Например: contract_number",
+//                helper: .token(prefix: "Используется в шаблоне документа как", token: tokenPreview),
+//                errorText: validationState.keyError,
+//                isDisabled: mode.isEditing
+//            )
+        }.padding(30)
     }
     
     var settingsSection: some View {
@@ -702,33 +712,18 @@ private extension CustomPlaceholderEditorView {
         errorText: String? = nil,
         isDisabled: Bool = false
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack {
             Text(title)
                 .font(.subheadline.weight(.medium))
             
             TextField(prompt, text: text)
-                .textFieldStyle(.plain)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 9)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(nsColor: .textBackgroundColor))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(
-                            errorText == nil ? Color.primary.opacity(0.12) : Color.red.opacity(0.65),
-                            lineWidth: 1
-                        )
-                )
                 .disabled(isDisabled)
-                .opacity(isDisabled ? 0.65 : 1)
             
-            if let errorText {
-                validationMessage(errorText, style: .error)
-            } else if let helper {
-                helperView(helper)
-            }
+//            if let errorText {
+//                validationMessage(errorText, style: .error)
+//            } else if let helper {
+//                helperView(helper)
+//            }
         }
     }
     

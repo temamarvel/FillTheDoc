@@ -188,7 +188,6 @@ struct PlaceholderLibraryView: View {
                         .ignoresSafeArea()
                     
                     editorView(for: sheet)
-                        .shadow(color: .black.opacity(0.18), radius: 24, y: 12)
                 }
                 .transition(.opacity)
                 .zIndex(1)
