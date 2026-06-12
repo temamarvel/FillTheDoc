@@ -13,13 +13,18 @@ struct LabeledTextFieldView: View {
     let label: String
     let error: String?
     
+    private var hasError: Bool {
+        guard let error else { return false }
+        return !error.isEmpty
+    }
+    
     var body: some View {
         VStack(alignment: .leading) {
             Text(label)
                 .font(.subheadline)
             
             
-            VStack(alignment: .trailing){
+            VStack(alignment: .trailing) {
                 TextField(prompt, text: $text)
                 
                 if let error {
@@ -41,10 +46,12 @@ struct LabeledTextFieldView: View {
                     ],
                     startPoint: .bottom,
                     endPoint: .top
-                ).cornerRadius(4)
+                )
+                //.opacity(hasError ? 1 : 0)
+                .cornerRadius(4)
             )
-            .animation(.easeInOut(duration: 0.2), value: error != nil)
         }
+        //.animation(.easeInOut(duration: 0.2), value: hasError)
     }
 }
 

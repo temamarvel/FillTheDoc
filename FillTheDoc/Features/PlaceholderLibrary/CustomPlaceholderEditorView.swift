@@ -474,12 +474,14 @@ private extension CustomPlaceholderEditorView {
 
 private extension CustomPlaceholderEditorView {
     func refreshValidation() {
-        validationState = InlineValidationState(
-            issues: draftValidator.validate(
-                draft,
-                existingKeys: existingKeysForValidation
+        withAnimation{
+            validationState = InlineValidationState(
+                issues: draftValidator.validate(
+                    draft,
+                    existingKeys: existingKeysForValidation
+                )
             )
-        )
+        }
     }
     
     func save() {
