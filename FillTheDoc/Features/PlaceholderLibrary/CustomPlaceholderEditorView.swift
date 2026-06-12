@@ -693,19 +693,21 @@ private extension CustomPlaceholderEditorView {
         errorText: String? = nil,
         isDisabled: Bool = false
     ) -> some View {
-        VStack {
-            Text(title)
-                .font(.subheadline.weight(.medium))
-            
-            TextField(prompt, text: text)
-                .disabled(isDisabled)
-            
-//            if let errorText {
-//                validationMessage(errorText, style: .error)
-//            } else if let helper {
-//                helperView(helper)
-//            }
-        }
+//        VStack {
+//            Text(title)
+//                .font(.subheadline.weight(.medium))
+//            
+//            TextField(prompt, text: text)
+//                .disabled(isDisabled)
+//            
+////            if let errorText {
+////                validationMessage(errorText, style: .error)
+////            } else if let helper {
+////                helperView(helper)
+////            }
+//        }
+        
+        LabeledTextFieldView(text: text, prompt: prompt, label: title, error: errorText)
     }
     
     func multilineTextEditor(

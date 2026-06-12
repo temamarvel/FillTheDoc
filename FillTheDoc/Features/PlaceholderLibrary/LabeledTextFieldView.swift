@@ -7,37 +7,54 @@
 
 import SwiftUI
 
-struct VerticalLabeledContentStyle: LabeledContentStyle {
-    func makeBody(configuration: Configuration) -> some View {
+struct LabeledTextFieldView: View {
+    @Binding var text: String
+    let prompt: String
+    let label: String
+    let error: String?
+    
+    var body: some View {
         VStack(alignment: .leading) {
-            configuration.label
-            configuration.content
+            Text(label)
+                .font(.subheadline)
+            
+            
+            VStack(alignment: .trailing){
+                TextField(prompt, text: $text)
+                
+                if let error {
+                    Text(error)
+                        .foregroundStyle(.red)
+                        .font(.subheadline)
+                        .padding(.trailing, 4)
+                        .padding(.bottom, 2)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+            .background(
+                LinearGradient(
+                    colors: [
+                        .clear,
+                        .red.opacity(0.1),
+                        .red.opacity(0.3),
+                        .clear
+                    ],
+                    startPoint: .bottom,
+                    endPoint: .top
+                ).cornerRadius(4)
+            )
+            .animation(.easeInOut(duration: 0.2), value: error != nil)
         }
     }
 }
 
-extension LabeledContentStyle where Self == VerticalLabeledContentStyle {
-    static var vertical: VerticalLabeledContentStyle { .init() }
-}
-
-struct LabeledTextFieldView: View {
-    @Binding var text: String
-    @State  var label: String
-    
-    var body: some View {
+#Preview {
+    Section{
         
-        LabeledContent{
-            TextField("text", text: $text)
-        }label: {
-            Text(label)
-                .font(.subheadline)
-        }.labeledContentStyle(.vertical)
+        LabeledTextFieldView(text: .constant("Пример текста"), prompt: "prompt", label: "LAbel", error: "Error")
+            .padding()
+        
         
     }
-}
-
-#Preview {
-    LabeledTextFieldView(text: .constant("Пример текста"), label: "LAbel")
-        .padding()
-        .frame(width: 320)
+    .frame(width: 300, height: 300)
 }
