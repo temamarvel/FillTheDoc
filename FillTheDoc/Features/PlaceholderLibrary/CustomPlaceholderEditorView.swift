@@ -254,22 +254,24 @@ private extension CustomPlaceholderEditorView {
         editorCard {
             sectionHeader("1. Основные параметры")
             
-            labeledTextField(
-                title: "Название плейсхолдера",
-                text: $draft.title,
-                prompt: "Например: Номер договора",
-                helper: .plain("Отображаемое имя в интерфейсе"),
-                errorText: validationState.titleError
-            )
-            
-            labeledTextField(
-                title: "Ключ плейсхолдера",
-                text: $draft.key,
-                prompt: "Например: contract_number",
-                helper: .token(prefix: "Используется в шаблоне документа как", token: tokenPreview),
-                errorText: validationState.keyError,
-                isDisabled: mode.isEditing
-            )
+            HStack(alignment:.top) {
+                labeledTextField(
+                    title: "Название плейсхолдера",
+                    text: $draft.title,
+                    prompt: "Например: Номер договора",
+                    helper: .plain("Отображаемое имя в интерфейсе"),
+                    errorText: validationState.titleError
+                )
+                
+                labeledTextField(
+                    title: "Ключ плейсхолдера",
+                    text: $draft.key,
+                    prompt: "Например: contract_number",
+                    helper: .token(prefix: "Используется в шаблоне документа как", token: tokenPreview),
+                    errorText: validationState.keyError,
+                    isDisabled: mode.isEditing
+                )
+            }
         }
     }
     
