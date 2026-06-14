@@ -255,22 +255,19 @@ private extension CustomPlaceholderEditorView {
             sectionHeader("1. Основные параметры")
             
             HStack(alignment:.top) {
-                labeledTextField(
-                    title: "Название плейсхолдера",
+                LabeledTextFieldView(
                     text: $draft.title,
                     prompt: "Например: Номер договора",
-                    helper: .plain("Отображаемое имя в интерфейсе"),
-                    errorText: validationState.titleError
+                    label: "Название плейсхолдера",
+                    error: validationState.titleError
                 )
                 
-                labeledTextField(
-                    title: "Ключ плейсхолдера",
+                LabeledTextFieldView(
                     text: $draft.key,
                     prompt: "Например: contract_number",
-                    helper: .token(prefix: "Используется в шаблоне документа как", token: tokenPreview),
-                    errorText: validationState.keyError,
-                    isDisabled: mode.isEditing
-                )
+                    label: "Ключ плейсхолдера",
+                    error: validationState.keyError
+                ).disabled(mode.isEditing)
             }
             
             
@@ -341,7 +338,13 @@ private extension CustomPlaceholderEditorView {
                 
                 let title = textValueSourceBinding.wrappedValue == .extracted ? "Описание для экстракции (для LLM)" : "Описание поля"
                 
-                labeledTextField(title: title, text: $draft.description, prompt: "Например: Номер договора. Обычно содержит цифры и может включать дополнительные символы, например, слеши или дефисы.", errorText: validationState.descriptionError)
+                LabeledTextFieldView(
+                    text: $draft.description,
+                    prompt: "Например: Номер договора. Обычно содержит цифры и может включать дополнительные символы, например, слеши или дефисы.",
+                    label: title,
+                    error: validationState.descriptionError,
+                    minLines: 4
+                    )
                 
 //                multilineTextEditor(
 //                    text: $draft.description,
@@ -375,14 +378,13 @@ private extension CustomPlaceholderEditorView {
     
     var exampleValueSection: some View {
         VStack {
-            labeledTextField(
-                title: "Пример значения (необязательно)",
+            LabeledTextFieldView(
                 text: exampleValueTextBinding,
                 prompt: draft.isTextInput
                 ? "Например: 123/2024-ОД или Д-45 от 12.03.2024"
                 : "Например: счет",
-                helper: .plain(exampleValueHelperText),
-                errorText: validationState.exampleValueError
+                label: "Пример значения (необязательно)",
+                error: validationState.exampleValueError
             )
         }
     }
@@ -695,17 +697,17 @@ private extension CustomPlaceholderEditorView {
             .foregroundStyle(.secondary)
     }
     
-    func labeledTextField(
-        title: String,
-        text: Binding<String>,
-        prompt: String,
-        helper: FieldHelper? = nil,
-        errorText: String? = nil,
-        isDisabled: Bool = false
-    ) -> some View {
-        LabeledTextFieldView(text: text, prompt: prompt, label: title, error: errorText)
-            .disabled(isDisabled)
-    }
+//    func labeledTextField(
+//        title: String,
+//        text: Binding<String>,
+//        prompt: String,
+//        helper: FieldHelper? = nil,
+//        errorText: String? = nil,
+//        isDisabled: Bool = false
+//    ) -> some View {
+//        LabeledTextFieldView(text: text, prompt: prompt, label: title, error: errorText)
+//            .disabled(isDisabled)
+//    }
     
     func multilineTextEditor(
         text: Binding<String>,

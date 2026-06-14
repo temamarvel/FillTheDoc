@@ -14,6 +14,21 @@ struct LabeledTextFieldView: View {
     let prompt: String
     let label: String
     let error: String?
+    let minLines: Int
+    
+    init(
+        text: Binding<String>,
+        prompt: String,
+        label: String,
+        error: String?,
+        minLines: Int = 1
+    ) {
+        self._text = text
+        self.prompt = prompt
+        self.label = label
+        self.error = error
+        self.minLines = minLines
+    }
     
     private var showError: Bool {
         guard isEnabled, let error, !error.isEmpty else {
@@ -31,6 +46,7 @@ struct LabeledTextFieldView: View {
             
             VStack(alignment: .trailing) {
                 TextField(prompt, text: $text, axis: .vertical)
+                    .lineLimit(minLines...)
                 
                 if showError, let error = error {
                     Text(error)
