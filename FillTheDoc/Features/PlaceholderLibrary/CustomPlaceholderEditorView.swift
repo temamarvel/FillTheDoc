@@ -118,13 +118,13 @@ struct CustomPlaceholderEditorView: View {
             }
             
             //TODO: error?
-//            if let saveErrorText {
-//                Divider()
-//                errorBanner(text: saveErrorText)
-//                    .padding(.horizontal, 24)
-//                    .padding(.vertical, 12)
-//            }
-//
+            //            if let saveErrorText {
+            //                Divider()
+            //                errorBanner(text: saveErrorText)
+            //                    .padding(.horizontal, 24)
+            //                    .padding(.vertical, 12)
+            //            }
+            //
             
             
             Divider()
@@ -387,7 +387,7 @@ private extension CustomPlaceholderEditorView {
                 Text("Плейсхолдер с выбором всегда заполняется пользователем вручную.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                   
+                
             }
             
             HStack {
@@ -567,8 +567,8 @@ private struct ChoiceOptionRowView: View {
             
             VStack {
                 TextField("Например: СБП", text: $option.value)
-                    
-                    
+                
+                
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
                             .stroke(
@@ -587,9 +587,9 @@ private struct ChoiceOptionRowView: View {
                 onDelete()
             } label: {
                 Image(systemName: "trash")
-            
+                
             }
-//            .buttonStyle(.borderless)
+            //            .buttonStyle(.borderless)
             .disabled(!canDelete)
             .help(canDelete ? "Удалить вариант" : "Минимум два варианта")
             
@@ -608,7 +608,7 @@ private struct ChoiceOptionRowView: View {
             Text(text)
                 .font(.caption)
                 .foregroundStyle(style.color)
-               
+            
         }
     }
 }
@@ -695,21 +695,8 @@ private extension CustomPlaceholderEditorView {
         errorText: String? = nil,
         isDisabled: Bool = false
     ) -> some View {
-//        VStack {
-//            Text(title)
-//                .font(.subheadline.weight(.medium))
-//            
-//            TextField(prompt, text: text)
-//                .disabled(isDisabled)
-//            
-////            if let errorText {
-////                validationMessage(errorText, style: .error)
-////            } else if let helper {
-////                helperView(helper)
-////            }
-//        }
-        
         LabeledTextFieldView(text: text, prompt: prompt, label: title, error: errorText)
+            .disabled(isDisabled)
     }
     
     func multilineTextEditor(
@@ -718,7 +705,7 @@ private extension CustomPlaceholderEditorView {
     ) -> some View {
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 8)
-                //.fill(Color(nsColor: .textBackgroundColor))
+            //.fill(Color(nsColor: .textBackgroundColor))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(Color.primary.opacity(0.12), lineWidth: 1)
@@ -747,7 +734,7 @@ private extension CustomPlaceholderEditorView {
                 Text(text)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    
+                
                 
             case .token(let prefix, let token):
                 HStack(spacing: 6) {

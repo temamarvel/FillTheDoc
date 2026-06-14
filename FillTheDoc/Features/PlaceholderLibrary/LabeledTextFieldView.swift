@@ -8,14 +8,19 @@
 import SwiftUI
 
 struct LabeledTextFieldView: View {
+    @Environment(\.isEnabled) private var isEnabled
+    
     @Binding var text: String
     let prompt: String
     let label: String
     let error: String?
     
-    private var hasError: Bool {
-        guard let error else { return false }
-        return !error.isEmpty
+    private var showError: Bool {
+        guard isEnabled, let error, !error.isEmpty else {
+            return false
+        }
+        
+        return true
     }
     
     var body: some View {
@@ -27,7 +32,7 @@ struct LabeledTextFieldView: View {
             VStack(alignment: .trailing) {
                 TextField(prompt, text: $text)
                 
-                if let error {
+                if showError, let error = error {
                     Text(error)
                         .foregroundStyle(.red)
                         .font(.subheadline)
@@ -47,19 +52,24 @@ struct LabeledTextFieldView: View {
                     startPoint: .bottom,
                     endPoint: .top
                 )
-                //.opacity(hasError ? 1 : 0)
+                
                 .cornerRadius(4)
+                .opacity(showError ? 1 : 0)
+                .animation(.easeInOut(duration: 0.2), value: showError)
             )
         }
-        //.animation(.easeInOut(duration: 0.2), value: hasError)
     }
 }
 
 #Preview {
-    Section{
+    VStack{
         
         LabeledTextFieldView(text: .constant("Пример текста"), prompt: "prompt", label: "LAbel", error: "Error")
             .padding()
+        
+        LabeledTextFieldView(text: .constant("Пример текста"), prompt: "prompt", label: "LAbel", error: "Error")
+            .padding()
+            .disabled(true)
         
         
     }
