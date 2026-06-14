@@ -252,7 +252,15 @@ private extension CustomPlaceholderEditorView {
     
     var baseSection: some View {
         editorCard {
-            sectionHeader("1. Основные параметры")
+            sectionHeader("Основное")
+            
+            Picker("", selection: inputKindSelectionBinding) {
+                ForEach(InputKindSelection.allCases) { inputKind in
+                    Text(inputKind.title)
+                        .tag(inputKind)
+                }
+            }
+            .pickerStyle(.segmented)
             
             HStack(alignment:.top) {
                 LabeledTextFieldView(
@@ -271,23 +279,17 @@ private extension CustomPlaceholderEditorView {
             }
             
             
-            Text("Тип значения")
-                .font(.subheadline.weight(.medium))
+//            Text("Тип значения")
+//                .font(.subheadline.weight(.medium))
             
-            Picker("", selection: inputKindSelectionBinding) {
-                ForEach(InputKindSelection.allCases) { inputKind in
-                    Text(inputKind.title)
-                        .tag(inputKind)
-                }
-            }
-            .pickerStyle(.segmented)
+            
             
         }
     }
     
     var settingsSection: some View {
         editorCard {
-            sectionHeader("2. Настройки плейсхолдера")
+            sectionHeader("Настройки")
             
             
             
@@ -304,75 +306,37 @@ private extension CustomPlaceholderEditorView {
     
     var textSettingsSection: some View {
         VStack {
-            VStack {
-                Text("Источник значения")
-                    .font(.subheadline.weight(.medium))
-                
-                Picker("", selection: textValueSourceBinding) {
-                    ForEach(PlaceholderValueSource.allCases) { source in
-                        Text(source.editorTitle)
-                            .tag(source)
-                    }
+            
+            Picker("", selection: textValueSourceBinding) {
+                ForEach(PlaceholderValueSource.allCases) { source in
+                    Text(source.editorTitle)
+                        .tag(source)
                 }
-                .pickerStyle(.segmented)
+            }
+            .pickerStyle(.segmented)
+            
+            LabeledTextFieldView(
+                text: $draft.description,
+                prompt: "Например: Номер договора. Обычно содержит цифры и может включать дополнительные символы, например, слеши или дефисы.",
                 
-//                Text(textValueSourceBinding.wrappedValue.editorHelperText)
-//                    .font(.caption)
-//                    .foregroundStyle(.secondary)
+                error: validationState.descriptionError,
+                minLines: 4
+            ){
+                HStack {
+                    Text(textValueSourceBinding.wrappedValue == .extracted ? "Описание для экстракции (для LLM)" : "Описание поля")
+                        .font(.subheadline)
+                    
+                    Image(systemName: "questionmark.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .help(
+                            textValueSourceBinding.wrappedValue == .extracted
+                            ? "Опишите, какое значение нужно найти в исходных документах. Это описание попадёт в промпт извлечения."
+                            : "Краткое описание поля для интерфейса и библиотеки плейсхолдеров."
+                        )
+                }
             }
             
-            VStack {
-                
-                
-                let title = textValueSourceBinding.wrappedValue == .extracted ? "Описание для экстракции (для LLM)" : "Описание поля"
-                
-                LabeledTextFieldView(
-                    text: $draft.description,
-                    prompt: "Например: Номер договора. Обычно содержит цифры и может включать дополнительные символы, например, слеши или дефисы.",
-                    
-                    error: validationState.descriptionError,
-                    minLines: 4
-                ){
-                    HStack {
-                        Text(textValueSourceBinding.wrappedValue == .extracted ? "Описание для экстракции (для LLM)" : "Описание поля")
-                            .font(.subheadline.weight(.medium))
-                        
-                        Image(systemName: "questionmark.circle")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .help(
-                                textValueSourceBinding.wrappedValue == .extracted
-                                ? "Опишите, какое значение нужно найти в исходных документах. Это описание попадёт в промпт извлечения."
-                                : "Краткое описание поля для интерфейса и библиотеки плейсхолдеров."
-                            )
-                    }
-                }
-                
-//                multilineTextEditor(
-//                    text: $draft.description,
-//                    prompt: "Например: Номер договора. Обычно содержит цифры и может включать дополнительные символы, например, слеши или дефисы."
-//                )
-                
-//                if let descriptionError = validationState.descriptionError {
-//                    validationMessage(descriptionError, style: .error)
-//                } else {
-//                    HStack {
-//                        Text(
-//                            textValueSourceBinding.wrappedValue == .extracted
-//                            ? "Описание помогает модели понять, какие данные искать."
-//                            : "Описание используется в интерфейсе и справочнике плейсхолдеров."
-//                        )
-//                        .font(.caption)
-//                        .foregroundStyle(.secondary)
-//                        
-//                        Spacer()
-//                        
-//                        Text("\(draft.description.count)/500")
-//                            .font(.caption)
-//                            .foregroundStyle(.secondary)
-//                    }
-//                }
-            }
             
             Toggle("Поле обязательно для заполнения", isOn: $draft.isRequired)
         }
@@ -393,14 +357,14 @@ private extension CustomPlaceholderEditorView {
     
     var choiceSettingsSection: some View {
         VStack {
-            VStack {
-                Text("Источник значения")
-                    .font(.subheadline.weight(.medium))
-                Text("Плейсхолдер с выбором всегда заполняется пользователем вручную.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                
-            }
+//            VStack {
+//                Text("Источник значения")
+//                    .font(.subheadline.weight(.medium))
+//                Text("Плейсхолдер с выбором всегда заполняется пользователем вручную.")
+//                    .font(.caption)
+//                    .foregroundStyle(.secondary)
+//                
+//            }
             
             HStack {
                 HStack {
@@ -573,25 +537,26 @@ private struct ChoiceOptionRowView: View {
     
     var body: some View {
         HStack {
-            Image(systemName: "line.3.horizontal")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            
             
             VStack {
-                TextField("Например: СБП", text: $option.value)
+                LabeledTextFieldView(text: $option.value, prompt: "Например: СБП", error: errorText){}
                 
                 
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(
-                                errorText == nil ? Color.primary.opacity(0.12) : Color.red.opacity(0.65),
-                                lineWidth: 1
-                            )
-                    )
-                
-                if let errorText {
-                    validationMessage(errorText, style: .error)
-                }
+//                TextField("Например: СБП", text: $option.value)
+//                
+//                
+//                    .overlay(
+//                        RoundedRectangle(cornerRadius: 8)
+//                            .stroke(
+//                                errorText == nil ? Color.primary.opacity(0.12) : Color.red.opacity(0.65),
+//                                lineWidth: 1
+//                            )
+//                    )
+//                
+//                if let errorText {
+//                    validationMessage(errorText, style: .error)
+//                }
             }
             
             
@@ -676,9 +641,9 @@ private extension PlaceholderValueSource {
     var editorTitle: String {
         switch self {
             case .manual:
-                return "Пользователь вводит вручную"
+                return "Пользователь вводит сам"
             case .extracted:
-                return "Извлекать из документа с помощью ИИ"
+                return "Извлекать с помощью ИИ"
         }
     }
     
@@ -697,46 +662,6 @@ private extension CustomPlaceholderEditorView {
         Text(title)
             .font(.headline)
             .foregroundStyle(.secondary)
-    }
-    
-//    func labeledTextField(
-//        title: String,
-//        text: Binding<String>,
-//        prompt: String,
-//        helper: FieldHelper? = nil,
-//        errorText: String? = nil,
-//        isDisabled: Bool = false
-//    ) -> some View {
-//        LabeledTextFieldView(text: text, prompt: prompt, label: title, error: errorText)
-//            .disabled(isDisabled)
-//    }
-    
-    func multilineTextEditor(
-        text: Binding<String>,
-        prompt: String
-    ) -> some View {
-        ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 8)
-            //.fill(Color(nsColor: .textBackgroundColor))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.primary.opacity(0.12), lineWidth: 1)
-                )
-            
-            if text.wrappedValue.isEmpty {
-                Text(prompt)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .allowsHitTesting(false)
-            }
-            
-            TextEditor(text: text)
-                .font(.body)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
-                .background(Color.clear)
-        }
     }
     
     @ViewBuilder
