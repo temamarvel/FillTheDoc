@@ -366,30 +366,48 @@ private extension CustomPlaceholderEditorView {
 //                
 //            }
             
-            HStack {
-                HStack {
-                    Text("Варианты выбора")
-                        .font(.subheadline.weight(.medium))
-                    
-                    Image(systemName: "questionmark.circle")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .help("Введите варианты, которые пользователь увидит в меню. Выбранная строка и будет подставлена в документ.")
-                }
-                
-                Spacer()
-                
-                Text("\(choiceOptions.count)/\(CustomPlaceholderDraftValidator.maxChoiceOptions) \(choiceOptions.count.optionCountWord)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            
-            if let choiceGeneralError = validationState.choiceGeneralError {
-                validationMessage(choiceGeneralError, style: .error)
-            }
+//            HStack {
+//                HStack {
+//                    Text("Варианты выбора")
+//                        .font(.subheadline.weight(.medium))
+//                    
+//                    Image(systemName: "questionmark.circle")
+//                        .font(.caption)
+//                        .foregroundStyle(.secondary)
+//                        .help("Введите варианты, которые пользователь увидит в меню. Выбранная строка и будет подставлена в документ.")
+//                }
+//                
+//                Spacer()
+//                
+//                Text("\(choiceOptions.count)/\(CustomPlaceholderDraftValidator.maxChoiceOptions) \(choiceOptions.count.optionCountWord)")
+//                    .font(.caption)
+//                    .foregroundStyle(.secondary)
+//            }
+//            
+//            if let choiceGeneralError = validationState.choiceGeneralError {
+//                validationMessage(choiceGeneralError, style: .error)
+//            }
             
             //VStack {
-            LabeledContainerView (label: "text", error: validationState.choiceGeneralError){
+            LabeledContainerView (error: validationState.choiceGeneralError) {
+                HStack {
+                    HStack {
+                        Text("Варианты выбора")
+                            .font(.subheadline.weight(.medium))
+                        
+                        Image(systemName: "questionmark.circle")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .help("Введите варианты, которые пользователь увидит в меню. Выбранная строка и будет подставлена в документ.")
+                    }
+                    
+                    Spacer()
+                    
+                    Text("\(choiceOptions.count)/\(CustomPlaceholderDraftValidator.maxChoiceOptions) \(choiceOptions.count.optionCountWord)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } content: {
                 ForEach(Array(choiceOptions.enumerated()), id: \.element.id) { index, option in
                     ChoiceOptionRowView(
                         option: choiceOptionBinding(at: index),
@@ -399,8 +417,10 @@ private extension CustomPlaceholderEditorView {
                             removeOption(id: option.id)
                         }
                     )
-                }
-            }
+                    .padding(.bottom, 4)
+                }.background(Color(NSColor.controlBackgroundColor))
+                Divider()
+            }.padding()
             //}
             
             Button {
