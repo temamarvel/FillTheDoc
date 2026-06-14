@@ -29,7 +29,7 @@ private extension View {
     }
 }
 
-struct LabeledFieldContainerView<Label: View, Content: View>: View {
+struct LabeledContainerView<Label: View, Content: View>: View {
     @Environment(\.isEnabled) private var isEnabled
     @State private var contentHeight: CGFloat = 0
     @State private var errorTextHeight: CGFloat = 0
@@ -123,7 +123,7 @@ struct LabeledFieldContainerView<Label: View, Content: View>: View {
     }
 }
 
-extension LabeledFieldContainerView where Label == Text {
+extension LabeledContainerView where Label == Text {
     init(
         label: String,
         error: String? = nil,
@@ -162,7 +162,7 @@ struct LabeledTextFieldView<Label: View>: View {
     }
     
     var body: some View {
-        LabeledFieldContainerView(
+        LabeledContainerView(
             error: error,
             label: {
                 labelContent

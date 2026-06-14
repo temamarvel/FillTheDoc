@@ -388,7 +388,8 @@ private extension CustomPlaceholderEditorView {
                 validationMessage(choiceGeneralError, style: .error)
             }
             
-            VStack {
+            //VStack {
+            LabeledContainerView (label: "text", error: validationState.choiceGeneralError){
                 ForEach(Array(choiceOptions.enumerated()), id: \.element.id) { index, option in
                     ChoiceOptionRowView(
                         option: choiceOptionBinding(at: index),
@@ -400,6 +401,7 @@ private extension CustomPlaceholderEditorView {
                     )
                 }
             }
+            //}
             
             Button {
                 addOption()
@@ -540,10 +542,10 @@ private struct ChoiceOptionRowView: View {
             
             
             VStack {
-                LabeledTextFieldView(text: $option.value, prompt: "Например: СБП", error: errorText){}
+//                LabeledTextFieldView(text: $option.value, prompt: "Например: СБП", error: errorText){}
                 
                 
-//                TextField("Например: СБП", text: $option.value)
+                TextField("Например: СБП", text: $option.value)
 //                
 //                
 //                    .overlay(
