@@ -423,7 +423,7 @@ private extension CustomPlaceholderEditorView {
                 .padding()
                 .background {
                     RoundedRectangle(cornerRadius: 8)
-                    //.fill(Color(NSColor.controlBackgroundColor))
+                    .fill(Color(NSColor.controlBackgroundColor))
                         .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
                 }
             }

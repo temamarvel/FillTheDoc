@@ -7,38 +7,8 @@
 
 import SwiftUI
 
-private struct HeightPreferenceKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-
-private extension View {
-    func measureHeight(_ height: Binding<CGFloat>) -> some View {
-        background(
-            GeometryReader { proxy in
-                Color.clear
-                    .preference(key: HeightPreferenceKey.self, value: proxy.size.height)
-            }
-        )
-        .onPreferenceChange(HeightPreferenceKey.self) { newValue in
-            height.wrappedValue = newValue
-        }
-    }
-}
-
 struct LabeledContainerView<Label: View, Content: View>: View {
     @Environment(\.isEnabled) private var isEnabled
-    @State private var contentHeight: CGFloat = 0
-    @State private var errorTextHeight: CGFloat = 0
-    
-    private let smallErrorTopPadding: CGFloat = 8
-    private let largeErrorTopPadding: CGFloat = 12
-    private let errorBottomPadding: CGFloat = 2
-    private let smallErrorOffset: CGFloat = -6
-    private let largeErrorOffset: CGFloat = -10
     
     private let labelContent: Label
     private let fieldContent: Content
@@ -62,29 +32,12 @@ struct LabeledContainerView<Label: View, Content: View>: View {
         return true
     }
     
-    private var compactErrorHeight: CGFloat {
-        errorTextHeight + smallErrorTopPadding + errorBottomPadding
-    }
-    
-    private var usesLargeErrorSpacing: Bool {
-        contentHeight > compactErrorHeight
-    }
-    
-    private var errorTopPadding: CGFloat {
-        usesLargeErrorSpacing ? largeErrorTopPadding : smallErrorTopPadding
-    }
-    
-    private var errorOffset: CGFloat {
-        usesLargeErrorSpacing ? largeErrorOffset : smallErrorOffset
-    }
-    
     var body: some View {
         VStack(alignment: .leading) {
             labelContent
             
             VStack(spacing: 0) {
                 fieldContent
-                    .measureHeight($contentHeight)
                 
                 if showError, let error = error {
                     HStack{
@@ -94,9 +47,8 @@ struct LabeledContainerView<Label: View, Content: View>: View {
                             .foregroundStyle(.red)
                             .font(.subheadline)
                             .padding(.trailing, 4)
-                            .measureHeight($errorTextHeight)
-                            .padding(.top, errorTopPadding)
-                            .padding(.bottom, errorBottomPadding)
+                            .padding(.top, 16)
+                            .padding(.bottom, 2)
                     }
                     .zIndex(-1)
                     .transition(.opacity.combined(with: .move(edge: .top)))
@@ -115,9 +67,11 @@ struct LabeledContainerView<Label: View, Content: View>: View {
                         .animation(.easeInOut(duration: 0.2), value: showError)
                     )
                     
-                    .offset(y: errorOffset)
+                    .offset(y: -14)
                 }
             }
+            .padding(1)
+            .clipShape(.rect)
             
         }
     }
