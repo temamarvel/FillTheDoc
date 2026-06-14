@@ -30,7 +30,7 @@ struct LabeledTextFieldView: View {
             
             
             VStack(alignment: .trailing) {
-                TextField(prompt, text: $text)
+                TextField(prompt, text: $text, axis: .vertical)
                 
                 if showError, let error = error {
                     Text(error)

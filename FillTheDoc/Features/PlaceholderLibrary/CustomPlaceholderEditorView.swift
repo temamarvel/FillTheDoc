@@ -272,6 +272,19 @@ private extension CustomPlaceholderEditorView {
                     isDisabled: mode.isEditing
                 )
             }
+            
+            
+            Text("Тип значения")
+                .font(.subheadline.weight(.medium))
+            
+            Picker("", selection: inputKindSelectionBinding) {
+                ForEach(InputKindSelection.allCases) { inputKind in
+                    Text(inputKind.title)
+                        .tag(inputKind)
+                }
+            }
+            .pickerStyle(.segmented)
+            
         }
     }
     
@@ -279,18 +292,7 @@ private extension CustomPlaceholderEditorView {
         editorCard {
             sectionHeader("2. Настройки плейсхолдера")
             
-            VStack {
-                Text("Тип значения")
-                    .font(.subheadline.weight(.medium))
-                
-                Picker("", selection: inputKindSelectionBinding) {
-                    ForEach(InputKindSelection.allCases) { type in
-                        Label(type.title, systemImage: type.systemImage)
-                            .tag(type)
-                    }
-                }
-                .pickerStyle(.segmented)
-            }
+            
             
             switch draft.inputKind {
                 case .text:
@@ -317,9 +319,9 @@ private extension CustomPlaceholderEditorView {
                 }
                 .pickerStyle(.segmented)
                 
-                Text(textValueSourceBinding.wrappedValue.editorHelperText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+//                Text(textValueSourceBinding.wrappedValue.editorHelperText)
+//                    .font(.caption)
+//                    .foregroundStyle(.secondary)
             }
             
             VStack {
@@ -337,30 +339,34 @@ private extension CustomPlaceholderEditorView {
                         )
                 }
                 
-                multilineTextEditor(
-                    text: $draft.description,
-                    prompt: "Например: Номер договора. Обычно содержит цифры и может включать дополнительные символы, например, слеши или дефисы."
-                )
+                let title = textValueSourceBinding.wrappedValue == .extracted ? "Описание для экстракции (для LLM)" : "Описание поля"
                 
-                if let descriptionError = validationState.descriptionError {
-                    validationMessage(descriptionError, style: .error)
-                } else {
-                    HStack {
-                        Text(
-                            textValueSourceBinding.wrappedValue == .extracted
-                            ? "Описание помогает модели понять, какие данные искать."
-                            : "Описание используется в интерфейсе и справочнике плейсхолдеров."
-                        )
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        
-                        Spacer()
-                        
-                        Text("\(draft.description.count)/500")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                labeledTextField(title: title, text: $draft.description, prompt: "Например: Номер договора. Обычно содержит цифры и может включать дополнительные символы, например, слеши или дефисы.", errorText: validationState.descriptionError)
+                
+//                multilineTextEditor(
+//                    text: $draft.description,
+//                    prompt: "Например: Номер договора. Обычно содержит цифры и может включать дополнительные символы, например, слеши или дефисы."
+//                )
+                
+//                if let descriptionError = validationState.descriptionError {
+//                    validationMessage(descriptionError, style: .error)
+//                } else {
+//                    HStack {
+//                        Text(
+//                            textValueSourceBinding.wrappedValue == .extracted
+//                            ? "Описание помогает модели понять, какие данные искать."
+//                            : "Описание используется в интерфейсе и справочнике плейсхолдеров."
+//                        )
+//                        .font(.caption)
+//                        .foregroundStyle(.secondary)
+//                        
+//                        Spacer()
+//                        
+//                        Text("\(draft.description.count)/500")
+//                            .font(.caption)
+//                            .foregroundStyle(.secondary)
+//                    }
+//                }
             }
             
             Toggle("Поле обязательно для заполнения", isOn: $draft.isRequired)
