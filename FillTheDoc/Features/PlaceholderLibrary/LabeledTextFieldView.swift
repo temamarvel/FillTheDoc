@@ -7,24 +7,51 @@
 
 import SwiftUI
 
+private struct HeightPreferenceKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+private extension View {
+    func measureHeight(_ height: Binding<CGFloat>) -> some View {
+        background(
+            GeometryReader { proxy in
+                Color.clear
+                    .preference(key: HeightPreferenceKey.self, value: proxy.size.height)
+            }
+        )
+        .onPreferenceChange(HeightPreferenceKey.self) { newValue in
+            height.wrappedValue = newValue
+        }
+    }
+}
+
 struct LabeledFieldContainerView<Label: View, Content: View>: View {
     @Environment(\.isEnabled) private var isEnabled
+    @State private var contentHeight: CGFloat = 0
+    @State private var errorTextHeight: CGFloat = 0
+    
+    private let smallErrorTopPadding: CGFloat = 8
+    private let largeErrorTopPadding: CGFloat = 12
+    private let errorBottomPadding: CGFloat = 2
+    private let smallErrorOffset: CGFloat = -6
+    private let largeErrorOffset: CGFloat = -10
     
     private let labelContent: Label
     private let fieldContent: Content
     let error: String?
-    let isMultiline: Bool
     
     init(
         error: String? = nil,
-        isMultiline: Bool = false,
         @ViewBuilder label: () -> Label,
         @ViewBuilder content: () -> Content
     ) {
         self.labelContent = label()
         self.fieldContent = content()
         self.error = error
-        self.isMultiline = isMultiline
     }
     
     private var showError: Bool {
@@ -35,12 +62,29 @@ struct LabeledFieldContainerView<Label: View, Content: View>: View {
         return true
     }
     
+    private var compactErrorHeight: CGFloat {
+        errorTextHeight + smallErrorTopPadding + errorBottomPadding
+    }
+    
+    private var usesLargeErrorSpacing: Bool {
+        contentHeight > compactErrorHeight
+    }
+    
+    private var errorTopPadding: CGFloat {
+        usesLargeErrorSpacing ? largeErrorTopPadding : smallErrorTopPadding
+    }
+    
+    private var errorOffset: CGFloat {
+        usesLargeErrorSpacing ? largeErrorOffset : smallErrorOffset
+    }
+    
     var body: some View {
         VStack(alignment: .leading) {
             labelContent
             
             VStack(spacing: 0) {
                 fieldContent
+                    .measureHeight($contentHeight)
                 
                 if showError, let error = error {
                     HStack{
@@ -50,8 +94,9 @@ struct LabeledFieldContainerView<Label: View, Content: View>: View {
                             .foregroundStyle(.red)
                             .font(.subheadline)
                             .padding(.trailing, 4)
-                            .padding(.top, isMultiline ? 12 : 8)
-                            .padding(.bottom, 2)
+                            .measureHeight($errorTextHeight)
+                            .padding(.top, errorTopPadding)
+                            .padding(.bottom, errorBottomPadding)
                     }
                     .zIndex(-1)
                     .transition(.opacity.combined(with: .move(edge: .top)))
@@ -70,7 +115,7 @@ struct LabeledFieldContainerView<Label: View, Content: View>: View {
                         .animation(.easeInOut(duration: 0.2), value: showError)
                     )
                     
-                    .offset(y: isMultiline ? -10 : -6)
+                    .offset(y: errorOffset)
                 }
             }
             
@@ -82,12 +127,10 @@ extension LabeledFieldContainerView where Label == Text {
     init(
         label: String,
         error: String? = nil,
-        isMultiline: Bool = false,
         @ViewBuilder content: () -> Content
     ) {
         self.init(
             error: error,
-            isMultiline: isMultiline,
             label: {
                 Text(label)
                     .font(.subheadline)
@@ -118,14 +161,9 @@ struct LabeledTextFieldView<Label: View>: View {
         self.minLines = minLines
     }
     
-    private var isMultiline: Bool {
-        minLines > 1
-    }
-    
     var body: some View {
         LabeledFieldContainerView(
             error: error,
-            isMultiline: isMultiline,
             label: {
                 labelContent
             },
