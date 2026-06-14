@@ -176,6 +176,28 @@ private extension CustomPlaceholderEditorView {
         )
     }
     
+    var descriptionLabelText: String {
+        switch draft.inputKind {
+            case .text:
+                return textValueSourceBinding.wrappedValue == .extracted
+                ? "Описание для экстракции (для LLM)"
+                : "Описание поля"
+            case .choice:
+                return "Описание поля"
+        }
+    }
+    
+    var descriptionHelpText: String {
+        switch draft.inputKind {
+            case .text:
+                return textValueSourceBinding.wrappedValue == .extracted
+                ? "Опишите, какое значение нужно найти в исходных документах. Это описание попадёт в промпт извлечения."
+                : "Краткое описание поля для интерфейса и библиотеки плейсхолдеров."
+            case .choice:
+                return "Краткое описание поля для интерфейса и библиотеки плейсхолдеров."
+        }
+    }
+    
     var inputKindSelectionBinding: Binding<InputKindSelection> {
         Binding(
             get: { inputKindSelection },
@@ -315,28 +337,7 @@ private extension CustomPlaceholderEditorView {
             }
             .pickerStyle(.segmented)
             
-            LabeledTextFieldView(
-                text: $draft.description,
-                prompt: "Например: Номер договора. Обычно содержит цифры и может включать дополнительные символы, например, слеши или дефисы.",
-                
-                error: validationState.descriptionError,
-                minLines: 4
-            ){
-                HStack {
-                    Text(textValueSourceBinding.wrappedValue == .extracted ? "Описание для экстракции (для LLM)" : "Описание поля")
-                        .font(.subheadline)
-                    
-                    Image(systemName: "questionmark.circle")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .help(
-                            textValueSourceBinding.wrappedValue == .extracted
-                            ? "Опишите, какое значение нужно найти в исходных документах. Это описание попадёт в промпт извлечения."
-                            : "Краткое описание поля для интерфейса и библиотеки плейсхолдеров."
-                        )
-                }
-            }
-            
+            descriptionInputSection
             
             Toggle("Поле обязательно для заполнения", isOn: $draft.isRequired)
         }
@@ -355,40 +356,28 @@ private extension CustomPlaceholderEditorView {
         }
     }
     
+    var descriptionInputSection: some View {
+        LabeledTextFieldView(
+            text: $draft.description,
+            prompt: "Например: Номер договора. Обычно содержит цифры и может включать дополнительные символы, например, слеши или дефисы.",
+            
+            error: validationState.descriptionError,
+            minLines: 4
+        ){
+            HStack {
+                Text(descriptionLabelText)
+                    .font(.subheadline)
+                
+                Image(systemName: "questionmark.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .help(descriptionHelpText)
+            }
+        }
+    }
+    
     var choiceSettingsSection: some View {
         VStack {
-            //            VStack {
-            //                Text("Источник значения")
-            //                    .font(.subheadline.weight(.medium))
-            //                Text("Плейсхолдер с выбором всегда заполняется пользователем вручную.")
-            //                    .font(.caption)
-            //                    .foregroundStyle(.secondary)
-            //
-            //            }
-            
-            //            HStack {
-            //                HStack {
-            //                    Text("Варианты выбора")
-            //                        .font(.subheadline.weight(.medium))
-            //
-            //                    Image(systemName: "questionmark.circle")
-            //                        .font(.caption)
-            //                        .foregroundStyle(.secondary)
-            //                        .help("Введите варианты, которые пользователь увидит в меню. Выбранная строка и будет подставлена в документ.")
-            //                }
-            //
-            //                Spacer()
-            //
-            //                Text("\(choiceOptions.count)/\(CustomPlaceholderDraftValidator.maxChoiceOptions) \(choiceOptions.count.optionCountWord)")
-            //                    .font(.caption)
-            //                    .foregroundStyle(.secondary)
-            //            }
-            //
-            //            if let choiceGeneralError = validationState.choiceGeneralError {
-            //                validationMessage(choiceGeneralError, style: .error)
-            //            }
-            
-            //VStack {
             LabeledContainerView (error: validationState.choiceGeneralError) {
                 HStack {
                     HStack {
@@ -423,12 +412,11 @@ private extension CustomPlaceholderEditorView {
                 .padding()
                 .background {
                     RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(NSColor.controlBackgroundColor))
+                        .fill(Color(NSColor.controlBackgroundColor))
                         .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
                 }
             }
             .padding()
-            //}
             
             Button {
                 addOption()
@@ -436,6 +424,8 @@ private extension CustomPlaceholderEditorView {
                 Label("Добавить вариант", systemImage: "plus")
             }
             .disabled(choiceOptions.count >= CustomPlaceholderDraftValidator.maxChoiceOptions)
+            
+            descriptionInputSection
             
             Toggle("Поле обязательно для выбора", isOn: $draft.isRequired)
         }
