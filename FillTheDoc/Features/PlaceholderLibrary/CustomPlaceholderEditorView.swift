@@ -322,29 +322,31 @@ private extension CustomPlaceholderEditorView {
             }
             
             VStack {
-                HStack {
-                    Text(textValueSourceBinding.wrappedValue == .extracted ? "Описание для экстракции (для LLM)" : "Описание поля")
-                        .font(.subheadline.weight(.medium))
-                    
-                    Image(systemName: "questionmark.circle")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .help(
-                            textValueSourceBinding.wrappedValue == .extracted
-                            ? "Опишите, какое значение нужно найти в исходных документах. Это описание попадёт в промпт извлечения."
-                            : "Краткое описание поля для интерфейса и библиотеки плейсхолдеров."
-                        )
-                }
+                
                 
                 let title = textValueSourceBinding.wrappedValue == .extracted ? "Описание для экстракции (для LLM)" : "Описание поля"
                 
                 LabeledTextFieldView(
                     text: $draft.description,
                     prompt: "Например: Номер договора. Обычно содержит цифры и может включать дополнительные символы, например, слеши или дефисы.",
-                    label: title,
+                    
                     error: validationState.descriptionError,
                     minLines: 4
-                    )
+                ){
+                    HStack {
+                        Text(textValueSourceBinding.wrappedValue == .extracted ? "Описание для экстракции (для LLM)" : "Описание поля")
+                            .font(.subheadline.weight(.medium))
+                        
+                        Image(systemName: "questionmark.circle")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .help(
+                                textValueSourceBinding.wrappedValue == .extracted
+                                ? "Опишите, какое значение нужно найти в исходных документах. Это описание попадёт в промпт извлечения."
+                                : "Краткое описание поля для интерфейса и библиотеки плейсхолдеров."
+                            )
+                    }
+                }
                 
 //                multilineTextEditor(
 //                    text: $draft.description,

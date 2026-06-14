@@ -7,25 +7,25 @@
 
 import SwiftUI
 
-struct LabeledTextFieldView: View {
+struct LabeledTextFieldView<Label: View>: View {
     @Environment(\.isEnabled) private var isEnabled
     
     @Binding var text: String
     let prompt: String
-    let label: String
+    private let labelContent: Label
     let error: String?
     let minLines: Int
     
     init(
         text: Binding<String>,
         prompt: String,
-        label: String,
-        error: String?,
-        minLines: Int = 1
+        error: String? = nil,
+        minLines: Int = 1,
+        @ViewBuilder label: () -> Label
     ) {
         self._text = text
         self.prompt = prompt
-        self.label = label
+        self.labelContent = label()
         self.error = error
         self.minLines = minLines
     }
@@ -40,8 +40,7 @@ struct LabeledTextFieldView: View {
     
     var body: some View {
         VStack(alignment: .leading) {
-            Text(label)
-                .font(.subheadline)
+            labelContent
             
             
             VStack(alignment: .trailing) {
@@ -73,6 +72,26 @@ struct LabeledTextFieldView: View {
                 .opacity(showError ? 1 : 0)
                 .animation(.easeInOut(duration: 0.2), value: showError)
             )
+        }
+    }
+}
+
+extension LabeledTextFieldView where Label == Text {
+    init(
+        text: Binding<String>,
+        prompt: String,
+        label: String,
+        error: String? = nil,
+        minLines: Int = 1
+    ) {
+        self.init(
+            text: text,
+            prompt: prompt,
+            error: error,
+            minLines: minLines
+        ) {
+            Text(label)
+                .font(.subheadline)
         }
     }
 }
