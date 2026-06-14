@@ -7,27 +7,24 @@
 
 import SwiftUI
 
-struct LabeledTextFieldView<Label: View>: View {
+struct LabeledFieldContainerView<Label: View, Content: View>: View {
     @Environment(\.isEnabled) private var isEnabled
     
-    @Binding var text: String
-    let prompt: String
     private let labelContent: Label
+    private let fieldContent: Content
     let error: String?
-    let minLines: Int
+    let isMultiline: Bool
     
     init(
-        text: Binding<String>,
-        prompt: String,
         error: String? = nil,
-        minLines: Int = 1,
-        @ViewBuilder label: () -> Label
+        isMultiline: Bool = false,
+        @ViewBuilder label: () -> Label,
+        @ViewBuilder content: () -> Content
     ) {
-        self._text = text
-        self.prompt = prompt
         self.labelContent = label()
+        self.fieldContent = content()
         self.error = error
-        self.minLines = minLines
+        self.isMultiline = isMultiline
     }
     
     private var showError: Bool {
@@ -38,17 +35,12 @@ struct LabeledTextFieldView<Label: View>: View {
         return true
     }
     
-    private var isMultiline: Bool {
-        minLines > 1
-    }
-    
     var body: some View {
         VStack(alignment: .leading) {
             labelContent
             
             VStack(spacing: 0) {
-                TextField(prompt, text: $text, axis: .vertical)
-                    .lineLimit(minLines...)
+                fieldContent
                 
                 if showError, let error = error {
                     HStack{
@@ -83,6 +75,65 @@ struct LabeledTextFieldView<Label: View>: View {
             }
             
         }
+    }
+}
+
+extension LabeledFieldContainerView where Label == Text {
+    init(
+        label: String,
+        error: String? = nil,
+        isMultiline: Bool = false,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.init(
+            error: error,
+            isMultiline: isMultiline,
+            label: {
+                Text(label)
+                    .font(.subheadline)
+            },
+            content: content
+        )
+    }
+}
+
+struct LabeledTextFieldView<Label: View>: View {
+    @Binding var text: String
+    let prompt: String
+    private let labelContent: Label
+    let error: String?
+    let minLines: Int
+    
+    init(
+        text: Binding<String>,
+        prompt: String,
+        error: String? = nil,
+        minLines: Int = 1,
+        @ViewBuilder label: () -> Label
+    ) {
+        self._text = text
+        self.prompt = prompt
+        self.labelContent = label()
+        self.error = error
+        self.minLines = minLines
+    }
+    
+    private var isMultiline: Bool {
+        minLines > 1
+    }
+    
+    var body: some View {
+        LabeledFieldContainerView(
+            error: error,
+            isMultiline: isMultiline,
+            label: {
+                labelContent
+            },
+            content: {
+                TextField(prompt, text: $text, axis: .vertical)
+                    .lineLimit(minLines...)
+            }
+        )
     }
 }
 
