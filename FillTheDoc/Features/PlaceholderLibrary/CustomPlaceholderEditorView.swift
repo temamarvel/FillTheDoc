@@ -114,7 +114,7 @@ struct CustomPlaceholderEditorView: View {
                 VStack {
                     baseSection
                     settingsSection
-                }
+                }.padding()
             }
             
             //TODO: error?
@@ -279,8 +279,8 @@ private extension CustomPlaceholderEditorView {
             }
             
             
-//            Text("Тип значения")
-//                .font(.subheadline.weight(.medium))
+            //            Text("Тип значения")
+            //                .font(.subheadline.weight(.medium))
             
             
             
@@ -357,36 +357,36 @@ private extension CustomPlaceholderEditorView {
     
     var choiceSettingsSection: some View {
         VStack {
-//            VStack {
-//                Text("Источник значения")
-//                    .font(.subheadline.weight(.medium))
-//                Text("Плейсхолдер с выбором всегда заполняется пользователем вручную.")
-//                    .font(.caption)
-//                    .foregroundStyle(.secondary)
-//                
-//            }
+            //            VStack {
+            //                Text("Источник значения")
+            //                    .font(.subheadline.weight(.medium))
+            //                Text("Плейсхолдер с выбором всегда заполняется пользователем вручную.")
+            //                    .font(.caption)
+            //                    .foregroundStyle(.secondary)
+            //
+            //            }
             
-//            HStack {
-//                HStack {
-//                    Text("Варианты выбора")
-//                        .font(.subheadline.weight(.medium))
-//                    
-//                    Image(systemName: "questionmark.circle")
-//                        .font(.caption)
-//                        .foregroundStyle(.secondary)
-//                        .help("Введите варианты, которые пользователь увидит в меню. Выбранная строка и будет подставлена в документ.")
-//                }
-//                
-//                Spacer()
-//                
-//                Text("\(choiceOptions.count)/\(CustomPlaceholderDraftValidator.maxChoiceOptions) \(choiceOptions.count.optionCountWord)")
-//                    .font(.caption)
-//                    .foregroundStyle(.secondary)
-//            }
-//            
-//            if let choiceGeneralError = validationState.choiceGeneralError {
-//                validationMessage(choiceGeneralError, style: .error)
-//            }
+            //            HStack {
+            //                HStack {
+            //                    Text("Варианты выбора")
+            //                        .font(.subheadline.weight(.medium))
+            //
+            //                    Image(systemName: "questionmark.circle")
+            //                        .font(.caption)
+            //                        .foregroundStyle(.secondary)
+            //                        .help("Введите варианты, которые пользователь увидит в меню. Выбранная строка и будет подставлена в документ.")
+            //                }
+            //
+            //                Spacer()
+            //
+            //                Text("\(choiceOptions.count)/\(CustomPlaceholderDraftValidator.maxChoiceOptions) \(choiceOptions.count.optionCountWord)")
+            //                    .font(.caption)
+            //                    .foregroundStyle(.secondary)
+            //            }
+            //
+            //            if let choiceGeneralError = validationState.choiceGeneralError {
+            //                validationMessage(choiceGeneralError, style: .error)
+            //            }
             
             //VStack {
             LabeledContainerView (error: validationState.choiceGeneralError) {
@@ -408,19 +408,26 @@ private extension CustomPlaceholderEditorView {
                         .foregroundStyle(.secondary)
                 }
             } content: {
-                ForEach(Array(choiceOptions.enumerated()), id: \.element.id) { index, option in
-                    ChoiceOptionRowView(
-                        option: choiceOptionBinding(at: index),
-                        errorText: validationState.choiceOptionErrors[option.id],
-                        canDelete: choiceOptions.count > 1,
-                        onDelete: {
-                            removeOption(id: option.id)
-                        }
-                    )
-                    .padding(.bottom, 4)
-                }.background(Color(NSColor.controlBackgroundColor))
-                Divider()
-            }.padding()
+                VStack(spacing: 4){
+                    ForEach(Array(choiceOptions.enumerated()), id: \.element.id) { index, option in
+                        ChoiceOptionRowView(
+                            option: choiceOptionBinding(at: index),
+                            errorText: validationState.choiceOptionErrors[option.id],
+                            canDelete: choiceOptions.count > 1,
+                            onDelete: {
+                                removeOption(id: option.id)
+                            }
+                        )
+                    }
+                }
+                .padding()
+                .background {
+                    RoundedRectangle(cornerRadius: 8)
+                    //.fill(Color(NSColor.controlBackgroundColor))
+                        .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                }
+            }
+            .padding()
             //}
             
             Button {
@@ -542,6 +549,7 @@ private extension CustomPlaceholderEditorView {
         VStack {
             content()
         }
+        .padding()
         .overlay(
             RoundedRectangle(cornerRadius: 12) //TODO: check radius
                 .stroke(Color.primary.opacity(0.10), lineWidth: 1)
@@ -562,23 +570,23 @@ private struct ChoiceOptionRowView: View {
             
             
             VStack {
-//                LabeledTextFieldView(text: $option.value, prompt: "Например: СБП", error: errorText){}
+                //                LabeledTextFieldView(text: $option.value, prompt: "Например: СБП", error: errorText){}
                 
                 
                 TextField("Например: СБП", text: $option.value)
-//                
-//                
-//                    .overlay(
-//                        RoundedRectangle(cornerRadius: 8)
-//                            .stroke(
-//                                errorText == nil ? Color.primary.opacity(0.12) : Color.red.opacity(0.65),
-//                                lineWidth: 1
-//                            )
-//                    )
-//                
-//                if let errorText {
-//                    validationMessage(errorText, style: .error)
-//                }
+                //
+                //
+                //                    .overlay(
+                //                        RoundedRectangle(cornerRadius: 8)
+                //                            .stroke(
+                //                                errorText == nil ? Color.primary.opacity(0.12) : Color.red.opacity(0.65),
+                //                                lineWidth: 1
+                //                            )
+                //                    )
+                //
+                //                if let errorText {
+                //                    validationMessage(errorText, style: .error)
+                //                }
             }
             
             
