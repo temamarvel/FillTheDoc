@@ -107,8 +107,6 @@ struct CustomPlaceholderEditorView: View {
         VStack(spacing: 0) {
             headerView
             
-            Divider()
-            
             
             ScrollView {
                 VStack {
@@ -125,9 +123,6 @@ struct CustomPlaceholderEditorView: View {
             //                    .padding(.vertical, 12)
             //            }
             //
-            
-            
-            Divider()
             
             
             footerView
@@ -266,10 +261,10 @@ private extension CustomPlaceholderEditorView {
     }
     
     var headerView: some View {
-        HStack {
+        
             Text(mode.title)
                 .font(.title3.weight(.semibold))
-        }
+        
     }
     
     var baseSection: some View {
@@ -433,11 +428,6 @@ private extension CustomPlaceholderEditorView {
     
     var footerView: some View {
         HStack {
-            if validationState.hasBlockingErrors {
-                Label("Исправьте ошибки перед сохранением", systemImage: "exclamationmark.circle")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
             
             Spacer()
             
