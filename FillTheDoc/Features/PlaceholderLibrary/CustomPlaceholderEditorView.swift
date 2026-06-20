@@ -197,7 +197,6 @@ private extension CustomPlaceholderEditorView {
                         draft.inputKind = .choice(
                             options: [EditableChoiceOption(value: "")]
                         )
-                        draft.isRequired = true
                 }
             }
         )
