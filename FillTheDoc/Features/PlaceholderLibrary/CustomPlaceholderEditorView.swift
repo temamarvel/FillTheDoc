@@ -107,23 +107,12 @@ struct CustomPlaceholderEditorView: View {
         VStack(spacing: 0) {
             headerView
             
-            
             ScrollView {
                 VStack {
                     baseSection
                     settingsSection
                 }.padding()
             }
-            
-            //TODO: error?
-            //            if let saveErrorText {
-            //                Divider()
-            //                errorBanner(text: saveErrorText)
-            //                    .padding(.horizontal, 24)
-            //                    .padding(.vertical, 12)
-            //            }
-            //
-            
             
             footerView
         }
@@ -261,9 +250,8 @@ private extension CustomPlaceholderEditorView {
     }
     
     var headerView: some View {
-        
-            Text(mode.title)
-                .font(.title3.weight(.semibold))
+        Text(mode.title)
+            .font(.title3.weight(.semibold))
         
     }
     
@@ -294,20 +282,12 @@ private extension CustomPlaceholderEditorView {
                     error: validationState.keyError
                 ).disabled(mode.isEditing)
             }
-            
-            
-            //            Text("Тип значения")
-            //                .font(.subheadline.weight(.medium))
-            
-            
-            
         }
     }
     
     var settingsSection: some View {
         editorCard {
             sectionHeader("Настройки")
-            
             
             
             switch draft.inputKind {
@@ -434,7 +414,6 @@ private extension CustomPlaceholderEditorView {
             Button("Отмена") {
                 closeEditor()
             }
-            //.buttonStyle(.bordered)
             
             Button(mode.saveButtonTitle) {
                 save()
@@ -550,23 +529,7 @@ private struct ChoiceOptionRowView: View {
             
             
             VStack {
-                //                LabeledTextFieldView(text: $option.value, prompt: "Например: СБП", error: errorText){}
-                
-                
                 TextField("Например: СБП", text: $option.value)
-                //
-                //
-                //                    .overlay(
-                //                        RoundedRectangle(cornerRadius: 8)
-                //                            .stroke(
-                //                                errorText == nil ? Color.primary.opacity(0.12) : Color.red.opacity(0.65),
-                //                                lineWidth: 1
-                //                            )
-                //                    )
-                //
-                //                if let errorText {
-                //                    validationMessage(errorText, style: .error)
-                //                }
             }
             
             
@@ -576,7 +539,6 @@ private struct ChoiceOptionRowView: View {
                 Image(systemName: "trash")
                 
             }
-            //            .buttonStyle(.borderless)
             .disabled(!canDelete)
             .help(canDelete ? "Удалить вариант" : "Минимум два варианта")
             
