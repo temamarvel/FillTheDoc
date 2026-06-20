@@ -47,14 +47,15 @@ struct LabeledContainerView<Label: View, Content: View>: View {
                             .foregroundStyle(.red)
                             .font(.subheadline)
                             .padding(.trailing, 4)
-                            .padding(.top, 2)
+                            .padding(.top, 6)
                     }
                     .zIndex(-1)
                     .transition(.opacity.combined(with: .move(edge: .top)))
                     .background(
                         LinearGradient(
                             colors: [
-                                .red.opacity(0.3),
+                                .red.opacity(0.4),
+                                .red.opacity(0.2),
                                 .red.opacity(0.1),
                                 .clear
                             ],
@@ -65,7 +66,7 @@ struct LabeledContainerView<Label: View, Content: View>: View {
                         .animation(.easeInOut(duration: 0.2), value: showError)
                     )
                     
-                    .offset(y: -2)
+                    .offset(y: -6)
                 }
             }
             .padding(1)

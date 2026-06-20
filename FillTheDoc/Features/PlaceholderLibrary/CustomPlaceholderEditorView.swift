@@ -165,7 +165,7 @@ private extension CustomPlaceholderEditorView {
         switch draft.inputKind {
             case .text:
                 return textValueSourceBinding.wrappedValue == .extracted
-                ? "Описание для экстракции (для LLM)"
+                ? "Описание экстракции LLM"
                 : "Описание поля"
             case .choice:
                 return "Описание поля"
@@ -293,11 +293,10 @@ private extension CustomPlaceholderEditorView {
             switch draft.inputKind {
                 case .text:
                     textSettingsSection
+                    exampleValueSection
                 case .choice:
                     choiceSettingsSection
             }
-            
-            exampleValueSection
         }
     }
     
@@ -339,13 +338,11 @@ private extension CustomPlaceholderEditorView {
         ){
             HStack {
                 Text(descriptionLabelText)
-                    .font(.subheadline)
-                
+                    
                 Image(systemName: "questionmark.circle")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
                     .help(descriptionHelpText)
             }
+            .font(.subheadline)
         }
     }
     
@@ -355,20 +352,17 @@ private extension CustomPlaceholderEditorView {
                 HStack {
                     HStack {
                         Text("Варианты выбора")
-                            .font(.subheadline.weight(.medium))
                         
                         Image(systemName: "questionmark.circle")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                             .help("Введите варианты, которые пользователь увидит в меню. Выбранная строка и будет подставлена в документ.")
                     }
                     
                     Spacer()
                     
                     Text("\(choiceOptions.count)/\(CustomPlaceholderDraftValidator.maxChoiceOptions) \(choiceOptions.count.optionCountWord)")
-                        .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                .font(.subheadline)
             } content: {
                 VStack(spacing: 4){
                     ForEach(Array(choiceOptions.enumerated()), id: \.element.id) { index, option in
@@ -389,7 +383,6 @@ private extension CustomPlaceholderEditorView {
                         .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
                 }
             }
-            .padding()
             
             Button {
                 addOption()
