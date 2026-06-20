@@ -116,7 +116,7 @@ struct LabeledTextFieldView<Label: View>: View {
         LabeledContainerView(
             error: error,
             label: {
-                labelContent
+                labelContent.padding(.leading, 4)
             },
             content: {
                 TextField(prompt, text: $text, axis: .vertical)
