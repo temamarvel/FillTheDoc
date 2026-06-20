@@ -274,7 +274,7 @@ private extension CustomPlaceholderEditorView {
                     label: "Название плейсхолдера",
                     error: validationState.titleError
                 ).disabled(mode.isEditing)
-                    
+                
                 
                 LabeledTextFieldView(
                     text: $draft.key,
@@ -290,7 +290,6 @@ private extension CustomPlaceholderEditorView {
         editorCard {
             sectionHeader("Настройки")
             
-            
             switch draft.inputKind {
                 case .text:
                     textSettingsSection
@@ -303,7 +302,7 @@ private extension CustomPlaceholderEditorView {
     }
     
     var textSettingsSection: some View {
-        VStack {
+        VStack (spacing: 14) {
             
             Picker("", selection: textValueSourceBinding) {
                 ForEach(PlaceholderValueSource.allCases) { source in
@@ -320,16 +319,14 @@ private extension CustomPlaceholderEditorView {
     }
     
     var exampleValueSection: some View {
-        VStack {
-            LabeledTextFieldView(
-                text: exampleValueTextBinding,
-                prompt: draft.isTextInput
-                ? "Например: 123/2024-ОД или Д-45 от 12.03.2024"
-                : "Например: счет",
-                label: "Пример значения (необязательно)",
-                error: validationState.exampleValueError
-            )
-        }
+        LabeledTextFieldView(
+            text: exampleValueTextBinding,
+            prompt: draft.isTextInput
+            ? "Например: 123/2024-ОД или Д-45 от 12.03.2024"
+            : "Например: счет",
+            label: "Пример значения (необязательно)",
+            error: validationState.exampleValueError
+        )
     }
     
     var descriptionInputSection: some View {
@@ -545,22 +542,6 @@ private struct ChoiceOptionRowView: View {
             
         }
     }
-    
-    private func validationMessage(
-        _ text: String,
-        style: ValidationMessageStyle
-    ) -> some View {
-        HStack {
-            Image(systemName: style.systemImage)
-                .font(.caption)
-                .foregroundStyle(style.color)
-            
-            Text(text)
-                .font(.caption)
-                .foregroundStyle(style.color)
-            
-        }
-    }
 }
 
 // MARK: - Small UI helpers
@@ -589,25 +570,6 @@ private enum InputKindSelection: String, CaseIterable, Identifiable {
 private enum FieldHelper {
     case plain(String)
     case token(prefix: String, token: String)
-}
-
-private enum ValidationMessageStyle {
-    case error
-    case info
-    
-    var color: Color {
-        switch self {
-            case .error: return .red
-            case .info: return .secondary
-        }
-    }
-    
-    var systemImage: String {
-        switch self {
-            case .error: return "exclamationmark.circle.fill"
-            case .info: return "info.circle.fill"
-        }
-    }
 }
 
 private extension PlaceholderValueSource {
@@ -663,45 +625,6 @@ private extension CustomPlaceholderEditorView {
                         )
                 }
         }
-    }
-    
-    func validationMessage(
-        _ text: String,
-        style: ValidationMessageStyle
-    ) -> some View {
-        HStack {
-            Image(systemName: style.systemImage)
-                .font(.caption)
-                .foregroundStyle(style.color)
-            
-            Text(text)
-                .font(.caption)
-                .foregroundStyle(style.color)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-    
-    func errorBanner(text: String) -> some View {
-        HStack {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.red)
-            
-            Text(text)
-                .font(.callout)
-                .foregroundStyle(.red)
-                .fixedSize(horizontal: false, vertical: true)
-            
-            Spacer()
-        }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.red.opacity(0.08))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.red.opacity(0.20), lineWidth: 1)
-        )
     }
 }
 
