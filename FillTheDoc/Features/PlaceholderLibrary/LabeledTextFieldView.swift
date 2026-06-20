@@ -47,8 +47,7 @@ struct LabeledContainerView<Label: View, Content: View>: View {
                             .foregroundStyle(.red)
                             .font(.subheadline)
                             .padding(.trailing, 4)
-                            .padding(.top, 16)
-                            .padding(.bottom, 2)
+                            .padding(.top, 2)
                     }
                     .zIndex(-1)
                     .transition(.opacity.combined(with: .move(edge: .top)))
@@ -62,17 +61,15 @@ struct LabeledContainerView<Label: View, Content: View>: View {
                             startPoint: .top,
                             endPoint: .bottom
                         )
-                        .cornerRadius(4)
                         .opacity(showError ? 1 : 0)
                         .animation(.easeInOut(duration: 0.2), value: showError)
                     )
                     
-                    .offset(y: -14)
+                    .offset(y: -2)
                 }
             }
             .padding(1)
             .clipShape(.rect)
-            
         }
     }
 }
