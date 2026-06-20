@@ -104,18 +104,19 @@ struct CustomPlaceholderEditorView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
+        VStack {
             headerView
             
             ScrollView {
                 VStack {
                     baseSection
                     settingsSection
-                }.padding()
+                }
             }
             
             footerView
         }
+        .padding()
         .background(.windowBackground)
         .onChange(of: draft) { _, _ in
             refreshValidation()
@@ -252,7 +253,6 @@ private extension CustomPlaceholderEditorView {
     var headerView: some View {
         Text(mode.title)
             .font(.title3.weight(.semibold))
-        
     }
     
     var baseSection: some View {
@@ -273,7 +273,8 @@ private extension CustomPlaceholderEditorView {
                     prompt: "Например: Номер договора",
                     label: "Название плейсхолдера",
                     error: validationState.titleError
-                )
+                ).disabled(mode.isEditing)
+                    
                 
                 LabeledTextFieldView(
                     text: $draft.key,
@@ -505,7 +506,7 @@ private extension CustomPlaceholderEditorView {
     func editorCard<Content: View>(
         @ViewBuilder content: () -> Content
     ) -> some View {
-        VStack {
+        VStack(spacing: 14) {
             content()
         }
         .padding()
