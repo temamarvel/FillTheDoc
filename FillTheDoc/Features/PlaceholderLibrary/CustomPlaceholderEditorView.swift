@@ -439,12 +439,12 @@ private extension CustomPlaceholderEditorView {
     }
     
     func save() {
+        guard !isSaving else { return }
+        
         saveErrorText = nil
         refreshValidation()
         
-        guard !validationState.hasBlockingErrors else {
-            return
-        }
+        guard !validationState.hasBlockingErrors else { return }
         
         isSaving = true
         
