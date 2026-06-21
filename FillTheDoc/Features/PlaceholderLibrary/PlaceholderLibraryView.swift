@@ -181,17 +181,8 @@ struct PlaceholderLibraryView: View {
             }
         }
         .frame(minWidth: 640, minHeight: 520)
-        .overlay {
-            if let sheet = editorSheet {
-                ZStack {
-                    Color.black.opacity(0.18)
-                        .ignoresSafeArea()
-                    
-                    editorView(for: sheet)
-                }
-                .transition(.opacity)
-                .zIndex(1)
-            }
+        .sheet(item: $editorSheet) { sheet in
+            editorView(for: sheet)
         }
         .alert(
             "Ошибка",
@@ -236,7 +227,6 @@ struct PlaceholderLibraryView: View {
         } message: { definition in
             Text("Плейсхолдер <!\(definition.key.rawValue)!> будет удалён из runtime registry и из JSON-хранилища.")
         }
-        .animation(.easeInOut(duration: 0.18), value: editorSheet?.id)
     }
 }
 
@@ -259,6 +249,7 @@ private extension PlaceholderLibraryView {
                     onSave: onCreateCustom,
                     onDismiss: { editorSheet = nil }
                 )
+                .frame(minWidth: 720, minHeight: 620)
             case .edit(let definition):
                 CustomPlaceholderEditorView(
                     mode: .edit(definition),
@@ -266,6 +257,7 @@ private extension PlaceholderLibraryView {
                     onSave: onUpdateCustom,
                     onDismiss: { editorSheet = nil }
                 )
+                .frame(minWidth: 720, minHeight: 620)
         }
     }
 }
