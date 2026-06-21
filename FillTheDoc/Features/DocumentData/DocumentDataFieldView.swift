@@ -142,13 +142,15 @@ private extension DocumentDataFieldView {
         )
     }
     
-    var errorText: String? {
+    var issueText: String? {
         issue?.text
     }
     
-    var errorColor: Color {
+    var issueColor: Color {
         guard let issue else { return .clear }
         switch issue.severity {
+            case .info:
+                return .blue
             case .error:
                 return .red
             case .warning:
@@ -158,22 +160,22 @@ private extension DocumentDataFieldView {
     
     @ViewBuilder
     var validationText: some View {
-        if let errorText {
-            Text(errorText)
+        if let issueText {
+            Text(issueText)
                 .font(.caption)
-                .foregroundStyle(errorColor)
+                .foregroundStyle(issueColor)
                 .transition(.opacity.combined(with: .move(edge: .top)))
         }
     }
     
     @ViewBuilder
     var validationBackground: some View {
-        if errorText != nil {
+        if issueText != nil {
             LinearGradient(
                 colors: [
                     .clear,
-                    errorColor.opacity(0.10),
-                    errorColor.opacity(0.22)
+                    issueColor.opacity(0.10),
+                    issueColor.opacity(0.22)
                 ],
                 startPoint: .leading,
                 endPoint: .trailing

@@ -5,9 +5,10 @@ struct PlaceholderFieldState: Hashable, Sendable {
     var value: PlaceholderFieldValue
     var localIssue: FieldIssue?
     var externalIssue: FieldIssue?
+    var replacementIssue: FieldIssue?
     
     var displayIssue: FieldIssue? {
-        localIssue ?? externalIssue
+        localIssue ?? externalIssue ?? replacementIssue
     }
 }
 
@@ -68,7 +69,8 @@ final class DocumentDataFormViewModel {
         fieldStates[key] = PlaceholderFieldState(
             value: normalizedValue,
             localIssue: validate(normalizedValue, for: descriptor),
-            externalIssue: externalIssue
+            externalIssue: externalIssue,
+            replacementIssue: nil
         )
     }
     
@@ -98,14 +100,16 @@ final class DocumentDataFormViewModel {
                 nextStates[descriptor.key] = PlaceholderFieldState(
                     value: value,
                     localIssue: validate(value, for: descriptor),
-                    externalIssue: existingState.externalIssue
+                    externalIssue: existingState.externalIssue,
+                    replacementIssue: existingState.replacementIssue
                 )
             } else {
                 let initial = initialValue(for: descriptor, extractedText: extractedValues[descriptor.key])
                 nextStates[descriptor.key] = PlaceholderFieldState(
                     value: initial,
                     localIssue: validate(initial, for: descriptor),
-                    externalIssue: nil
+                    externalIssue: nil,
+                    replacementIssue: nil
                 )
             }
         }
@@ -153,6 +157,32 @@ final class DocumentDataFormViewModel {
             state.externalIssue = issues[key]
             fieldStates[key] = state
         }
+    }
+    
+    @discardableResult
+    func applyReferenceValues(
+        _ referenceValues: [PlaceholderKey: String],
+        replacementMessage: String = "Заменено на данные ФНС"
+    ) -> Set<PlaceholderKey> {
+        var replacedKeys = Set<PlaceholderKey>()
+        
+        for (key, rawValue) in referenceValues {
+            guard let descriptor = descriptor(for: key),
+                  var state = fieldStates[key]
+            else { continue }
+            
+            let normalizedValue = normalize(.value(rawValue), for: descriptor)
+            guard state.value != normalizedValue else { continue }
+            
+            state.value = normalizedValue
+            state.localIssue = validate(normalizedValue, for: descriptor)
+            state.externalIssue = nil
+            state.replacementIssue = .info(replacementMessage)
+            fieldStates[key] = state
+            replacedKeys.insert(key)
+        }
+        
+        return replacedKeys
     }
 }
 

@@ -70,6 +70,9 @@ struct DocumentDataFormView: View {
                 Button("Валидация с ФНС") {
                     runReferenceValidation()
                 }
+                Button("Заменить на данные из ФНС") {
+                    replaceWithReferenceValues()
+                }
                 Spacer()
                 Button("Применить") {
                     onApprove(viewModel.makeApprovedValues())
@@ -141,6 +144,21 @@ struct DocumentDataFormView: View {
         referenceValidationCoordinator.runValidationNow(
             valuesProvider: { companyValuesForReferenceValidation() },
             applyIssues: { viewModel.applyExternalIssues($0) }
+        )
+    }
+    
+    private func replaceWithReferenceValues() {
+        referenceValidationCoordinator.runReplacementNow(
+            valuesProvider: { companyValuesForReferenceValidation() },
+            applyResult: { issues, referenceValues in
+                let replacedKeys = viewModel.applyReferenceValues(referenceValues)
+                let filteredIssues = issues.filter { !replacedKeys.contains($0.key) }
+                viewModel.applyExternalIssues(filteredIssues)
+                
+                if !replacedKeys.isEmpty {
+                    onChange()
+                }
+            }
         )
     }
 }

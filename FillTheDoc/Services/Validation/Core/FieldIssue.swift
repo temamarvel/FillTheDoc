@@ -17,8 +17,9 @@ nonisolated struct FieldIssue: Hashable, Sendable {
     }
     
     enum Severity: Int, Hashable, Sendable, Comparable {
-        case warning = 0
-        case error = 1
+        case info = 0
+        case warning = 1
+        case error = 2
         
         static func < (lhs: Severity, rhs: Severity) -> Bool {
             lhs.rawValue < rhs.rawValue
@@ -33,5 +34,9 @@ nonisolated struct FieldIssue: Hashable, Sendable {
     
     static func warning(_ text: String) -> FieldIssue {
         FieldIssue(.warning, text)
+    }
+    
+    static func info(_ text: String) -> FieldIssue {
+        FieldIssue(.info, text)
     }
 }
