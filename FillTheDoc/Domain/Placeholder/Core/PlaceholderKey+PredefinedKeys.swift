@@ -6,50 +6,50 @@
 //
 
 // MARK: Predefined placeholder keys
-extension PlaceholderKey {
+nonisolated extension PlaceholderKey {
     // MARK: Company
     
-    nonisolated static let companyName: Self = "company_name"
-    nonisolated static let legalForm: Self = "legal_form"
-    nonisolated static let ceoFullName: Self = "ceo_full_name"
-    nonisolated static let ceoFullGenitiveName: Self = "ceo_full_genitive_name"
-    nonisolated static let ceoShortenName: Self = "ceo_shorten_name"
-    nonisolated static let ogrn: Self = "ogrn"
-    nonisolated static let inn: Self = "inn"
-    nonisolated static let kpp: Self = "kpp"
-    nonisolated static let email: Self = "email"
-    nonisolated static let address: Self = "address"
-    nonisolated static let phone: Self = "phone"
+    static let companyName: Self = "company_name"
+    static let legalForm: Self = "legal_form"
+    static let ceoFullName: Self = "ceo_full_name"
+    static let ceoFullGenitiveName: Self = "ceo_full_genitive_name"
+    static let ceoShortenName: Self = "ceo_shorten_name"
+    static let ogrn: Self = "ogrn"
+    static let inn: Self = "inn"
+    static let kpp: Self = "kpp"
+    static let email: Self = "email"
+    static let address: Self = "address"
+    static let phone: Self = "phone"
     
     // MARK: Document
     
-    nonisolated static let documentNumber: Self = "document_number"
-    nonisolated static let fee: Self = "fee"
-    nonisolated static let minFee: Self = "min_fee"
-    nonisolated static let paymentMethod: Self = "payment_method"
+    static let documentNumber: Self = "document_number"
+    static let fee: Self = "fee"
+    static let minFee: Self = "min_fee"
+    static let paymentMethod: Self = "payment_method"
     
     // MARK: Computed
     
-    nonisolated static let dateLong: Self = "date_long"
-    nonisolated static let dateShort: Self = "date_short"
-    nonisolated static let ceoRole: Self = "ceo_role"
-    nonisolated static let fullCompanyName: Self = "full_company_name"
-    nonisolated static let fullCompanyNameExpanded: Self = "full_company_name_expanded"
-    nonisolated static let rules: Self = "rules"
+    static let dateLong: Self = "date_long"
+    static let dateShort: Self = "date_short"
+    static let ceoRole: Self = "ceo_role"
+    static let fullCompanyName: Self = "full_company_name"
+    static let fullCompanyNameExpanded: Self = "full_company_name_expanded"
+    static let rules: Self = "rules"
 }
 
-extension String {
+nonisolated extension String {
     /// Лёгкий мост из raw string в доменный `PlaceholderKey`.
     ///
     /// Используется там, где приложение уже работает с текстовыми ключами
     /// (JSON keys, scanner output, пользовательский ввод), но хочет быстрее перейти
     /// к type-safe placeholder-domain.
-    nonisolated var placeholderKey: PlaceholderKey {
+    var placeholderKey: PlaceholderKey {
         PlaceholderKey(rawValue: self)
     }
 }
 
-extension Dictionary where Key == PlaceholderKey, Value == String {
+nonisolated extension Dictionary where Key == PlaceholderKey, Value == String {
     /// Мостик из type-safe placeholder-domain в string-keyed формат,
     /// который ожидает нижележащий DOCX-template engine.
     var stringKeyed: [String: String] {

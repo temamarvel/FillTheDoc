@@ -7,11 +7,11 @@
 
 /// Результат валидации поля.
 /// `nil` означает валидное поле (pass). Наличие — предупреждение или ошибка.
-struct FieldIssue: Hashable, Sendable {
+nonisolated struct FieldIssue: Hashable, Sendable {
     let severity: Severity
     let text: String
     
-    nonisolated init(_ severity: Severity, _ text: String) {
+    init(_ severity: Severity, _ text: String) {
         self.severity = severity
         self.text = text
     }
@@ -27,11 +27,11 @@ struct FieldIssue: Hashable, Sendable {
     
     // MARK: - Convenience factories
     
-    nonisolated static func error(_ text: String) -> FieldIssue {
+    static func error(_ text: String) -> FieldIssue {
         FieldIssue(.error, text)
     }
     
-    nonisolated static func warning(_ text: String) -> FieldIssue {
+    static func warning(_ text: String) -> FieldIssue {
         FieldIssue(.warning, text)
     }
 }

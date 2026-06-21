@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated enum AppUpdateCheckerError: LocalizedError {
+enum AppUpdateCheckerError: LocalizedError {
     case missingCurrentVersion
     
     var errorDescription: String? {

@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated enum GitHubReleaseClientError: LocalizedError {
+enum GitHubReleaseClientError: LocalizedError {
     case invalidResponseStatus(Int)
     case invalidHTTPResponse
     

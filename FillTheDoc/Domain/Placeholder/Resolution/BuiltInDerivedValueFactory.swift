@@ -4,8 +4,8 @@ import Foundation
 ///
 /// Он не собирает весь словарь значений, а только вычисляет derived placeholders
 /// из уже подтверждённых source values.
-nonisolated struct BuiltInDerivedValueFactory: Sendable {
-    nonisolated func makeValues(
+struct BuiltInDerivedValueFactory: Sendable {
+    func makeValues(
         sourceValues: [PlaceholderKey: String],
         date: Date = Date(),
         calendar: Calendar = .current,
@@ -39,7 +39,7 @@ nonisolated struct BuiltInDerivedValueFactory: Sendable {
         ]
     }
     
-    nonisolated static func companyNameWithLegalForm(
+    static func companyNameWithLegalForm(
         companyName: String?,
         legalForm: String?
     ) -> String {
@@ -60,7 +60,7 @@ nonisolated struct BuiltInDerivedValueFactory: Sendable {
         return "\(legalForm.shortName) «\(normalizedCompanyName)»"
     }
     
-    nonisolated static func fullCompanyNameExpanded(
+    static func fullCompanyNameExpanded(
         companyName: String?,
         legalForm: String?
     ) -> String {
@@ -81,7 +81,7 @@ nonisolated struct BuiltInDerivedValueFactory: Sendable {
         return "\(legalForm.fullName) «\(normalizedCompanyName)»"
     }
     
-    nonisolated static func ceoRole(
+    static func ceoRole(
         legalForm: String?
     ) -> String {
         parseLegalForm(legalForm) == .ip
@@ -89,7 +89,7 @@ nonisolated struct BuiltInDerivedValueFactory: Sendable {
         : "Генеральный директор"
     }
     
-    nonisolated static func rules(
+    static func rules(
         legalForm: String?
     ) -> String {
         parseLegalForm(legalForm) == .ip
@@ -97,7 +97,7 @@ nonisolated struct BuiltInDerivedValueFactory: Sendable {
         : "Устава"
     }
     
-    nonisolated static func currentDate(
+    static func currentDate(
         now: Date,
         calendar: Calendar,
         locale: Locale
@@ -109,7 +109,7 @@ nonisolated struct BuiltInDerivedValueFactory: Sendable {
         ).string(from: now)
     }
     
-    nonisolated static func currentDateText(
+    static func currentDateText(
         now: Date,
         calendar: Calendar,
         locale: Locale
@@ -121,7 +121,7 @@ nonisolated struct BuiltInDerivedValueFactory: Sendable {
         ).string(from: now)
     }
     
-    nonisolated static func currentDateQuoted(
+    static func currentDateQuoted(
         now: Date,
         calendar: Calendar,
         locale: Locale
@@ -135,13 +135,13 @@ nonisolated struct BuiltInDerivedValueFactory: Sendable {
 }
 
 private extension BuiltInDerivedValueFactory {
-    nonisolated static func parseLegalForm(_ legalForm: String?) -> LegalForm? {
+    static func parseLegalForm(_ legalForm: String?) -> LegalForm? {
         legalForm?
             .trimmedNilIfEmpty
             .flatMap { LegalForm.parse($0) }
     }
     
-    nonisolated static func makeFormatter(
+    static func makeFormatter(
         calendar: Calendar,
         locale: Locale,
         dateFormat: String

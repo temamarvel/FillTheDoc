@@ -4,11 +4,11 @@ import Foundation
 ///
 /// Отдельный `id` нужен для корректной identity в `ForEach`, даже когда значения пустые
 /// или временно совпадают во время редактирования.
-nonisolated struct EditableChoiceOption: Identifiable, Hashable, Equatable, Sendable {
+struct EditableChoiceOption: Identifiable, Hashable, Equatable, Sendable {
     let id: UUID
     var value: String
     
-    nonisolated init(
+    init(
         id: UUID = UUID(),
         value: String = ""
     ) {

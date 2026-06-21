@@ -9,7 +9,7 @@ extension PlaceholderRegistry {
     ///
     /// Derived/system значения больше не вычисляются здесь и собираются централизованно
     /// в `PlaceholderValueAssembler` через `BuiltInDerivedValueFactory`.
-    nonisolated static let builtInFieldPolicies: [PlaceholderKey: PlaceholderFieldPolicy] = [
+    static let builtInFieldPolicies: [PlaceholderKey: PlaceholderFieldPolicy] = [
         .companyName: .init(
             normalize: { $0.trimmed },
             validate: { Validators.nonEmpty($0) }

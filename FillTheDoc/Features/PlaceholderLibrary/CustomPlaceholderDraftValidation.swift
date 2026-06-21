@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated enum CustomPlaceholderDraftIssue: Equatable, Sendable {
+enum CustomPlaceholderDraftIssue: Equatable, Sendable {
     case title(String)
     case key(String)
     case description(String)
@@ -9,7 +9,7 @@ nonisolated enum CustomPlaceholderDraftIssue: Equatable, Sendable {
     case choiceOption(id: UUID, message: String)
 }
 
-nonisolated struct InlineValidationState: Equatable, Sendable {
+struct InlineValidationState: Equatable, Sendable {
     var titleError: String?
     var keyError: String?
     var descriptionError: String?

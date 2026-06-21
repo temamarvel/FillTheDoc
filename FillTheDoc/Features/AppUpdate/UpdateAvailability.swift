@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated struct UpdateAvailability: Sendable {
+struct UpdateAvailability: Sendable {
     let currentVersion: String
     let latestVersion: String
     let releasePageURL: URL

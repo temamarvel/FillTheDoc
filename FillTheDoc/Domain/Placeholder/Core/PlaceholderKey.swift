@@ -12,14 +12,14 @@ import Foundation
 /// Все эти знания живут отдельно, в `PlaceholderDescriptor` и `PlaceholderRegistry`.
 /// Такое разделение делает ключи универсальными: их можно использовать и в форме,
 /// и в библиотеке плейсхолдеров, и в словаре для DOCX fill.
-struct PlaceholderKey: Hashable, Codable, Sendable, RawRepresentable, ExpressibleByStringLiteral {
+nonisolated struct PlaceholderKey: Hashable, Codable, Sendable, RawRepresentable, ExpressibleByStringLiteral {
     let rawValue: String
     
-    nonisolated init(rawValue: String) {
+    init(rawValue: String) {
         self.rawValue = rawValue
     }
     
-    nonisolated init(stringLiteral value: StringLiteralType) {
+    init(stringLiteral value: StringLiteralType) {
         self.rawValue = value
     }
     
@@ -30,7 +30,7 @@ struct PlaceholderKey: Hashable, Codable, Sendable, RawRepresentable, Expressibl
     /// Это важное различие для template engine:
     /// control tokens управляют сборкой условных блоков и не должны вести себя
     /// как обычные пользовательские поля вроде `inn` или `company_name`.
-    nonisolated var isControlToken: Bool {
+    var isControlToken: Bool {
         // Control tokens either contain a colon (switch_start:key, case_start:value)
         // or match one of the fixed service keywords.
         if rawValue.contains(":") { return true }

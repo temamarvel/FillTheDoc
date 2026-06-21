@@ -78,7 +78,7 @@ nonisolated struct PlaceholderDescriptor: Identifiable, Hashable, Codable, Senda
         ].joined(separator: "|")
     }
     
-    nonisolated init(
+    init(
         key: PlaceholderKey,
         title: String,
         description: String,
@@ -103,7 +103,7 @@ nonisolated struct PlaceholderDescriptor: Identifiable, Hashable, Codable, Senda
 
 // MARK: - Canonical sorting
 
-extension Array where Element == PlaceholderDescriptor {
+nonisolated extension Array where Element == PlaceholderDescriptor {
     /// Каноническая сортировка дескрипторов: сначала по секции, затем по order, затем по ключу.
     /// Единственный источник правила сортировки для всего проекта.
     func sortedCanonically() -> [PlaceholderDescriptor] {

@@ -34,7 +34,7 @@ struct DocxFileDocument: FileDocument {
 }
 
 extension UTType {
-    static var docxSafe: UTType {
+    nonisolated static var docxSafe: UTType {
         UTType(filenameExtension: "docx")
         ?? UTType("org.openxmlformats.wordprocessingml.document")
         ?? .data

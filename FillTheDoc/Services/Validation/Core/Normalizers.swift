@@ -9,19 +9,19 @@ import Foundation
 
 /// Централизованное место для нормализации строк перед валидацией, сравнением и extraction pipeline.
 /// Здесь собраны как полевые normalizer'ы, так и утилиты для приведения больших текстов документов.
-enum Normalizers {
+nonisolated enum Normalizers {
     
     // MARK: - Combined normalizers
     
     /// Обрезает пробелы и оставляет только цифры.
-    nonisolated static func trimmedDigitsOnly(_ s: String) -> String {
+    static func trimmedDigitsOnly(_ s: String) -> String {
         s.trimmed.digitsOnly
     }
     
     // MARK: - Specialized normalizers
     
     /// Нормализует телефонный номер: убирает скобки, лишние пробелы, оставляет +, цифры и дефисы.
-    nonisolated static func phone(_ s: String) -> String {
+    static func phone(_ s: String) -> String {
         let t = s.trimmed
         // Убираем скобки и множественные пробелы, оставляем цифры, +, -
         let cleaned = t
@@ -34,7 +34,7 @@ enum Normalizers {
     
     /// Нормализует правовую форму для tolerant-сопоставления:
     /// приводит к нижнему регистру, убирает диакритику, кавычки и базовую пунктуацию.
-    nonisolated static func legalForm(_ value: String) -> String {
+    static func legalForm(_ value: String) -> String {
         value
             .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
             .lowercased()
@@ -53,7 +53,7 @@ enum Normalizers {
     
     /// Нормализирует текст для сравнения: удаляет пунктуацию, нижний регистр, коллапсирует пробелы.
     /// Используется для Jaccard similarity, containsNormalized.
-    nonisolated static func forComparison(_ s: String) -> String {
+    static func forComparison(_ s: String) -> String {
         let lower = s.lowercased()
         
         let cleaned = lower.unicodeScalars.map { scalar -> Character in
@@ -77,13 +77,13 @@ enum Normalizers {
     }
     
     /// Разбивает нормализованную строку на токены (слова).
-    nonisolated static func toTokens(_ s: String) -> Set<String> {
+    static func toTokens(_ s: String) -> Set<String> {
         Set(forComparison(s).split(separator: " ").map(String.init).filter { !$0.isEmpty })
     }
     
     /// Нормализует большой текст документа перед передачей выше по pipeline:
     /// выравнивает переводы строк, убирает лишние пустые блоки и ограничивает размер.
-    nonisolated static func forDocumentDisplay(_ text: String, maxChars: Int) -> String {
+    static func forDocumentDisplay(_ text: String, maxChars: Int) -> String {
         var s = text
         s = s.replacingOccurrences(of: "\r\n", with: "\n")
         s = s.replacingOccurrences(of: "\r", with: "\n")
@@ -108,7 +108,7 @@ enum Normalizers {
         """
     }
     
-    nonisolated private static func collapseBlankLines(_ s: String, maxConsecutive: Int) -> String {
+    private static func collapseBlankLines(_ s: String, maxConsecutive: Int) -> String {
         var result = ""
         result.reserveCapacity(s.count)
         

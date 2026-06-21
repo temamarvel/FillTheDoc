@@ -1,13 +1,13 @@
 import Foundation
 
-nonisolated enum CustomPlaceholderDraftInputKind: Hashable, Sendable {
+enum CustomPlaceholderDraftInputKind: Hashable, Sendable {
     case text(valueSource: PlaceholderValueSource)
     case choice(
         options: [EditableChoiceOption]
     )
 }
 
-nonisolated struct CustomPlaceholderDraft: Equatable, Sendable {
+struct CustomPlaceholderDraft: Equatable, Sendable {
     var title: String
     var key: String
     var description: String
@@ -16,7 +16,7 @@ nonisolated struct CustomPlaceholderDraft: Equatable, Sendable {
     var exampleValue: String?
     var displayOrder: Int
     
-    nonisolated init(
+    init(
         title: String,
         key: String,
         description: String,
@@ -34,7 +34,7 @@ nonisolated struct CustomPlaceholderDraft: Equatable, Sendable {
         self.displayOrder = displayOrder
     }
     
-    nonisolated init(descriptor: PlaceholderDescriptor) {
+    init(descriptor: PlaceholderDescriptor) {
         title = descriptor.title
         key = descriptor.key.rawValue
         description = descriptor.description
@@ -59,7 +59,7 @@ nonisolated struct CustomPlaceholderDraft: Equatable, Sendable {
         }
     }
     
-    nonisolated static func new(displayOrder: Int = 0) -> CustomPlaceholderDraft {
+    static func new(displayOrder: Int = 0) -> CustomPlaceholderDraft {
         CustomPlaceholderDraft(
             title: "",
             key: "",
@@ -71,7 +71,7 @@ nonisolated struct CustomPlaceholderDraft: Equatable, Sendable {
         )
     }
     
-    nonisolated func makeDescriptor() -> PlaceholderDescriptor {
+    func makeDescriptor() -> PlaceholderDescriptor {
         PlaceholderDescriptor(
             key: PlaceholderKey(rawValue: normalizedKey),
             title: normalizedTitle,
@@ -87,7 +87,7 @@ nonisolated struct CustomPlaceholderDraft: Equatable, Sendable {
 }
 
 private extension CustomPlaceholderDraft {
-    nonisolated func makeKind() -> PlaceholderKind {
+    func makeKind() -> PlaceholderKind {
         switch inputKind {
             case .text(let valueSource):
                 return .editable(
@@ -108,7 +108,7 @@ private extension CustomPlaceholderDraft {
         }
     }
     
-    nonisolated func normalizedChoiceOptions(from options: [EditableChoiceOption]) -> [String] {
+    func normalizedChoiceOptions(from options: [EditableChoiceOption]) -> [String] {
         options
             .map(\.value)
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -117,35 +117,35 @@ private extension CustomPlaceholderDraft {
 }
 
 extension CustomPlaceholderDraft {
-    nonisolated var normalizedTitle: String {
+    var normalizedTitle: String {
         title.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
-    nonisolated var normalizedKey: String {
+    var normalizedKey: String {
         key
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
     }
     
-    nonisolated var normalizedDescription: String? {
+    var normalizedDescription: String? {
         let value = description.trimmingCharacters(in: .whitespacesAndNewlines)
         return value.isEmpty ? nil : value
     }
     
-    nonisolated var normalizedExampleValue: String? {
+    var normalizedExampleValue: String? {
         guard let exampleValue else { return nil }
         let value = exampleValue.trimmingCharacters(in: .whitespacesAndNewlines)
         return value.isEmpty ? nil : value
     }
     
-    nonisolated var isTextInput: Bool {
+    var isTextInput: Bool {
         if case .text = inputKind {
             return true
         }
         return false
     }
     
-    nonisolated var isChoiceInput: Bool {
+    var isChoiceInput: Bool {
         if case .choice = inputKind {
             return true
         }

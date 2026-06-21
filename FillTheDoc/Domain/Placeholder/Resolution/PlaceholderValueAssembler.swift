@@ -6,10 +6,10 @@ import Foundation
 /// `approvedValues + derived values = resolvedValues`.
 ///
 /// Assembler не читает DOCX, не ищет токены, не валидирует и не нормализует input.
-nonisolated struct PlaceholderValueAssembler: Sendable {
+struct PlaceholderValueAssembler: Sendable {
     private let derivedValueFactory: BuiltInDerivedValueFactory
     
-    nonisolated init(
+    init(
         derivedValueFactory: BuiltInDerivedValueFactory = .init()
     ) {
         self.derivedValueFactory = derivedValueFactory
@@ -18,7 +18,7 @@ nonisolated struct PlaceholderValueAssembler: Sendable {
     /// Собирает полный набор значений для шаблона.
     ///
     /// `resolvedValues = approvedValues + derived values`.
-    nonisolated func assemble(
+    func assemble(
         approvedValues: [PlaceholderKey: String]
     ) -> [PlaceholderKey: String] {
         var resolvedValues = approvedValues

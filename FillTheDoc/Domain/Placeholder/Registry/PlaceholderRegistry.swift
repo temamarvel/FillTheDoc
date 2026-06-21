@@ -12,33 +12,33 @@ import Foundation
 /// это делает `PlaceholderValueAssembler`, чтобы flow оставался линейным:
 /// form state → sourceValues → derived/system values → resolvedValues.
 protocol PlaceholderRegistryProtocol: Sendable {
-    nonisolated var allDescriptors: [PlaceholderDescriptor] { get }
-    nonisolated var inputDescriptors: [PlaceholderDescriptor] { get }
-    nonisolated var extractedDescriptors: [PlaceholderDescriptor] { get }
-    nonisolated var manualDescriptors: [PlaceholderDescriptor] { get }
-    nonisolated var customDescriptors: [PlaceholderDescriptor] { get }
+    var allDescriptors: [PlaceholderDescriptor] { get }
+    var inputDescriptors: [PlaceholderDescriptor] { get }
+    var extractedDescriptors: [PlaceholderDescriptor] { get }
+    var manualDescriptors: [PlaceholderDescriptor] { get }
+    var customDescriptors: [PlaceholderDescriptor] { get }
     
-    nonisolated func descriptor(for key: PlaceholderKey) -> PlaceholderDescriptor?
-    nonisolated func contains(_ key: PlaceholderKey) -> Bool
-    nonisolated func descriptors(in section: PlaceholderSection) -> [PlaceholderDescriptor]
-    nonisolated func fieldPolicy(for key: PlaceholderKey) -> PlaceholderFieldPolicy
+    func descriptor(for key: PlaceholderKey) -> PlaceholderDescriptor?
+    func contains(_ key: PlaceholderKey) -> Bool
+    func descriptors(in section: PlaceholderSection) -> [PlaceholderDescriptor]
+    func fieldPolicy(for key: PlaceholderKey) -> PlaceholderFieldPolicy
 }
 
 // MARK: - Default implementation
 
 struct PlaceholderRegistry: PlaceholderRegistryProtocol, Sendable {
-    nonisolated let allDescriptors: [PlaceholderDescriptor]
+    let allDescriptors: [PlaceholderDescriptor]
     
-    nonisolated private let index: [PlaceholderKey: PlaceholderDescriptor]
-    nonisolated private let fieldPolicies: [PlaceholderKey: PlaceholderFieldPolicy]
+    private let index: [PlaceholderKey: PlaceholderDescriptor]
+    private let fieldPolicies: [PlaceholderKey: PlaceholderFieldPolicy]
     
-    nonisolated var inputDescriptors: [PlaceholderDescriptor] {
+    var inputDescriptors: [PlaceholderDescriptor] {
         allDescriptors
             .filter(\.acceptsUserInput)
             .sortedCanonically()
     }
     
-    nonisolated var extractedDescriptors: [PlaceholderDescriptor] {
+    var extractedDescriptors: [PlaceholderDescriptor] {
         inputDescriptors.filter {
             if case .editable(source: .extracted, inputKind: _) = $0.kind {
                 return true
@@ -47,7 +47,7 @@ struct PlaceholderRegistry: PlaceholderRegistryProtocol, Sendable {
         }
     }
     
-    nonisolated var manualDescriptors: [PlaceholderDescriptor] {
+    var manualDescriptors: [PlaceholderDescriptor] {
         inputDescriptors.filter {
             if case .editable(source: .manual, inputKind: _) = $0.kind {
                 return true
@@ -56,11 +56,11 @@ struct PlaceholderRegistry: PlaceholderRegistryProtocol, Sendable {
         }
     }
     
-    nonisolated var customDescriptors: [PlaceholderDescriptor] {
+    var customDescriptors: [PlaceholderDescriptor] {
         inputDescriptors.filter(\.isUserDefined)
     }
     
-    nonisolated init(customDefinitions: [PlaceholderDescriptor] = []) {
+    init(customDefinitions: [PlaceholderDescriptor] = []) {
         let customDescriptors = customDefinitions
             .filter(\.isUserDefined)
             .filter { $0.section == .custom }
@@ -89,21 +89,21 @@ struct PlaceholderRegistry: PlaceholderRegistryProtocol, Sendable {
         self.fieldPolicies = fieldPolicies
     }
     
-    nonisolated func descriptor(for key: PlaceholderKey) -> PlaceholderDescriptor? {
+    func descriptor(for key: PlaceholderKey) -> PlaceholderDescriptor? {
         index[key]
     }
     
-    nonisolated func contains(_ key: PlaceholderKey) -> Bool {
+    func contains(_ key: PlaceholderKey) -> Bool {
         index[key] != nil
     }
     
-    nonisolated func descriptors(in section: PlaceholderSection) -> [PlaceholderDescriptor] {
+    func descriptors(in section: PlaceholderSection) -> [PlaceholderDescriptor] {
         allDescriptors
             .filter { $0.section == section }
             .sortedCanonically()
     }
     
-    nonisolated func fieldPolicy(for key: PlaceholderKey) -> PlaceholderFieldPolicy {
+    func fieldPolicy(for key: PlaceholderKey) -> PlaceholderFieldPolicy {
         fieldPolicies[key] ?? Self.defaultFieldPolicy
     }
 }
@@ -111,9 +111,9 @@ struct PlaceholderRegistry: PlaceholderRegistryProtocol, Sendable {
 // MARK: - Built-ins
 
 extension PlaceholderRegistry {
-    nonisolated static let defaultFieldPolicy = PlaceholderFieldPolicy()
+    static let defaultFieldPolicy = PlaceholderFieldPolicy()
     
-    nonisolated static func defaultCustomFieldPolicy(
+    static func defaultCustomFieldPolicy(
         for descriptor: PlaceholderDescriptor
     ) -> PlaceholderFieldPolicy {
         switch descriptor.kind {

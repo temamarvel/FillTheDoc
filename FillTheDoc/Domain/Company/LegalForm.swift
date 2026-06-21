@@ -14,7 +14,7 @@ import Foundation
 /// значений, с которым дальше работают валидация, derived placeholders и шаблоны.
 /// Если входное значение не удаётся надёжно свести к одному из поддерживаемых вариантов,
 /// приложение предпочитает `nil`, а не неявное допущение.
-enum LegalForm: String, CaseIterable, Sendable {
+nonisolated enum LegalForm: String, CaseIterable, Sendable {
     case ooo
     case zao
     case ao
@@ -22,9 +22,9 @@ enum LegalForm: String, CaseIterable, Sendable {
     case pao
 }
 
-extension LegalForm {
+nonisolated extension LegalForm {
     /// Краткая форма для шаблонов, UI и JSON-контракта с LLM.
-    nonisolated var shortName: String {
+    var shortName: String {
         switch self {
             case .ooo: return "ООО"
             case .zao: return "ЗАО"
@@ -35,7 +35,7 @@ extension LegalForm {
     }
     
     /// Полная юридическая форма, используемая в более официальных derived-полях.
-    nonisolated var fullName: String {
+    var fullName: String {
         switch self {
             case .ooo:
                 return "Общество с ограниченной ответственностью"
@@ -55,7 +55,7 @@ extension LegalForm {
     ///
     /// Метод intentionally tolerant к написанию и раскладке (`ООО`, `ooo`, полная форма),
     /// но intentionally strict к списку поддерживаемых форм.
-    nonisolated static func parse(_ raw: String) -> LegalForm? {
+    static func parse(_ raw: String) -> LegalForm? {
         let normalized = Normalizers.legalForm(raw)
         
         for form in Self.allCases {
@@ -69,10 +69,10 @@ extension LegalForm {
     }
 }
 
-private extension LegalForm {
+nonisolated private extension LegalForm {
     /// Алиасы нужны, чтобы отделить свободный внешний ввод от canonical enum values.
     /// Эта таблица — фактически словарь нормализации для legal-form domain.
-    nonisolated static func aliases(for form: LegalForm) -> Set<String> {
+    static func aliases(for form: LegalForm) -> Set<String> {
         switch form {
             case .ooo:
                 return [
@@ -112,7 +112,7 @@ private extension LegalForm {
     }
 }
 
-extension LegalForm: Codable {
+nonisolated extension LegalForm: Codable {
     /// При декодировании принимаем строковое значение и нормализуем его через `parse`.
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()

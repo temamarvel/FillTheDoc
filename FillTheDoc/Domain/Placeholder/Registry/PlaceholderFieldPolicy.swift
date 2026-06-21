@@ -20,7 +20,7 @@ nonisolated struct PlaceholderFieldPolicy: Sendable {
     /// Позволяет choice-policy различать `.empty` и `.value("")`.
     let validateFieldValue: (@Sendable (PlaceholderFieldValue) -> FieldIssue?)?
     
-    nonisolated init(
+    init(
         normalize: @escaping FieldNormalizer = { $0.trimmingCharacters(in: .whitespacesAndNewlines) },
         validate: @escaping FieldValidator = { _ in nil },
         validateFieldValue: (@Sendable (PlaceholderFieldValue) -> FieldIssue?)? = nil
